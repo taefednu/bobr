@@ -1,0 +1,78 @@
+/**
+ * Набор движения Bobr — единственный источник длительностей, кривых и пружин.
+ * Компоненты берут переходы отсюда (`useMotion().transitions`), а не пишут числа сами:
+ * так весь продукт двигается одним характером. Правила — скилл `bobr-animation`.
+ *
+ * Два закона:
+ * - Персонаж (Bobr, Хумо) всегда живой: дыхание, моргание, idle — `IDLE`.
+ * - UI, текст и числа приземляются и стоят. Проскок — только у физических вещей
+ *   (карточка, персонаж, кусок лепёшки), никогда у цифр: счётчик, проскочивший
+ *   к 42, показал число, которого не было.
+ */
+import { useMemo } from "react";
+import { useReducedMotion } from "framer-motion";
+
+export type MotionName = "press" | "appear" | "exit" | "panel" | "move" | "count" | "pop";
+
+export type Bezier = readonly [number, number, number, number];
+
+export type FramerTransition =
+  | { type: "spring"; stiffness: number; damping: number; mass: number }
+  | { type: "tween"; duration: number; ease: Bezier };
+
+/** Кривые. `out` — вход UI; `inOut` — перемещение по экрану; `back` — игривый проскок (только физическое). */
+export const EASE = {
+  out: [0.23, 1, 0.32, 1],
+  inOut: [0.77, 0, 0.175, 1],
+  back: [0.34, 1.56, 0.64, 1],
+} as const satisfies Record<string, Bezier>;
+
+const spring = (stiffness: number, damping: number, mass = 1): FramerTransition => ({
+  type: "spring",
+  stiffness,
+  damping,
+  mass,
+});
+const tween = (ms: number, ease: Bezier): FramerTransition => ({ type: "tween", duration: ms / 1000, ease });
+
+/** Именованные движения. press — проскок ~18 %, appear — ~6 %, panel — без раскачки. */
+export const TRANSITIONS: Record<MotionName, FramerTransition> = {
+  press: spring(600, 18, 0.6),
+  appear: spring(380, 26),
+  exit: tween(160, EASE.out),
+  panel: spring(320, 34),
+  move: spring(300, 28),
+  count: tween(700, EASE.out), // числа: без проскока
+  pop: spring(400, 17), // персонаж, награда, кусок лепёшки
+};
+
+/** Цели: насколько сжимается нажатая кнопка, растёт наведённая, из какого масштаба появляется окно (не из 0). */
+export const TARGETS = {
+  pressScale: 0.95,
+  hover: { scale: 1.03, lift: -2 },
+  appearFromScale: 0.9,
+} as const;
+
+/** Idle персонажа: дыхание и моргание. Замер дольше 4 с без моргания читается как «завис». */
+export const IDLE = {
+  floatPx: 6,
+  floatPeriodS: 2.4,
+  blinkMs: 120,
+  blinkEveryS: [2, 4] as const,
+} as const;
+
+/** Наведение только на устройствах с мышью: на касании ложный hover поднимает кнопки. */
+export const HOVER_MEDIA = "(hover: hover) and (pointer: fine)";
+
+/** «Уменьшить движение»: информация на месте, движения нет. */
+export const STILL: FramerTransition = { type: "tween", duration: 0, ease: [0, 0, 1, 1] };
+
+export function useMotion() {
+  const reduced = useReducedMotion() === true;
+  return useMemo(() => {
+    const transitions = reduced
+      ? (Object.fromEntries(Object.keys(TRANSITIONS).map((k) => [k, STILL])) as Record<MotionName, FramerTransition>)
+      : TRANSITIONS;
+    return { reduced, transitions, targets: TARGETS };
+  }, [reduced]);
+}

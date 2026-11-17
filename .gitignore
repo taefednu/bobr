@@ -1,0 +1,26 @@
+!**/glob-import/dir/node_modules
+.DS_Store
+.idea
+*.cpuprofile
+*.local
+*.log
+/.vscode/
+/docs/.vitepress/cache
+dist
+dist-ssr
+explorations
+node_modules
+playground-temp
+temp
+TODOs.md
+.eslintcache
+
+# Bobr
+.env*
+!.env.example
+.next
+*.tsbuildinfo
+next-env.d.ts
+.convex
+.claude/settings.local.json
+/tmp/harvest
