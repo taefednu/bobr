@@ -35,7 +35,7 @@ function subscribe(cb: () => void) {
 
 /** Сервер и гидрация — uz, реальный язык приходит следующим рендером (как useReducedMotionSafe). */
 export function useLang(): Lang {
-  const lang = useSyncExternalStore(subscribe, read, () => "uz");
+  const lang = useSyncExternalStore<Lang>(subscribe, read, () => "uz");
   useEffect(() => {
     document.documentElement.lang = lang; // экранные читалки и переносы — по реальному языку
   }, [lang]);
