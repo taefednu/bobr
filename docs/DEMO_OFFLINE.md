@@ -9,6 +9,8 @@
 | `convex dev --once` в сетевом namespace без сети (`unshare -rn`) с флагом версии | функции задеплоены, exit 0 |
 | То же без `--local-backend-version` | падает: `Failed to fetch latest backend version` |
 | Адрес, который слушает бэкенд | `0.0.0.0:3210` (API) и `0.0.0.0:3211` (HTTP actions) внутри WSL |
+| `npx convex env set DEMO_MODE replay` на анонимном локальном бэкенде | записалось, `env list` показывает |
+| `npm run dev` → `/`, `/lesson`, `/parent` | 200 (с сетью) |
 
 Что не проверено: доступ со второго ноута по Wi‑Fi и запуск Next без сети.
 

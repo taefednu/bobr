@@ -10,6 +10,13 @@ step "tsc (Next)"      npx tsc --noEmit
 step "tsc (convex)"    npx tsc --noEmit -p convex
 step "vitest"          npx vitest run
 # CONVEX_AGENT_MODE=anonymous — локальный бэкенд без логина и без вопросов; </dev/null — не повиснуть на промпте.
-step "convex dev --once" env CONVEX_AGENT_MODE=anonymous timeout 180 npx convex dev --once </dev/null
+# Если `convex dev` уже запущен (порт 3210 занят), --once не стартует второй бэкенд: тогда codegen с tsc,
+# а пуш делает работающий dev — его вывод смотри глазами.
+if (exec 3<>/dev/tcp/127.0.0.1/3210) 2>/dev/null; then
+  echo "convex dev уже запущен — проверяю codegen; ошибки пуша смотри в его терминале"
+  step "convex codegen (dev запущен)" timeout 120 npx convex codegen --typecheck enable </dev/null
+else
+  step "convex dev --once" env CONVEX_AGENT_MODE=anonymous timeout 180 npx convex dev --once </dev/null
+fi
 echo; printf '%s\n' "${summary[@]}"
 exit $fail

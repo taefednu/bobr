@@ -79,10 +79,8 @@ for path in sorted(set(os.environ["STAGED"].splitlines()) | work):
         blob = subprocess.run(["git", "diff", "--cached", "-U0", "--no-color", "--", path], capture_output=True)
     if blob.returncode != 0:
         continue
-    try:
-        diff = blob.stdout.decode("utf-8")
-    except UnicodeDecodeError:
-        continue            # бинарник не читаем
+    # Не пропускаем файл целиком из-за одного не-UTF-8 байта: ключ рядом с ним тоже ищем.
+    diff = blob.stdout.decode("utf-8", errors="replace")
     added, n = [], 0
     for d in diff.splitlines():
         h = re.match(r"@@ -\S+ \+(\d+)", d)
@@ -91,8 +89,6 @@ for path in sorted(set(os.environ["STAGED"].splitlines()) | work):
         if d.startswith("+") and not d.startswith("+++"):
             added.append((n, d[1:])); n += 1
     for n, line in added:
-        if len(line) > 4000:
-            continue
         if BEGIN_KEY.search(line):
             hits.append((path, n, "приватный ключ", ""))
             continue
