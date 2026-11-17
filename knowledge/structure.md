@@ -8,25 +8,33 @@ vitest 5, Playwright 1.64.0 (закреплён под скачанный бра
 
 | Путь | Что | Статус |
 |---|---|---|
-| `convex/schema.ts` | таблицы спеки | заглушка |
+| `convex/schema.ts` | 10 таблиц спеки с индексами (дроби — string) | готово |
 | `convex/turn.ts` | action хода (LLM только здесь) | заглушка |
 | `convex/conductor.ts` | mutations машины состояний | заглушка |
 | `convex/crons.ts` | «дом гаснет», сводка родителю | пустой cronJobs |
 | `lib/fractions/` | parseAnswer, generator, numberCheck, leakDetector | заглушка |
 | `lib/safety/` | preGuard, postChecks, copyCheck, repeatGuard | заглушка |
 | `lib/llm/` | клиент Claude, схемы, llmCache, breaker | заглушка |
-| `lib/planner/`, `lib/houses/`, `lib/content/` | planner, houseMapper, загрузка контента | заглушки |
+| `lib/content/index.ts` | загрузка и проверка `content/graph.json` (пререквизиты, ацикличность) | готово |
+| `lib/planner/`, `lib/houses/` | planner, houseMapper | заглушки |
+| `lib/types.ts` | состояния, уровни, дома, вход хода, zod-схемы спеки (enum без регистра через `ci`) | готово |
+| `lib/config.ts` | модели, таймауты, лимиты, пороги, номера кризиса, DEMO_MODE | готово |
 | `lib/motion.ts` | все пружины и тайминги, `useMotion()` | готово |
 | `lib/utils.ts` | `cn()` | готово |
-| `app/(child)/lesson`, `app/parent` | экраны | заглушки |
-| `app/dev/styleguide` | живой лист дизайн-системы (в проде 404) | готово, v0 |
-| `app/globals.css` | токены DESIGN.md (`@theme static`) | v0 |
-| `content/` | граф, заблуждения, шаблоны, чек-листы, кризис | пусто — см. [[backlog]] |
-| `i18n/uz.json`, `i18n/ru.json` | строки UI | пусто |
-| `tests/` | vitest | пусто |
+| `app/(child)/{goal,diagnose,mahalla,lesson,teach,chat}`, `app/parent`, `app/page.tsx` | экраны, серый каркас без логики (до ок на DESIGN v1) | каркас |
+| `components/skeleton/Shell.tsx` | оболочка каркаса: `Shell`, `AiBadge` (плашка ИИ), `LangSwitch`, `Character`-заглушка | каркас |
+| `lib/i18n.ts` | `useT()`: язык из `localStorage["bobr:lang"]`, uz по умолчанию, гидрация через `useSyncExternalStore` | готово |
+| `components/ui/press-button.tsx` | единственная нажимаемая кнопка v1: ink-уступ из одной MotionValue `y` | v1, ждёт ок |
+| `app/dev/styleguide` | живой лист дизайн-системы (в проде 404); `house.tsx` — дома и плитка-лента | v1, ждёт ок |
+| `app/globals.css` | токены DESIGN.md (`@theme static`), v1: `--stroke-ink*`, `--shadow-well`, `--shadow-drop` | v1 |
+| `content/` | граф (готов, uz — вычитка), заблуждения, шаблоны, чек-листы, кризис | граф есть, остальное пусто — см. [[backlog]] |
+| `i18n/uz.json`, `i18n/ru.json` | строки UI каркаса (ключи совпадают; uz — `_todo` вычитка) | каркас |
+| `tests/` | vitest (`content.test.ts` — граф, схемы) | начат |
 | `scripts/verify.sh` | tsc ×2 + vitest + convex --once | готово |
 | `scripts/ui-check.mjs` | снимки и проверки вёрстки | готово |
 | `scripts/node22.sh` | Node 22 из `.nvmrc` | готово |
+
+**Импорты в `lib/`** — только относительные: Convex бандлит `lib/` из `convex/`, алиас `@/` там не резолвится (проверено пробной функцией 18.11).
 
 ## Команды
 

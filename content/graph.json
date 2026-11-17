@@ -1,1 +1,15 @@
-{}
+{
+  "_todo": "uz titles: вычитка носителем",
+  "topics": [
+    { "id": "N1", "title": { "ru": "Равные доли", "uz": "Teng ulushlar" }, "prereqs": [] },
+    { "id": "N2", "title": { "ru": "Дробь как часть целого", "uz": "Kasr butunning bir qismi sifatida" }, "prereqs": ["N1"] },
+    { "id": "N3", "title": { "ru": "Дробь на прямой", "uz": "Sonlar toʻgʻri chizigʻidagi kasr" }, "prereqs": ["N2"] },
+    { "id": "N4", "title": { "ru": "Сравнение единичных дробей", "uz": "Birlik kasrlarni taqqoslash" }, "prereqs": ["N3"] },
+    { "id": "N5", "title": { "ru": "Эквивалентные дроби", "uz": "Teng qiymatli kasrlar" }, "prereqs": ["N4", "N6"] },
+    { "id": "N6", "title": { "ru": "Кратные и НОК", "uz": "Karralilar va EKUK" }, "prereqs": [] },
+    { "id": "N7", "title": { "ru": "Сравнение дробей с разными знаменателями", "uz": "Maxrajlari turlicha kasrlarni taqqoslash" }, "prereqs": ["N5"] },
+    { "id": "N8", "title": { "ru": "Сложение дробей с одинаковым знаменателем", "uz": "Maxrajlari bir xil kasrlarni qoʻshish" }, "prereqs": ["N2"] },
+    { "id": "N9", "title": { "ru": "Сложение дробей с разными знаменателями", "uz": "Maxrajlari turlicha kasrlarni qoʻshish" }, "prereqs": ["N5", "N8"] },
+    { "id": "N10", "title": { "ru": "Неправильные и смешанные дроби", "uz": "Notoʻgʻri va aralash kasrlar" }, "prereqs": ["N3"] }
+  ]
+}

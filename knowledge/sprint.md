@@ -9,7 +9,13 @@
 
 Ход ночи (автономно):
 - [x] Шаг 1 OpenUI: скилл в `.claude/skills/openui` + `.agents/skills/openui`, правило «только болталка» в `bobr-design`.
-- [ ] Шаг 2 DESIGN v1 · [ ] Этап 0 · [ ] Этап 1 · [ ] Этап 2
+- [ ] Шаг 2 DESIGN v1 (идут правки после design-critic)
+- [x] Этап 0 — каркас. Работает: схема Convex (10 таблиц, пушится), `lib/types.ts` (zod-схемы спеки,
+  enum без регистра), граф N1–N10 с проверкой ацикличности, `lib/config.ts`, серый каркас 8 маршрутов
+  (`/goal /diagnose /mahalla /lesson /teach /chat /parent /`) с плашкой ИИ и переключателем uz/ru.
+  Проверено: `npm run verify` 0 (4/4 PASS), `ui-check` 8 маршрутов × uz/ru — код 0. Отрезано: контента
+  нет (B1), uz-строки ждут носителя. Дальше — этап 1.
+- [ ] Этап 1 · [ ] Этап 2
 
 Ловушки, известные заранее:
 - В `content/` нет `misconceptions.json`, `templates.json`, `checklists.json`, `crisis.json` (владелец их

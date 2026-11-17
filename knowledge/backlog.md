@@ -11,11 +11,11 @@
 - [ ] Ок владельца на дизайн → только потом экраны по дизайну (до этого UI серый)
 
 ## Этап 0 — каркас (`docs/02_BUILD_KICKOFF.md`)
-- [ ] `convex/schema.ts`: все таблицы спеки с индексами, дроби `v.string()`
-- [ ] `lib/types.ts`: состояния, статусы тем, события, zod-схемы (UstozTurn, Judge, BobrTurn, OutputCheck, GoalDialog, GuardResult)
-- [ ] `content/graph.json`: N1–N10, пререквизиты из спеки, названия ru/uz
-- [ ] `lib/config.ts`: модели, таймауты, лимиты болталки, номера кризиса (только 112 подтверждён), `DEMO_MODE`
-- [ ] Скелет UI (серый): Цель, Диагностика, Махалля, Урок, Научи Bobr, Болталка, `/parent`; плашка ИИ на экранах чата
+- [x] `convex/schema.ts`: все таблицы спеки с индексами, дроби `v.string()`
+- [x] `lib/types.ts`: состояния, статусы тем, события, zod-схемы (UstozTurn, Judge, BobrTurn, OutputCheck, GoalDialog, GuardResult)
+- [x] `content/graph.json`: N1–N10, пререквизиты из спеки, названия ru/uz
+- [x] `lib/config.ts`: модели, таймауты, лимиты болталки, номера кризиса (только 112 подтверждён), `DEMO_MODE`
+- [x] Скелет UI (серый): Цель, Диагностика, Махалля, Урок, Научи Bobr, Болталка, `/parent`; плашка ИИ на экранах чата
 
 ## Этап 1 — детерминированное ядро + тесты
 - [ ] parseAnswer → generator → leakDetector → numberCheck → copyCheck → repeatGuard → planner → houseMapper
