@@ -11,7 +11,7 @@
  */
 import { useMemo, useSyncExternalStore } from "react";
 
-export type MotionName = "press" | "appear" | "exit" | "panel" | "move" | "count" | "pop";
+export type MotionName = "press" | "appear" | "exit" | "panel" | "move" | "count" | "pop" | "punch";
 
 export type Bezier = readonly [number, number, number, number];
 
@@ -34,21 +34,26 @@ const spring = (stiffness: number, damping: number, mass = 1): FramerTransition 
 });
 const tween = (ms: number, ease: Bezier): FramerTransition => ({ type: "tween", duration: ms / 1000, ease });
 
-/** Именованные движения. press — проскок ~18 %, appear — ~6 %, panel — без раскачки. */
+/** Именованные движения. press — проседает почти мгновенно (< 80 мс) и чуть подпрыгивает при отпускании,
+ *  punch — быстрый удар масштаба, оседает за ~250 мс (только физическое), appear — ~6 %, panel — без раскачки. */
 export const TRANSITIONS: Record<MotionName, FramerTransition> = {
-  press: spring(600, 18, 0.6),
+  press: spring(1400, 26, 0.6),
   appear: spring(380, 26),
   exit: tween(160, EASE.out),
   panel: spring(320, 34),
   move: spring(300, 28),
   count: tween(700, EASE.out), // числа: без проскока
   pop: spring(400, 17), // персонаж, награда, кусок лепёшки
+  punch: spring(700, 18, 0.6), // поле ответа, физический предмет; не цифры
 };
 
-/** Цели: насколько сжимается нажатая кнопка, растёт наведённая, из какого масштаба появляется окно (не из 0). */
+/** Цели: выступ кнопки в покое и насколько она проседает при нажатии (выступ = ledgePx − y, DESIGN.md §4),
+ *  подъём при наведении, масштаб удара, масштаб появления окна (не из 0). */
 export const TARGETS = {
-  pressScale: 0.95,
-  hover: { scale: 1.03, lift: -2 },
+  ledgePx: 5,
+  pressDepthPx: 4,
+  hover: { lift: -1 },
+  punchScale: 1.08,
   appearFromScale: 0.9,
 } as const;
 

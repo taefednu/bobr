@@ -21,7 +21,7 @@ description: Motion and character animation in Bobr — 2.5D/3D look (not Duolin
 ## Стиль: 2.5D/3D, не Duolingo
 
 - Объём: мягкие тени, rim-light, один источник света на всю сцену (сверху-слева): верх светлый,
-  левая грань средняя, правая тёмная. Плоские заливки и толстые обводки — это Duolingo, не мы.
+  левая грань средняя, правая тёмная. С v1 есть толстая ink-обводка и продавливаемые кнопки (`DESIGN.md` §4) — но плоская заливка и уступ цвета заливки остаются Duolingo, не мы.
 - Без магазинов, монет, HP, конфетти-дождя. Награда — оживший дом и шкала уровня Bobr.
 - Цвета кусков лепёшки — одинаковые L и C в OKLCH, разный H; градиенты `in oklch`.
 
@@ -44,7 +44,7 @@ description: Motion and character animation in Bobr — 2.5D/3D look (not Duolin
 
 ## UI-движение
 
-- Нажатие — `TARGETS.pressScale` (0.95) с `TRANSITIONS.press`. Появление — из `TARGETS.appearFromScale`
+- Нажатие — кнопка уходит вниз на `TARGETS.pressDepthPx`, ink-уступ сжимается (`ledge = ledgePx − y`, одна MotionValue), `TRANSITIONS.press`; компонент `components/ui/press-button.tsx`. Верный ответ — «панч» (`TRANSITIONS.punch`, `TARGETS.punchScale`), только у физических вещей. Появление — из `TARGETS.appearFromScale`
   (0.9) + opacity, никогда из `scale(0)`. Выход ≈ 75 % входа, без пружины (`TRANSITIONS.exit`).
 - Только `transform` и `opacity`. Hover — только под `HOVER_MEDIA`.
 - Список: шаг 40–80 мс, общий въезд ≤ 600–800 мс, ввод не блокируется.

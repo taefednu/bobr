@@ -7,7 +7,7 @@
 - [x] Харнесс: Convex, Next, скиллы, агенты, хуки, verify, ui-check — коммиты `ccd1fd3…a4d9062`
 - [x] База знаний `knowledge/`, роли моделей
 - [x] OpenUI (thesysdev/openui, MIT): скилл в `.claude/skills` + `.agents/skills`, правило в `bobr-design` — только болталка
-- [ ] DESIGN.md v1 (сочнее: обводка, продавливаемые кнопки, дерзкий Bobr, лёгкий узбекский колорит) + `/dev/styleguide`
+- [x] DESIGN.md v1 (сочнее: обводка, продавливаемые кнопки, дерзкий Bobr, лёгкий узбекский колорит) + `/dev/styleguide`
 - [ ] Ок владельца на дизайн → только потом экраны по дизайну (до этого UI серый)
 
 ## Этап 0 — каркас (`docs/02_BUILD_KICKOFF.md`)

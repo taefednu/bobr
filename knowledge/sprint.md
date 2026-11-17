@@ -9,7 +9,7 @@
 
 Ход ночи (автономно):
 - [x] Шаг 1 OpenUI: скилл в `.claude/skills/openui` + `.agents/skills/openui`, правило «только болталка» в `bobr-design`.
-- [ ] Шаг 2 DESIGN v1 (идут правки после design-critic)
+- [x] Шаг 2 DESIGN v1: `DESIGN.md`/`PRODUCT.md`/скиллы, `press-button`, styleguide; design-critic → блокер (плоская лепёшка) и 4 правки закрыты. Снимки — `docs/design/v1/`.
 - [x] Этап 0 — каркас. Работает: схема Convex (10 таблиц, пушится), `lib/types.ts` (zod-схемы спеки,
   enum без регистра), граф N1–N10 с проверкой ацикличности, `lib/config.ts`, серый каркас 8 маршрутов
   (`/goal /diagnose /mahalla /lesson /teach /chat /parent /`) с плашкой ИИ и переключателем uz/ru.

@@ -14,20 +14,22 @@ The job: find the real gap in fractions (often in an earlier grade's topic), clo
 ## Product Purpose
 
 Bobr is an AI math tutor for fractions, built for the Ministry of Education track "find knowledge gaps and build an individual path".
-The child does not level up their own account. They teach Bobr, a teenage beaver who is sweet and hopelessly dim. Ustoz, a Humo bird, guides the child with questions and never gives the answer away.
+The child does not level up their own account. They teach Bobr, a cheeky teenage beaver who is sure he is a genius and is hopelessly dim. Ustoz, a Humo bird, guides the child with questions and never gives the answer away.
 Progress is a mahalla (Uzbek neighbourhood): each topic is a house that goes from empty, to scaffold, to built, to alive (the child taught Bobr), and dims if not revisited for 7 days.
 
 Success: the child solves 3 tasks in a row without hints, then explains the idea well enough that Bobr solves one too. The parent's house lights up on their own screen at that same moment.
 
 ## Brand Personality
 
-Warm, funny, patient. Three words: **cozy, curious, alive**.
-Bobr is the comic relief, clumsy and proud of every small win. Ustoz is calm and a little wry. The child is the smart one in the room.
+Warm, funny, cheeky. Three words: **juicy, curious, alive**.
+Bobr is the comic relief: cocky, loud, overconfident, wrong with full conviction, and proud of every small win. He brags ("easy, it's 2/5!"), gets it wrong, blames the bread, and is genuinely delighted when the child shows him how. Funny, not sweet; a 12-year-old should find him a bit ridiculous, not babyish.
+**The line Bobr never crosses:** his cheek is aimed at himself, the task and the world, never at the child, the child's mistake or the child's speed. No mockery, no sarcasm about a wrong answer, no "even you got it". When the child is wrong, Bobr is wrong-er or curious; when the child is right, Bobr is impressed.
+Ustoz is calm and a little wry. The child is the smart one in the room.
 Emotional goal: "I'm the one who gets it": confidence, not reward-chasing.
 
 ## Anti-references
 
-- Duolingo: flat vector, thick outlines, an owl that guilt-trips, streak anxiety, push-notification nagging.
+- Duolingo: flat vector fills, a ledge in a darker shade of the button colour, owl-green, an owl that guilt-trips, streak anxiety, push-notification nagging. (v1 does use a thick ink outline and press-down keys, but as clay on an ink base with a warm light: see `DESIGN.md` §4.)
 - Gamified stores: coins, gems, HP, shops, loot boxes, leaderboards.
 - Babyish edtech: primary-colour rainbow, Comic Sans energy, cartoon clip-art, talking down.
 - Generic AI SaaS: purple gradients, glassmorphism dashboards, bento grids, centered hero with gradient text.
