@@ -190,6 +190,10 @@ function createRequestHandler({ detectScript, livePath }) {
     if ((origin && !LOCAL.test(origin)) || !['localhost', '127.0.0.1', '[::1]'].includes(host)) {
       res.writeHead(403); res.end('Forbidden'); return;
     }
+    // A cross-site page can still load /live.js via a plain <script> (no Origin header) and read the token,
+    // or fire simple GET/POST at /stop, /poll. Browsers mark those Sec-Fetch-Site: cross-site; the real dev page
+    // (localhost:PORT from localhost:3000) is same-site, and CLI clients send no Sec-Fetch-* at all.
+    if (req.headers['sec-fetch-site'] === 'cross-site') { res.writeHead(403); res.end('Forbidden'); return; }
     if (origin) res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
