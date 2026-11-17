@@ -26,7 +26,8 @@ npm run verify
 | LLM-шаг | zod-схема + postChecks + запасной путь при `parsed_output == null`; REPLAY-ключ без ПДн |
 | `lib/safety`, guard, outputCheck, CRISIS | агент `safety-redteam`: критические 30/30, ложных кризисов 0/6 |
 | Строки UI | ключ в `uz.json` и `ru.json` (проверка — скилл `bobr-i18n`) |
-| Видимая правка | снимок страницы 1280 и 390 px, посмотреть глазами вопросом «что здесь сломано» |
+| Видимая правка | `npm run ui-check -- <route> --full` (+ `--lang ru`, `--reduced-motion`) → код 0, PNG открыть глазами вопросом «что здесь сломано»; или агент `ui-verifier` |
+| Новый экран / заметная переделка | агент `design-critic` или `/design-pass`; по макету — `task-design-ref-match` с таблицей Δ % |
 | Поток (клик → результат) | настоящий клик и видимое следствие, не «код выглядит правильно» |
 | Convex-функции | `convex dev --once` без ошибок; action не пишет в БД напрямую |
 

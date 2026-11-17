@@ -1,1 +1,80 @@
-@import "tailwindcss";
+/* Токены Bobr. Источник имён и смысла — DESIGN.md (v0, ждёт утверждения владельцем).
+   OKLCH — канон; hex-эквиваленты в DESIGN.md. Новый цвет — сюда с именем, не hex в компоненте. */
+@import "tailwindcss" source(none);
+/* Tailwind сканирует только код продукта: в .claude/ и .agents/ лежат примеры скиллов с чужими классами. */
+@source "../app";
+@source "../lib";
+@source "../components";
+
+/* static: все токены попадают в CSS, даже если ни один класс их не использует — SVG и style={{}} читают var() напрямую. */
+@theme static {
+  --color-sand: oklch(96.5% 0.018 80);
+  --color-paper: oklch(99% 0.008 85);
+  --color-clay-100: oklch(92% 0.03 70);
+  --color-ink: oklch(27% 0.035 45);
+  --color-ink-muted: oklch(47% 0.03 50);
+  --color-lazuli: oklch(50% 0.115 245);
+  --color-lazuli-deep: oklch(40% 0.1 250);
+  --color-tile: oklch(68% 0.11 205);
+  --color-apricot: oklch(78% 0.14 62);
+  --color-non: oklch(70% 0.12 68);
+  --color-terracotta: oklch(56% 0.14 38);
+  --color-lamp: oklch(86% 0.15 88);
+  --color-garden: oklch(66% 0.13 150);
+  --color-dusk: oklch(62% 0.03 260);
+  --color-alert: oklch(55% 0.19 27);
+  --color-pie-1: oklch(74% 0.13 62);
+  --color-pie-2: oklch(74% 0.13 150);
+  --color-pie-3: oklch(74% 0.13 220);
+  --color-pie-4: oklch(74% 0.13 100);
+  --color-pie-5: oklch(74% 0.12 255);
+  --color-pie-6: oklch(74% 0.13 20);
+
+  --font-display: "Unbounded Variable", system-ui, sans-serif;
+  --font-sans: "Onest Variable", system-ui, sans-serif;
+
+  --text-display: clamp(1.75rem, 4vw, 2.5rem);
+  --text-display--line-height: 1.1;
+  --text-title: 1.375rem;
+  --text-title--line-height: 1.2;
+  --text-numeral: 2.25rem;
+  --text-numeral--line-height: 1;
+  --text-body: 1.0625rem;
+  --text-body--line-height: 1.5;
+  --text-label: 0.9375rem;
+  --text-label--line-height: 1.3;
+
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+
+  /* Свет сверху-слева, тени тонированы цветом ink — DESIGN.md §4. */
+  --shadow-rest: inset 0 1px 0 oklch(100% 0 0 / 0.7), 0 6px 16px -8px oklch(27% 0.035 45 / 0.25);
+  --shadow-lift: inset 0 1px 0 oklch(100% 0 0 / 0.7), 0 14px 28px -12px oklch(27% 0.035 45 / 0.3);
+  --shadow-press: inset 0 1px 0 oklch(100% 0 0 / 0.5), 0 3px 8px -6px oklch(27% 0.035 45 / 0.3);
+  --shadow-clay: inset 0 2px 0 oklch(100% 0 0 / 0.45), inset 0 -3px 0 oklch(27% 0.035 45 / 0.12);
+}
+
+html {
+  background: var(--color-sand);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 100%;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  min-height: 100dvh;
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-lazuli);
+  outline-offset: 2px;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums lining-nums;
+}

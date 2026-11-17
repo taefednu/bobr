@@ -24,3 +24,4 @@ next-env.d.ts
 .convex
 .claude/settings.local.json
 /tmp/harvest
+.ui-check

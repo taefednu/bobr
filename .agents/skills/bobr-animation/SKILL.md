@@ -5,9 +5,10 @@ description: Motion and character animation in Bobr — 2.5D/3D look (not Duolin
 
 # Анимация Bobr
 
-Числа — только из `lib/motion.ts` (`useMotion()`, `TRANSITIONS`, `TARGETS`, `IDLE`, `EASE`). Новое число
-нужно — добавь туда с именем, не пиши литерал в компоненте. Общая полировка UI — скиллы
-`emil-design-eng`, `animate-react`.
+Сначала скилл `bobr-design` (старшинство и бан-лист). Числа — только из `lib/motion.ts` (`useMotion()`,
+`TRANSITIONS`, `TARGETS`, `IDLE`, `EASE`). Новое число нужно — добавь туда с именем, не пиши литерал в
+компоненте. Персонажи — `bobr-mascot` и `character-animation`; общая UI-анимация — `animate`,
+`animate-react`, `emil-design-eng`, `animation-principles`.
 
 ## Два закона
 
@@ -50,21 +51,15 @@ description: Motion and character animation in Bobr — 2.5D/3D look (not Duolin
 - Ожидание ответа LLM: анимация ожидания стартует < 150 мс, потом компонент, потом текст «печатной машинкой».
 - Один «вау» на экран: оживший дом у родителя в момент, когда ребёнок научил Bobr.
 - `prefers-reduced-motion`: `useMotion()` отдаёт мгновенные переходы — информация на месте, движения нет;
-  idle персонажа тоже выключить.
+  idle персонажа тоже выключить. Флаг брать из `useMotion().reduced` / `useReducedMotionSafe()`, **не**
+  `useReducedMotion` из framer: тот роняет гидрацию, если от флага зависит разметка (поймано ui-check).
 - Анимация `transform` на элементе, который центрируется `translate(-50%)`, ломает центрирование —
   скилл `prevent-css-centering-animation`.
 
-## Генерация поз (Codex)
+## Генерация поз
 
-Из папки, куда класть файл, промпт **до** `-i` (флаг жадный и съедает промпт):
+Позы и любые ассеты персонажей — скилл `bobr-mascot` (Codex по образцу, проверка альфа-канала, показ владельцу).
 
-```bash
-codex exec --skip-git-repo-check --sandbox workspace-write "Generate an image: the beaver mascot Bobr from the reference image, in EXACTLY the same style: soft 3D clay render, rim light from top-left, same proportions, colours and teeth. Pose: <что делает, что в руках, наклон>. Full body, centered, nothing cropped. No extra limbs. Fully transparent background (PNG with alpha channel, no backdrop, no shadow plate). Save it as <pose>.png in the current directory." -i <ref>.png
-```
+## Проверка
 
-- Без референса выйдет другой бобр. Референс — первая утверждённая поза.
-- После: `python3 -c "from PIL import Image; im=Image.open('<pose>.png'); print(im.mode, im.getpixel((0,0)))"`
-  → `RGBA` и альфа угла 0. Не прозрачный — скилл `task-local-bg-removal`.
-- Проверь глазами: стиль как у референса, фигура целиком, анатомия не уехала. Максимум 2 повтора с
-  уточнённым промптом, дальше — показать владельцу. Одна картинка ≈ 1 % пятичасового лимита Codex.
-- Удали пустые `.git .codex .agents`, которые codex оставляет в папке.
+`npm run ui-check -- <route>` и `--reduced-motion`; живой пример всех пружин — `/dev/styleguide`.

@@ -9,8 +9,7 @@
  *   (карточка, персонаж, кусок лепёшки), никогда у цифр: счётчик, проскочивший
  *   к 42, показал число, которого не было.
  */
-import { useMemo } from "react";
-import { useReducedMotion } from "framer-motion";
+import { useMemo, useSyncExternalStore } from "react";
 
 export type MotionName = "press" | "appear" | "exit" | "panel" | "move" | "count" | "pop";
 
@@ -67,8 +66,22 @@ export const HOVER_MEDIA = "(hover: hover) and (pointer: fine)";
 /** «Уменьшить движение»: информация на месте, движения нет. */
 export const STILL: FramerTransition = { type: "tween", duration: 0, ease: [0, 0, 1, 1] };
 
+const REDUCED_QUERY = "(prefers-reduced-motion: reduce)";
+function subscribeReduced(onChange: () => void) {
+  const q = window.matchMedia(REDUCED_QUERY);
+  q.addEventListener("change", onChange);
+  return () => q.removeEventListener("change", onChange);
+}
+
+/** «Уменьшить движение». Не `useReducedMotion` из framer: тот на клиенте с первого рендера отдаёт
+ *  true, сервер — false, и разметка, зависящая от флага, роняет гидрацию. Здесь гидрация идёт со
+ *  значением сервера (false), реальное приходит следующим рендером. */
+export function useReducedMotionSafe(): boolean {
+  return useSyncExternalStore(subscribeReduced, () => window.matchMedia(REDUCED_QUERY).matches, () => false);
+}
+
 export function useMotion() {
-  const reduced = useReducedMotion() === true;
+  const reduced = useReducedMotionSafe();
   return useMemo(() => {
     const transitions = reduced
       ? (Object.fromEntries(Object.keys(TRANSITIONS).map((k) => [k, STILL])) as Record<MotionName, FramerTransition>)
