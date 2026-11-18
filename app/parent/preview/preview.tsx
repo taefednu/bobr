@@ -21,20 +21,21 @@ export default function Preview() {
     recentEventsLimited: false,
   };
   const data: DashboardData = {
-    parent: { firstName: null, lang, goal: "test_soon", testDate: "2026-11-21" },
+    parent: { firstName: null, lang, goal: "test_soon", testDate: "2026-11-21", notifications: { taughtBobr: true, dailySummary: true, forgotten: true }, pausedUntil: null },
     children: [
       {
         displayName: "Demo 1", mahalla,
         learningSupport,
-        topics: mahalla.filter((topic) => topic.state !== "empty").map((topic) => ({ topic: topic.topic, title: topic.title, level: topic.state === "alive" ? "taught_bobr" : topic.state === "built" ? "solved_self" : "gap" })),
+        topics: mahalla.filter((topic) => topic.state !== "empty").map((topic) => ({ topic: topic.topic, title: topic.title, level: topic.state === "alive" ? "taught_bobr" : topic.state === "built" ? "solved_self" : "gap", solvedSelfAt: null, taughtAt: null })),
+        mistakes: [],
         plan: { order: ["N8", "N6", "N5", "N9"], days: [
           { date: "2026-11-18", items: [{ topic: "N8", kind: "new" }, { topic: "N6", kind: "new" }] },
           { date: "2026-11-19", items: [{ topic: "N5", kind: "new" }, { topic: "N9", kind: "new" }] },
           { date: "2026-11-20", items: [{ topic: "N9", kind: "mixed_check" }] },
         ] },
-        week: { solvedSelf: 3, taughtBobr: 2, newTopics: mahalla.slice(0, 2).map(({ topic, title }) => ({ topic, title })), lastActive: timestamp, socratic: { independentlySolved: 1, assistedSolved: 1 } },
+        week: { solvedSelf: 3, taughtBobr: 2, newTopics: mahalla.slice(0, 2).map(({ topic, title }) => ({ topic, title })), lastActive: timestamp, socratic: { independentlySolved: 1, assistedSolved: 1 }, minutes: 0, activeDays: 0, minutesByDay: [], minutesLimited: false },
       },
-      { displayName: "Demo 2", mahalla: mahalla.map((topic) => ({ ...topic, state: "empty" })), topics: [], plan: { order: [], days: [] }, week: { solvedSelf: 0, taughtBobr: 0, newTopics: [], lastActive: null, socratic: null }, learningSupport: { ...learningSupport, topics: [], recentEvents: [] } },
+      { displayName: "Demo 2", mahalla: mahalla.map((topic) => ({ ...topic, state: "empty" })), topics: [], mistakes: [], plan: { order: [], days: [] }, week: { solvedSelf: 0, taughtBobr: 0, newTopics: [], lastActive: null, socratic: null, minutes: 0, activeDays: 0, minutesByDay: [], minutesLimited: false }, learningSupport: { ...learningSupport, topics: [], recentEvents: [] } },
     ],
   };
   return <ParentFrame><ParentDashboard data={data} preview /></ParentFrame>;

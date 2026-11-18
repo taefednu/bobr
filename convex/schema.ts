@@ -36,8 +36,8 @@ export default defineSchema({
     stateBeforeCrisis: v.optional(convState),
     currentTopic: v.optional(topicId),
     // ДЕТСКИЕ ПДн (противоречие с правилом «ПДн не в БД», см. docs/specs/API_FOR_BOT.md): имя, которое родитель ввёл
-    // в боте. Читают только функции родителя (parent.dashboard, notify* в outbox). НИКОГДА не в промпты LLM, turns,
-    // llmCache и логи — это держит tests/displayNameGuard.test.ts.
+    // в боте. Читают функции родителя (parent.dashboard, notify* в outbox) и profile:view (показ самому ребёнку).
+    // НИКОГДА не в промпты LLM, turns, llmCache и логи — это держит tests/displayNameGuard.test.ts.
     displayName: v.optional(v.string()),
     grade: v.optional(v.number()),
     chatBlockedUntil: v.optional(v.number()), // ms; CRISIS блокирует только болталку на 24 ч
@@ -80,6 +80,7 @@ export default defineSchema({
       })),
       hintButton: v.boolean(),
     })),
+    createRequestId: v.optional(v.string()), // ключ идемпотентности students.create: бот повторяет его при неясном исходе сети
   }).index("by_parent", ["parentId"]),
 
   // Учебная сессия стабильна при новом токене устройства/чате. Сырых ответов здесь нет.
@@ -185,6 +186,10 @@ export default defineSchema({
     consent: v.optional(v.boolean()), // родитель принял условия в боте
     goal: v.optional(goal),
     testDate: v.optional(v.string()), // ISO "YYYY-MM-DD"
+    consentAt: v.optional(v.number()), // ms, когда родитель принял условия
+    // настройки бота и Mini App; нет поля = все включены
+    notifications: v.optional(v.object({ taughtBobr: v.boolean(), dailySummary: v.boolean(), forgotten: v.boolean() })),
+    pausedUntil: v.optional(v.number()), // ms; пауза несрочных пушей, кризис её игнорирует
   })
     .index("by_link_code", ["linkCode"])
     .index("by_telegram_chat", ["telegramChatId"])
@@ -201,13 +206,13 @@ export default defineSchema({
     studentId: v.id("students"),
     expiresAt: v.number(),
     usedAt: v.optional(v.number()),
-  }).index("by_code", ["code"]),
+  }).index("by_code", ["code"]).index("by_student", ["studentId"]),
 
   // Очередь сообщений родителю; бот забирает опросом и шлёт сам. Текст без цитат ребёнка.
   outbox: defineTable({
     parentId: v.id("parents"),
     chatId: v.string(),
-    kind: v.union(v.literal("taught_bobr"), v.literal("crisis")),
+    kind: v.union(v.literal("taught_bobr"), v.literal("crisis"), v.literal("daily_summary"), v.literal("forgotten")),
     text: v.string(),
     createdAt: v.number(),
     sentAt: v.optional(v.number()),
@@ -218,7 +223,8 @@ export default defineSchema({
     dedupeKey: v.optional(v.string()),
   })
     .index("by_sent_and_created", ["sentAt", "createdAt"])
-    .index("by_parent_and_dedupe_and_sent", ["parentId", "dedupeKey", "sentAt"]),
+    .index("by_parent_and_dedupe_and_sent", ["parentId", "dedupeKey", "sentAt"])
+    .index("by_kind_and_sent_and_created", ["kind", "sentAt", "createdAt"]),
 
   // Сессии ребёнка (SPEC_SYSTEM §3–4): токен в localStorage устройства, идёт в каждую детскую функцию.
   // kind "parent" зарезервирован ТЗ; сессии Mini App пока живут в parentSessions.
@@ -227,11 +233,11 @@ export default defineSchema({
     kind: v.union(v.literal("child"), v.literal("parent")),
     studentId: v.optional(v.id("students")),
     expiresAt: v.number(),
-  }).index("by_token", ["token"]),
+  }).index("by_token", ["token"]).index("by_student", ["studentId"]),
 
   // Сессии Mini App (из parentLogin). 7 дней.
   parentSessions: defineTable({ parentId: v.id("parents"), token: v.string(), expiresAt: v.number() })
-    .index("by_token", ["token"]),
+    .index("by_token", ["token"]).index("by_parent", ["parentId"]),
 
   // Контент из content/ (граф, шаблоны, заблуждения), загруженный в БД. TODO(spec): форма data.
   content: defineTable({

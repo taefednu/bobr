@@ -2,14 +2,15 @@
 // Писатели — обычные функции (enqueue*), чтобы вызывать их внутри чужих мутаций без под-транзакций.
 import { v } from "convex/values";
 import { graph } from "../lib/content";
-import { CRISIS_DEDUPE_STALE_MS, crisisDedupeKey, crisisPushSuppressed, crisisRouting, parentNotifyDecision } from "../lib/safety/crisis";
-import { crisisText, taughtBobrText } from "../lib/telegram/texts";
+import { ABUSE_LOOKUP_BOUND, CRISIS_DEDUPE_STALE_MS, crisisDedupeKey, crisisPushSuppressed, crisisRouting, parentNotifyDecision, priorAbuseFrom } from "../lib/safety/crisis";
+import { kindEnabled, NON_CRISIS_KINDS, planDigest, selectDeliverable, tashkentDayStart } from "../lib/telegram/delivery";
+import { crisisText, dailySummaryText, forgottenText, taughtBobrText } from "../lib/telegram/texts";
 import type { GuardCategory, TopicId } from "../lib/types";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { internalMutation, mutation, type MutationCtx, query } from "./_generated/server";
 import { assertBot } from "./botAuth";
 
-type Kind = "taught_bobr" | "crisis";
+type Kind = "taught_bobr" | "crisis" | "daily_summary" | "forgotten";
 
 /** Кладёт сообщение каждому родителю ребёнка, у которого есть чат. */
 async function enqueue(
@@ -21,6 +22,7 @@ async function enqueue(
   for (const l of links) {
     const p = await ctx.db.get("parents", l.parentId);
     if (!p?.telegramChatId) continue;
+    if (!crisis && !kindEnabled(p.notifications, kind as "taught_bobr")) continue; // настройки родителя; кризис их игнорирует
     let extra = {};
     if (crisis) {
       const dedupeKey = crisisDedupeKey(studentId, crisis.category);
@@ -69,14 +71,71 @@ export const notifyTaughtBobr = internalMutation({
   },
 });
 
+const listRow = v.object({
+  id: v.id("outbox"), chatId: v.string(), kind: v.string(), text: v.string(), createdAt: v.number(),
+  category: v.optional(v.string()), urgent: v.optional(v.boolean()),
+});
+
+/** Сначала все неотправленные кризисы (без задержки, лимитов, тихих часов и паузы), потом несрочные, прошедшие
+ *  selectDeliverable (тихие часы 21–08 Ташкент, 1 на родителя в сутки, пауза и настройки, нет ABUSE_HOME у ребёнка).
+ *  Бот шлёт то, что получил; задержанное остаётся неотправленным. */
 export const listUnsent = query({
   args: { botSecret: v.string(), limit: v.number() },
-  returns: v.array(v.object({ id: v.id("outbox"), chatId: v.string(), kind: v.string(), text: v.string(), createdAt: v.number() })),
+  returns: v.array(listRow),
   handler: async (ctx, { botSecret, limit }) => {
     assertBot(botSecret);
-    const rows = await ctx.db.query("outbox").withIndex("by_sent_and_created", (q) => q.eq("sentAt", undefined))
-      .order("asc").take(Math.max(1, Math.min(100, Math.floor(limit))));
-    return rows.map((r) => ({ id: r._id, chatId: r.chatId, kind: r.kind, text: r.text, createdAt: r.createdAt }));
+    const n = Math.max(1, Math.min(100, Math.floor(limit)));
+    const now = Date.now();
+    const crisis = await ctx.db.query("outbox").withIndex("by_kind_and_sent_and_created", (q) => q.eq("kind", "crisis").eq("sentAt", undefined)).take(n);
+    const out = crisis.map((r) => ({ id: r._id, chatId: r.chatId, kind: r.kind, text: r.text, createdAt: r.createdAt, category: r.category, urgent: r.urgent }));
+    if (out.length >= n) return out;
+
+    // ponytail: по 100 неотправленных каждого вида; если их больше (пауза/настройки у многих), хвост ждёт. Индекса по родителю нет.
+    const pending = [];
+    const sentToday = new Set<string>();
+    const dayStart = tashkentDayStart(now);
+    for (const kind of NON_CRISIS_KINDS) {
+      pending.push(...await ctx.db.query("outbox").withIndex("by_kind_and_sent_and_created", (q) => q.eq("kind", kind).eq("sentAt", undefined)).take(100));
+      for (const r of await ctx.db.query("outbox").withIndex("by_kind_and_sent_and_created", (q) => q.eq("kind", kind).gte("sentAt", dayStart)).take(500)) sentToday.add(r.parentId);
+    }
+    pending.sort((a, b) => a.createdAt - b.createdAt);
+    const parents = new Map<string, Doc<"parents"> | undefined>();
+    const abuse = new Set<string>();
+    for (const r of pending) {
+      if (!parents.has(r.parentId)) parents.set(r.parentId, (await ctx.db.get("parents", r.parentId)) ?? undefined);
+      if (r.studentId && !abuse.has(r.studentId)) {
+        const rows = await ctx.db.query("reviewQueue").withIndex("by_student_and_category", (q) => q.eq("studentId", r.studentId!).eq("category", "ABUSE_HOME")).order("desc").take(ABUSE_LOOKUP_BOUND);
+        if (priorAbuseFrom(rows, now)) abuse.add(r.studentId);
+      }
+    }
+    const ok = selectDeliverable({ rows: pending, now, limit: n - out.length, sentTodayParents: sentToday, parents, abuseStudents: abuse });
+    return [...out, ...ok.map((r) => ({ id: r._id, chatId: r.chatId, kind: r.kind, text: r.text, createdAt: r.createdAt, category: r.category, urgent: r.urgent }))];
+  },
+});
+
+/** Раз в сутки (крон): сводка за сутки и «давно не заходил(а)». Идемпотентно: ключ dedupeKey на родителя.
+ *  ABUSE_HOME у ребёнка → ничего. ponytail: до 500 связей за запуск; больше — пагинация. */
+export const produceDigests = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const now = Date.now();
+    const links = await ctx.db.query("parentLinks").take(500);
+    for (const l of links) {
+      const p = await ctx.db.get("parents", l.parentId);
+      const s = await ctx.db.get("students", l.studentId);
+      if (!p?.telegramChatId || !s) continue;
+      const abuseRows = await ctx.db.query("reviewQueue").withIndex("by_student_and_category", (q) => q.eq("studentId", s._id).eq("category", "ABUSE_HOME")).order("desc").take(ABUSE_LOOKUP_BOUND);
+      if (priorAbuseFrom(abuseRows, now)) continue;
+      const topics = await ctx.db.query("topicStatus").withIndex("by_student_and_topic", (q) => q.eq("studentId", s._id)).take(20);
+      const d = planDigest({ studentId: s._id, now, notifications: p.notifications, existingKeys: new Set(), topics });
+      if (!d) continue;
+      const dup = await ctx.db.query("outbox").withIndex("by_parent_and_dedupe_and_sent", (q) => q.eq("parentId", p._id).eq("dedupeKey", d.dedupeKey)).first();
+      if (dup) continue; // повторный запуск крона
+      const text = d.kind === "daily_summary" ? dailySummaryText(p.lang, d.solved, d.taught, s.displayName) : forgottenText(p.lang, d.dimmed, s.displayName);
+      await ctx.db.insert("outbox", { parentId: p._id, chatId: p.telegramChatId, kind: d.kind, text, createdAt: now, studentId: s._id, dedupeKey: d.dedupeKey });
+    }
+    return null;
   },
 });
 

@@ -23,3 +23,16 @@ export function crisisText(lang: Lang, urgent: boolean): string {
     ? `Shoshilinch: dars paytida Bobr bolaga qiyin boʻlayotganini sezdi. Iltimos, bugunoq u bilan xotirjam gaplashing. Xavf boʻlsa, ${num} ga qoʻngʻiroq qiling.`
     : "Bobr bolaning suhbatida gaplashishga arziydigan narsani sezdi. Iltimos, u bilan xotirjam gaplashib oling.";
 }
+
+/** Сводка за сутки: только числа и имя, без цитат ребёнка. */
+export function dailySummaryText(lang: Lang, solved: number, taught: number, name?: string): string {
+  return lang === "ru"
+    ? `${who(lang, name)} за сутки: сам решил(а) тем — ${solved}, научил(а) Bobr — ${taught}. Подробности в сводке.`
+    : `${who(lang, name)} bir kunda: oʻzi hal qilgan mavzular — ${solved}, Bobr'ga oʻrgatilgan — ${taught}. Batafsil hisobotda.`; // TODO: вычитка носителем
+}
+
+export function forgottenText(lang: Lang, dimmed: number, name?: string): string {
+  return lang === "ru"
+    ? `${who(lang, name)} давно не заходил(а): домов, которые гаснут, — ${dimmed}. Короткое повторение вернёт им свет.`
+    : `${who(lang, name)} anchadan beri kirmadi: soʻna boshlagan uylar — ${dimmed} ta. Qisqa takrorlash ularni yana yoritadi.`; // TODO: вычитка носителем
+}
