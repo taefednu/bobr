@@ -25,3 +25,5 @@ next-env.d.ts
 .claude/settings.local.json
 /tmp/harvest
 .ui-check
+# Parent Telegram bot secrets
+bot/.env
