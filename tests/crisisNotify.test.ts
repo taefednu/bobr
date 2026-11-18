@@ -43,10 +43,11 @@ describe("abuseRowCounts", () => {
     expect(abuseRowCounts(row({ status: "reviewed", _creationTime: now - 91 * DAY }), now)).toBe(false);
     expect(abuseRowCounts(row({ category: "SELF_HARM", _creationTime: now }), now)).toBe(false);
   });
-  it("слабый флаг (severity 1) держит пуш 24 ч, даже открытый; сильный — пока открыт / 90 дней", () => {
-    expect(abuseRowCounts(row({ severity: 1, _creationTime: now - 3_600_000 }), now)).toBe(true);
-    expect(abuseRowCounts(row({ severity: 1, _creationTime: now - 25 * 3_600_000 }), now)).toBe(false);
-    expect(abuseRowCounts(row({ severity: 2, _creationTime: 0 }), now)).toBe(true);
+  it("открытый флаг держит пуш всегда (любой severity); закрытый человеком — слабый 24 ч, сильный 90 дней", () => {
+    expect(abuseRowCounts(row({ severity: 1, status: "open", _creationTime: 0 }), now)).toBe(true);
+    expect(abuseRowCounts(row({ severity: 1, status: "dismissed", _creationTime: now - 3_600_000 }), now)).toBe(true);
+    expect(abuseRowCounts(row({ severity: 1, status: "dismissed", _creationTime: now - 25 * 3_600_000 }), now)).toBe(false);
+    expect(abuseRowCounts(row({ severity: 2, status: "reviewed", _creationTime: now - 30 * DAY }), now)).toBe(true);
   });
   it("priorAbuseFrom: пусто — нет; лимит достигнут без ответа — fail closed", () => {
     expect(priorAbuseFrom([], now)).toBe(false);
