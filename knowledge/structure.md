@@ -8,11 +8,12 @@ vitest 5, Playwright 1.64.0 (закреплён под скачанный бра
 
 | Путь | Что | Статус |
 |---|---|---|
-| `convex/schema.ts` | 10 таблиц спеки с индексами (дроби — string); у `students` поля урока: `currentTask`, `turnNo`, `hintLevel`, `lastVerdict`, `lastReply` | готово |
+| `convex/schema.ts` | `students` хранит приватную текущую задачу, `lessonSessions` и `taskProgress` хранят идентификаторы урока и счётчики, `attemptRequests` устраняет повторы, `escalationEvents` хранит историю без переписки | готово |
 | `convex/turn.ts` | action `turn`: preGuard → вердикт кода → Ustoz (∥ guardIn для текста) → postChecks → outputCheck → `recordReply`; без ключа — replay → запасной путь | готово, LLM не гонялся |
 | `convex/teach.ts` | сцена «Научи Bobr»: actions `start`, `explain`; preGuard → copyCheck ∥ guardIn ∥ судья → `applyVerdict` (атомарно `taught_bobr`, дом, outbox) → реплика Bobr → postChecks → outputCheck | бэкенд готов, экран вечером |
 | `lib/judge/`, `lib/bobr/` | судья: чек-листы (заглушка до B1), проверка цитат и вердикт кодом; Bobr: шаги сцены, попытки от кода, postChecks реплики | готово |
-| `convex/conductor.ts` | mutations: `startDemoLesson`, `turnContext`, `submitAnswer` (вердикт, серия по разным задачам, следующая задача, topicStatus, дома), `pressHint` (hintLevel считает код), `recordText`, `recordReply` (сверка turnNo), `setCrisis`, `leaveCrisis`, `flagRisk`, `maskChildTurn` | урок готов |
+| `convex/conductor.ts` | `submitAttempt` атомарно фиксирует вердикт, лестницу, самостоятельную серию и телеметрию. `submitAnswer` / `pressHint` завершают старую задачу, `recordReply` сверяет номер хода | урок готов |
+| `convex/socraticState.ts`, `convex/socraticTelemetry.ts`, `lib/socratic/` | приватный эталон, проекция помощи для родителя, структурированный выбор вычитанного шаблона | каталог ru/uz ждёт вычитки |
 | `convex/lesson.ts`, `convex/lessonView.ts` | query `view` — публичная проекция задачи (без answer/distractors) | готово |
 | `convex/session.ts` | детская сессия: `childOf`/`childOrNull` (токен → ребёнок), `startDemo` (только `DEMO_ALLOW_ANON=1`), `acceptConsent`, `me` | готово |
 | `convex/{goal,diagnose,plan,mahalla}.ts` | этап 3 по `docs/specs/API_CHILD.md`: цель, адаптивная диагностика (проба в `currentTask`, варианты в `students.diagnosis`), план (`rebuildPlan` → `plans`), махалля + `startLesson` | готово |

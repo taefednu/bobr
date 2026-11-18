@@ -27,6 +27,8 @@ import type * as parentLogin from "../parentLogin.js";
 import type * as parents from "../parents.js";
 import type * as plan from "../plan.js";
 import type * as session from "../session.js";
+import type * as socraticState from "../socraticState.js";
+import type * as socraticTelemetry from "../socraticTelemetry.js";
 import type * as students from "../students.js";
 import type * as teach from "../teach.js";
 import type * as turn from "../turn.js";
@@ -57,6 +59,8 @@ declare const fullApi: ApiFromModules<{
   parents: typeof parents;
   plan: typeof plan;
   session: typeof session;
+  socraticState: typeof socraticState;
+  socraticTelemetry: typeof socraticTelemetry;
   students: typeof students;
   teach: typeof teach;
   turn: typeof turn;

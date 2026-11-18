@@ -6,6 +6,7 @@ import { buildPlan, validTestDate } from "../lib/planner";
 import { randomString } from "../lib/telegram/secure";
 import type { TopicId, TopicLevel } from "../lib/types";
 import { internalMutation, query, type QueryCtx } from "./_generated/server";
+import { learningSupportFor, learningSupportValidator, weeklySupportFor, weeklySupportValidator } from "./socraticTelemetry";
 
 const SESSION_TTL_MS = 7 * 24 * 3600_000;
 const DAY_MS = 86_400_000;
@@ -56,8 +57,10 @@ export const dashboard = query({
       mahalla: v.array(v.object({ topic: v.string(), title: v.string(), state: v.string() })),
       topics: v.array(v.object({ topic: v.string(), title: v.string(), level: v.string() })),
       plan: planV,
+      learningSupport: learningSupportValidator,
       week: v.object({
         solvedSelf: v.number(), taughtBobr: v.number(), newTopics: v.array(topicRef), lastActive: v.union(v.number(), v.null()),
+        socratic: weeklySupportValidator,
       }),
     })),
   }),
@@ -99,11 +102,13 @@ export const dashboard = query({
         mahalla: graph.topics.map((t) => ({ topic: t.id, title: t.title[lang], state: houseState(byTopic.get(t.id), now) })),
         topics: rows.map((r) => ({ topic: r.topic, title: title(r.topic as TopicId, lang), level: r.level })),
         plan,
+        learningSupport: await learningSupportFor(ctx, s._id),
         week: {
           solvedSelf: rows.filter((r) => week(r.solvedSelfAt)).length,
           taughtBobr: rows.filter((r) => week(r.taughtAt)).length,
           newTopics: fresh.map((r) => ({ topic: r.topic, title: title(r.topic as TopicId, lang) })),
           lastActive: lastTurn?.ts ?? null, // только время, не текст
+          socratic: await weeklySupportFor(ctx, s._id, now - 7 * DAY_MS),
         },
       });
     }

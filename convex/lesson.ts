@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { lessonView, viewValidator } from "./lessonView";
 import { studentIdOf, whoArgs } from "./session";
+import { progressOf } from "./socraticState";
 
 export const view = query({
   args: whoArgs,
@@ -14,6 +15,6 @@ export const view = query({
     const row = s.currentTopic
       ? await ctx.db.query("topicStatus").withIndex("by_student_and_topic", (q) => q.eq("studentId", s._id).eq("topic", s.currentTopic!)).unique()
       : null;
-    return lessonView(s, row?.level ?? null);
+    return lessonView(s, await progressOf(ctx, s), row?.level ?? null);
   },
 });

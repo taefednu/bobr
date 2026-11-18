@@ -1,8 +1,9 @@
 "use client";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { LessonView } from "@/components/lesson/LessonView";
 import { useGuard } from "@/lib/ui/session";
 
@@ -15,6 +16,10 @@ export default function Page() {
   const [failed, setFailed] = useState(false);
   const [answer, setAnswer] = useState("");
   const [text, setText] = useState("");
+  // Preserve the request ID after a transport failure: retrying must not count
+  // the same answer/help twice. The text stays only in this component's memory.
+  const pendingRequest = useRef<{ key: string; id: string; taskInstanceId?: Id<"taskProgress"> } | null>(null);
+  const inFlight = useRef(false);
 
   const view = useQuery(api.lesson.view, token ? { token } : "skip");
 
@@ -24,14 +29,36 @@ export default function Page() {
   }, [token, view, router]);
 
   async function send(type: "answer" | "text" | "hint", value: string) {
-    if (!token || (type !== "hint" && !value.trim()) || busy) return;
+    if (!token || (type !== "hint" && !value.trim()) || inFlight.current) return false;
+    const key = JSON.stringify([type, value]);
+    if (pendingRequest.current?.key !== key) {
+      const hex = Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, "0")).join("");
+      pendingRequest.current = {
+        key, id: `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`,
+        taskInstanceId: view?.socratic?.taskInstanceId,
+      };
+    }
+    const { taskInstanceId } = pendingRequest.current;
+    inFlight.current = true;
     setBusy(true); // индикатор ожидания — сразу, до ответа сервера (<150 мс)
     setFailed(false);
     try {
-      await turn({ token, input: { type, value } });
+      const result = await turn({ token, input: {
+        type, value,
+        ...(taskInstanceId ? { taskInstanceId, requestId: pendingRequest.current.id } : {}),
+      } });
+      if (result.status === "rejected") {
+        pendingRequest.current = null;
+        setFailed(true);
+        return false;
+      }
+      pendingRequest.current = null;
+      return true;
     } catch {
       setFailed(true);
+      return false;
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   }
@@ -45,8 +72,8 @@ export default function Page() {
       text={text}
       onAnswerChange={setAnswer}
       onTextChange={setText}
-      onSubmitAnswer={() => void send("answer", answer).then(() => setAnswer(""))}
-      onSubmitText={() => void send("text", text).then(() => setText(""))}
+      onSubmitAnswer={() => void send("answer", answer).then((sent) => { if (sent) setAnswer(""); })}
+      onSubmitText={() => void send("text", text).then((sent) => { if (sent) setText(""); })}
       onHint={() => void send("hint", "")}
       onStart={() => router.push("/mahalla")}
       onFinish={() => router.push("/mahalla")}

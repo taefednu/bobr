@@ -12,6 +12,10 @@ import { operandFractions } from "./lessonView";
 import { enqueueCrisis } from "./outbox";
 import { env } from "./botAuth";
 import { studentIdOf, whoArgs } from "./session";
+import { attachTask, beginLesson, progressOf, publicProgress, type StoredTask } from "./socraticState";
+import { escalate, independentResult, misconceptionTag } from "../lib/socratic/state";
+import type { MutationCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 
 const lang = v.union(v.literal("uz"), v.literal("ru"));
 // дублирует Component из lib/types.ts
@@ -22,6 +26,7 @@ const component = v.union(v.null(), v.object({
 
 const taskV = v.object({
   id: v.string(), topic: v.string(), kind: v.string(), params: v.record(v.string(), v.string()), answer: v.string(),
+  referenceSteps: v.optional(v.array(v.string())),
   distractors: v.array(v.object({ value: v.string(), misconception: v.optional(v.string()) })),
   requireReduced: v.boolean(), numbersShown: v.array(v.string()),
 });
@@ -56,6 +61,11 @@ export const turnContext = internalQuery({
   returns: v.union(v.null(), v.object({
     lang, state: v.string(), task: taskV, hintLevel: v.number(), turnNo: v.number(), lastVerdict: v.string(),
     riskCount: v.number(), recent: v.array(v.string()), last6: v.array(v.string()),
+    socratic: v.union(v.null(), v.object({
+      taskInstanceId: v.id("taskProgress"), lessonSessionId: v.id("lessonSessions"),
+      attemptCount: v.number(), escalationLevel: v.union(v.literal(1), v.literal(2), v.literal(3), v.literal(4)),
+      misconceptionTag: v.union(v.string(), v.null()), interestTheme: v.union(v.literal("Nonvoyxona"), v.literal("Football"), v.literal("Minecraft")),
+    })),
   })),
   handler: async (ctx, { studentId }) => {
     const s = await ctx.db.get("students", studentId);
@@ -63,9 +73,11 @@ export const turnContext = internalQuery({
     if (!s || !s.currentTask || s.currentTask.kind === "mcq") return null;
     const last = await ctx.db.query("turns").withIndex("by_student_and_ts", (q) => q.eq("studentId", studentId))
       .order("desc").take(60);
+    const progress = await progressOf(ctx, s);
     return {
-      lang: s.lang, state: s.state, task: s.currentTask, hintLevel: s.hintLevel ?? 0, turnNo: s.turnNo ?? 0,
+      lang: s.lang, state: s.state, task: s.currentTask, hintLevel: progress ? progress.escalationLevel - 1 : (s.hintLevel ?? 0), turnNo: s.turnNo ?? 0,
       lastVerdict: s.lastVerdict ?? "none", riskCount: s.riskCount,
+      socratic: publicProgress(progress, s),
       recent: last.filter((t) => t.role === "ustoz").slice(0, 30).map((t) => t.text),
       last6: last.filter((t) => t.role === "child").slice(0, 6).reverse().map((t) => t.text),
     };
@@ -81,7 +93,7 @@ export const submitAnswer = internalMutation({
   returns: v.object({ turnNo: v.number(), verdict: v.string(), beat: v.string(), hintLevel: v.number() }),
   handler: async (ctx, { studentId, value }) => {
     const s = await ctx.db.get("students", studentId);
-    if (!s?.currentTask || s.currentTask.kind === "mcq") throw new Error("no current task");
+    if (!s?.currentTask || s.currentTask.kind === "mcq" || s.taskInstanceId || s.state !== "LESSON_SOLVE") throw new Error("no legacy task");
     const task = s.currentTask;
     const r = checkAnswer(value, { ...task, kind: task.kind as TaskKind });
     const verdict = r.status === "misconception" ? `misconception:${r.misconception}` : r.status;
@@ -97,7 +109,7 @@ export const submitAnswer = internalMutation({
     // Серия по РАЗНЫМ задачам (после верного — новая): верный ВВОДОМ без подсказок +1; другой разбор (кроме
     // нераспознанного ввода) обнуляет.
     let streak = row?.streak ?? 0;
-    if (r.status === "ok" && hint === 0) streak++;
+    if (r.status === "ok" && hint === 0 && wrongs === 0) streak++;
     else if (r.status !== "unparsed") streak = 0;
     let level = row?.level ?? "gap"; // тема, по которой идёт урок, до серии — gap (дом «леса»)
     let solvedSelfAt = row?.solvedSelfAt;
@@ -132,11 +144,85 @@ export const submitAnswer = internalMutation({
 
     const turnNo = (s.turnNo ?? 0) + 1;
     await ctx.db.patch("students", studentId, { ...patch, turnNo, lastVerdict: verdict, hintLevel: nextHint, lastReply: undefined });
+    // Legacy tasks finish on the old policy; only their next generated task starts tracking.
+    if (r.status === "ok" && patch.currentTask) {
+      await beginLesson(ctx, studentId, patch.currentTask as StoredTask, now);
+    }
     await ctx.db.insert("turns", {
       studentId, sessionId: studentId, role: "child", kind: "answer", text: value, turnNo, state: s.state, ts: now,
     });
     return { turnNo, verdict, beat: BEAT[r.status] ?? "nudge_step", hintLevel: nextHint };
   },
+});
+
+const attemptResultV = v.object({ turnNo: v.number(), verdict: v.string(), beat: v.string(), hintLevel: v.number(), duplicate: v.boolean(), stale: v.boolean() });
+export type AttemptArgs = { studentId: Id<"students">; taskInstanceId: Id<"taskProgress">; requestId: string; kind: "answer" | "hint"; value: string };
+
+/** All state, deduplication and telemetry are committed in one transaction, before Claude. */
+export async function submitAttemptHandler(ctx: MutationCtx, args: AttemptArgs) {
+  const { studentId, taskInstanceId, requestId, kind, value } = args;
+  const student = await ctx.db.get("students", studentId);
+  const stale = { turnNo: student?.turnNo ?? 0, verdict: "stale", beat: "stale", hintLevel: student?.hintLevel ?? 0, duplicate: false, stale: true };
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) return stale;
+  const previous = await ctx.db.query("attemptRequests").withIndex("by_student_and_requestId", (q) => q.eq("studentId", studentId).eq("requestId", requestId)).unique();
+  if (previous) return previous.taskInstanceId === taskInstanceId && previous.kind === kind ? { ...previous.result, duplicate: true } : stale;
+  const progress = student && await progressOf(ctx, student);
+  if (!student?.currentTask || !progress || progress._id !== taskInstanceId || progress.outcome !== "active" || student.state !== "LESSON_SOLVE") return stale;
+  const session = await ctx.db.get("lessonSessions", progress.lessonSessionId);
+  if (!session || session.status !== "active" || session.studentId !== studentId || session.topicNodeId !== student.currentTask.topic) return stale;
+  const task = student.currentTask;
+  const now = Date.now();
+  const checked = kind === "answer" ? checkAnswer(value, { ...task, kind: task.kind as TaskKind }) : null;
+  const wrong = checked?.status === "wrong" || checked?.status === "misconception";
+  const counts = wrong || kind === "hint" ? escalate(progress) : { attemptCount: progress.attemptCount, escalationLevel: progress.escalationLevel };
+  const detectedTag = checked?.status === "misconception" ? misconceptionTag(checked.misconception) : null;
+  const tag = detectedTag ?? progress.misconceptionTag;
+  const verdict = checked?.status === "misconception" ? `misconception:${checked.misconception}` : checked?.status ?? "hint";
+  const turnNo = (student.turnNo ?? 0) + 1;
+  const row = await ctx.db.query("topicStatus").withIndex("by_student_and_topic", (q) => q.eq("studentId", studentId).eq("topic", task.topic)).unique();
+  let streak = row?.streak ?? 0;
+  let level = row?.level ?? "gap";
+  let solvedSelfAt = row?.solvedSelfAt;
+  const solved = checked?.status === "ok";
+  if (solved && independentResult(progress)) streak++;
+  else if (kind === "hint" || wrong || solved) streak = 0;
+  if (level === "gap" && streak >= LESSON.solvedSelfStreak) { level = "solved_self"; solvedSelfAt = now; }
+  let served = row?.tasksThisSession ?? 1;
+  await ctx.db.patch("taskProgress", progress._id, {
+    ...counts, misconceptionTag: tag,
+    ...(solved ? { outcome: independentResult(progress) ? "independent" as const : "assisted" as const, finishedAt: now } : {}),
+  });
+  if (wrong || kind === "hint") await ctx.db.insert("escalationEvents", {
+    studentId, lessonSessionId: progress.lessonSessionId, taskInstanceId, topicNodeId: task.topic,
+    escalationLevel: counts.escalationLevel, misconceptionTag: kind === "hint" ? tag : detectedTag, timestamp: now, reason: kind === "hint" ? "help" : "wrong",
+  });
+  let nextHint = counts.escalationLevel - 1;
+  if (solved && served < LESSON.maxTasksPerTopicPerSession) {
+    served++;
+    const { seed: _seed, ...nextTask } = generateTask(task.topic as TopicId, KINDS[(served - 1) % KINDS.length], 100 + served);
+    await attachTask(ctx, studentId, progress.lessonSessionId, nextTask, now);
+    nextHint = 0;
+  } else if (solved) {
+    await ctx.db.patch("lessonSessions", progress.lessonSessionId, { status: "completed", endedAt: now });
+    await ctx.db.patch("students", studentId, { state: "TOPIC_DONE" });
+  }
+  if (row) await ctx.db.patch("topicStatus", row._id, { streak, level, tasksThisSession: served, solvedSelfAt });
+  else await ctx.db.insert("topicStatus", { studentId, topic: task.topic, level, streak, tasksThisSession: served, bobrQuestionRounds: 0, solvedSelfAt });
+  const state = houseState({ level, taughtAt: row?.taughtAt }, now);
+  const house = await ctx.db.query("houses").withIndex("by_student_and_topic", (q) => q.eq("studentId", studentId).eq("topic", task.topic)).unique();
+  if (house) await ctx.db.patch("houses", house._id, { state });
+  else await ctx.db.insert("houses", { studentId, topic: task.topic, state });
+  await ctx.db.patch("students", studentId, { turnNo, lastVerdict: kind === "hint" ? undefined : verdict, hintLevel: undefined, wrongOnTask: undefined, lastReply: undefined });
+  if (kind === "answer") await ctx.db.insert("turns", { studentId, sessionId: progress.lessonSessionId, role: "child", kind: "answer", text: value, turnNo, state: student.state, ts: now });
+  const result = { turnNo, verdict, beat: checked ? BEAT[checked.status] ?? "nudge_step" : "nudge_step", hintLevel: nextHint, duplicate: false, stale: false };
+  await ctx.db.insert("attemptRequests", { studentId, taskInstanceId, requestId, kind, createdAt: now, result });
+  return result;
+}
+
+export const submitAttempt = internalMutation({
+  args: { studentId: v.id("students"), taskInstanceId: v.id("taskProgress"), requestId: v.string(), kind: v.union(v.literal("answer"), v.literal("hint")), value: v.string() },
+  returns: attemptResultV,
+  handler: submitAttemptHandler,
 });
 
 /** Кнопка «подсказка»: код двигает лесенку (+1, потолок 4) и показывает компонент по операндам. LLM не нужен. */
@@ -145,7 +231,7 @@ export const pressHint = internalMutation({
   returns: v.number(),
   handler: async (ctx, { studentId }) => {
     const s = await ctx.db.get("students", studentId);
-    if (!s?.currentTask || s.currentTask.kind === "mcq") throw new Error("no current task");
+    if (!s?.currentTask || s.currentTask.kind === "mcq" || s.taskInstanceId || s.state !== "LESSON_SOLVE") throw new Error("no legacy task");
     const hintLevel = Math.min(4, (s.hintLevel ?? 0) + 1);
     const turnNo = (s.turnNo ?? 0) + 1;
     const params = operandFractions(s.currentTask.params).map((value, i) => ({ key: `f${i + 1}`, value }));
@@ -201,11 +287,11 @@ export const leaveCrisis = mutation({
 
 /** Текстовый ход: вердикт не меняется, номер хода растёт (старая реплика не перезапишет новую). */
 export const recordText = internalMutation({
-  args: { studentId: v.id("students"), value: v.string() },
-  returns: v.number(),
-  handler: async (ctx, { studentId, value }) => {
+  args: { studentId: v.id("students"), value: v.string(), expectedTurnNo: v.number() },
+  returns: v.union(v.number(), v.null()),
+  handler: async (ctx, { studentId, value, expectedTurnNo }) => {
     const s = await ctx.db.get("students", studentId);
-    if (!s) throw new Error("no student");
+    if (!s || s.state !== "LESSON_SOLVE" || (s.turnNo ?? 0) !== expectedTurnNo) return null;
     const turnNo = (s.turnNo ?? 0) + 1;
     await ctx.db.patch("students", studentId, { turnNo, lastReply: undefined });
     await ctx.db.insert("turns", {
@@ -224,7 +310,7 @@ export const recordReply = internalMutation({
   returns: v.boolean(),
   handler: async (ctx, { studentId, turnNo, reply, component, hintButton }) => {
     const s = await ctx.db.get("students", studentId);
-    if (!s || (s.turnNo ?? 0) !== turnNo) return false;
+    if (!s || s.state === "CRISIS" || (s.turnNo ?? 0) !== turnNo) return false;
     // hintLevel от модели игнорируется: лесенку ведёт только код (submitAnswer / useHint)
     await ctx.db.patch("students", studentId, { lastReply: { turnNo, reply, component, hintButton } });
     if (reply !== null) {

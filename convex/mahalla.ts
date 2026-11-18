@@ -5,6 +5,7 @@ import { generateTask } from "../lib/fractions";
 import type { TopicId } from "../lib/types";
 import { mutation, query } from "./_generated/server";
 import { childOf, childOrNull } from "./session";
+import { beginLesson } from "./socraticState";
 
 const SEED = 101; // как у submitAnswer: первая задача темы, дальше 102, 103…
 
@@ -59,6 +60,8 @@ export const startLesson = mutation({
     // Из махалли можно начать тему и после урока или брошенной сцены «Научи Bobr» (в HOME сами не возвращаются); из CRISIS и до плана — нельзя.
     const from = (["HOME", "LESSON_SOLVE", "TOPIC_DONE", "TEACH_BOBR", "BOBR_QUESTION", "BOBR_ATTEMPT", "JUDGING"] as string[]).includes(child.state);
     if (!from || !id || !GENERATED.has(id) || !plan?.order?.includes(id)) throw new Error("cannot start");
+    // Re-entering an active lesson (including another device) cannot erase its ladder.
+    if (child.state === "LESSON_SOLVE" && child.currentTask && child.currentTopic === id) return null;
     const { seed: _seed, ...task } = generateTask(id, "word", SEED);
     // Новая сессия темы: выдана 1 задача (эта), серия с нуля. Иначе submitAnswer при счётчике 0 (после диагностики)
     // выдаёт ту же задачу ещё раз, а при старом счётчике 8 сразу закрывает тему.
@@ -66,9 +69,21 @@ export const startLesson = mutation({
       .withIndex("by_student_and_topic", (q) => q.eq("studentId", child._id).eq("topic", id)).unique();
     if (row) await ctx.db.patch("topicStatus", row._id, { tasksThisSession: 1, streak: 0 });
     await ctx.db.patch("students", child._id, {
-      currentTopic: id, currentTask: task, state: "LESSON_SOLVE", hintLevel: 0, wrongOnTask: 0,
+      currentTopic: id, state: "LESSON_SOLVE", hintLevel: undefined, wrongOnTask: undefined,
+      turnNo: (child.turnNo ?? 0) + 1,
       lastReply: undefined, lastVerdict: undefined,
     });
+    await beginLesson(ctx, child._id, task, Date.now());
+    return null;
+  },
+});
+
+export const setInterestTheme = mutation({
+  args: { token: v.string(), theme: v.union(v.literal("Nonvoyxona"), v.literal("Football"), v.literal("Minecraft")) },
+  returns: v.null(),
+  handler: async (ctx, { token, theme }) => {
+    const child = await childOf(ctx, token);
+    await ctx.db.patch("students", child._id, { interestTheme: theme });
     return null;
   },
 });

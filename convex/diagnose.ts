@@ -12,6 +12,7 @@ import { mutation, query, type MutationCtx } from "./_generated/server";
 import { env } from "./botAuth";
 import { rebuildPlan } from "./plan";
 import { childOf, childOrNull } from "./session";
+import { publicTask } from "./lessonView";
 
 type Result = { topic: string; ok: boolean; misconception?: string };
 
@@ -56,7 +57,7 @@ export const view = query({
       state: s.state,
       asked: s.diagnosis?.results.length ?? 0,
       maxProbes: DIAGNOSE.maxProbes,
-      probe: live ? { id: t.id, topic: t.topic, kind: t.kind, params: t.params, numbersShown: t.numbersShown, options: s.diagnosis?.options ?? [] } : null,
+      probe: live ? { id: t.id, ...publicTask(t), options: s.diagnosis?.options ?? [] } : null,
     };
   },
 });

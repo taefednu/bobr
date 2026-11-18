@@ -23,6 +23,7 @@ const fixtures: { key: string; view: LessonViewData | null | undefined; busy?: b
     key: `verdict-${v}`, view: { ...base, lastVerdict: v, reply: reply() },
   })),
   { key: "hint-2", view: { ...base, hintLevel: 2, lastVerdict: "wrong", reply: reply() } },
+  { key: "socratic", view: { ...base, state: "LESSON_SOLVE", hintLevel: 3, socratic: { taskInstanceId: "preview", attemptCount: 4, escalationLevel: 4 }, reply: reply({ text: null, component: { type: "pie", params: params("1/2", "1/3") } }) } },
   { key: "pie", view: { ...base, reply: reply({ component: { type: "pie", params: params("1/2", "1/3") } }) } },
   { key: "strip", view: { ...base, reply: reply({ component: { type: "strip", params: params("1/2", "1/3") } }) } },
   { key: "line", view: { ...base, reply: reply({ component: { type: "line", params: params("1/2", "1/3") } }) } },

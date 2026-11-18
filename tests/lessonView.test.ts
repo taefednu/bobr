@@ -27,6 +27,13 @@ describe("lessonView", () => {
     expect(lessonView(student).task).toEqual({ topic: "N9", kind: "word", params: probe.params, numbersShown: probe.numbersShown });
   });
 
+  it("never spreads reference fields or hidden nested params", () => {
+    const hidden = { ...student.currentTask!, answerKey: "PRIVATE_KEY", referenceSteps: ["PRIVATE_STEPS"],
+      params: { ...student.currentTask!.params, answerKey: "PRIVATE_PARAM", referenceSteps: "PRIVATE_PARAM_STEPS" } };
+    const json = JSON.stringify(lessonView({ ...student, currentTask: hidden }));
+    expect(json).not.toContain("PRIVATE_");
+  });
+
   it("keeps lesson state under the CRISIS overlay", () => {
     const v = lessonView({ ...student, state: "CRISIS", stateBeforeCrisis: "LESSON_SOLVE" });
     expect(v.crisis?.numbers).toEqual(["112"]);
@@ -35,14 +42,14 @@ describe("lessonView", () => {
 
   it("canTeach is decided by the server: solved_self topic in the lesson only", () => {
     expect(lessonView(student).canTeach).toBe(false);
-    expect(lessonView(student, "gap").canTeach).toBe(false);
-    expect(lessonView(student, "solved_self").canTeach).toBe(true);
-    expect(lessonView({ ...student, state: "TOPIC_DONE" } as unknown as Doc<"students">, "solved_self").canTeach).toBe(true);
-    expect(lessonView({ ...student, state: "BOBR_QUESTION" } as unknown as Doc<"students">, "solved_self").canTeach).toBe(true); // reload mid-scene
-    expect(lessonView({ ...student, state: "HOME" } as unknown as Doc<"students">, "solved_self").canTeach).toBe(false);
-    expect(lessonView(student, "taught_bobr").canTeach).toBe(false);
-    expect(lessonView({ ...student, state: "CRISIS" } as unknown as Doc<"students">, "solved_self").canTeach).toBe(false);
-    expect(JSON.stringify(lessonView(student, "solved_self"))).not.toMatch(/answer|distractor/i);
+    expect(lessonView(student, null, "gap").canTeach).toBe(false);
+    expect(lessonView(student, null, "solved_self").canTeach).toBe(true);
+    expect(lessonView({ ...student, state: "TOPIC_DONE" } as unknown as Doc<"students">, null, "solved_self").canTeach).toBe(true);
+    expect(lessonView({ ...student, state: "BOBR_QUESTION" } as unknown as Doc<"students">, null, "solved_self").canTeach).toBe(true); // reload mid-scene
+    expect(lessonView({ ...student, state: "HOME" } as unknown as Doc<"students">, null, "solved_self").canTeach).toBe(false);
+    expect(lessonView(student, null, "taught_bobr").canTeach).toBe(false);
+    expect(lessonView({ ...student, state: "CRISIS" } as unknown as Doc<"students">, null, "solved_self").canTeach).toBe(false);
+    expect(JSON.stringify(lessonView(student, null, "solved_self"))).not.toMatch(/answer|distractor/i);
   });
 
   it("operand fractions come from params only", () => {

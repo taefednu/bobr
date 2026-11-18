@@ -1,0 +1,14 @@
+{
+  "version": "socratic-draft-1",
+  "reviewNote": "Черновики. Носитель проверяет uz и редактор ru; агент не меняет review на reviewed.",
+  "templates": [
+    { "id": "guiding-question", "escalationLevel": 1, "misconceptionTag": null, "interestTheme": "*", "review": { "uz": "draft", "ru": "draft" }, "visual": null,
+      "text": { "uz": "{theme}: masalada nimani topish kerak? Avval qaysi qadamni sinab koʻrasan?", "ru": "{theme}: что нужно найти в задаче? С какого шага ты начнёшь?" } },
+    { "id": "concept-and-visual", "topics": ["N8", "N9"], "escalationLevel": 2, "misconceptionTag": null, "interestTheme": "*", "review": { "uz": "draft", "ru": "draft" }, "visual": "strip",
+      "text": { "uz": "{theme}: rasmdagi boʻlaklarni solishtir. Ularning oʻlchami bir xilmi?", "ru": "{theme}: сравни доли на рисунке. Они одинакового размера?" } },
+    { "id": "analogous-example", "topics": ["N8", "N9"], "escalationLevel": 3, "misconceptionTag": null, "interestTheme": "*", "review": { "uz": "draft", "ru": "draft" }, "visual": "pie",
+      "text": { "uz": "Avval {example1} va {example2} ni koʻrib chiq. Bu boʻlaklarni qoʻshishda nimadan boshlaysan?", "ru": "Сначала рассмотри {example1} и {example2}. С чего начнёшь складывать эти доли?" } },
+    { "id": "step-by-step", "topics": ["N8", "N9"], "escalationLevel": 4, "misconceptionTag": null, "interestTheme": "*", "review": { "uz": "draft", "ru": "draft" }, "visual": "strip",
+      "text": { "uz": "Avval boʻlaklarning oʻlchamini tenglashtir, keyin ularni sana. Hozir shu qadamlarning qaysi birini oʻzing bajara olasan?", "ru": "Сначала сделай доли одинакового размера, затем посчитай их. Какой из этих шагов ты можешь выполнить сейчас?" } }
+  ]
+}

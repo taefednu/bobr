@@ -16,6 +16,11 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { action, type ActionCtx } from "./_generated/server";
 import { operandFractions, publicTask } from "./lessonView";
 import { whoArgs } from "./session";
+import { isExplicitHelpRequest } from "../lib/socratic/state";
+import {
+  approvedHints, HintSelection, HINT_CATALOG_VERSION, HINT_SELECTOR_PREFIX, hintSelectionTail, renderHint, safeAnalogy,
+  type EscalationLevel, type HintContext, type InterestTheme,
+} from "../lib/socratic/hints";
 
 // ponytail: breaker живёт в изоляте — не глобальный; при нескольких изолятах порог 3/30 с считается на каждом.
 const breaker = createBreaker();
@@ -43,7 +48,11 @@ export const cacheOf = (ctx: ActionCtx): LlmCache => ({
 // Форма ответа conductor.turnContext (явно, иначе TS видит цикл через api).
 export type Turn = {
   lang: "uz" | "ru"; task: NonNullable<Doc<"students">["currentTask"]>; hintLevel: number; lastVerdict: string;
-  riskCount: number; recent: string[]; last6: string[];
+  riskCount: number; recent: string[]; last6: string[]; turnNo: number;
+  socratic?: null | {
+    taskInstanceId: Id<"taskProgress">; lessonSessionId: Id<"lessonSessions">;
+    attemptCount: number; escalationLevel: EscalationLevel; misconceptionTag: string | null; interestTheme: InterestTheme;
+  };
 };
 
 // Диагностика хода (без текста ребёнка и реплик): какой шаг сколько занял, где сломалось, попал ли кэш промпта.
@@ -121,6 +130,55 @@ export async function guardStep(ctx: ActionCtx, c: Turn, childInput: string) {
   });
 }
 
+/** Selection is deliberately separate from free conversation. Drafts never
+ * cause unrestricted generation; no reviewed candidate means code fallback. */
+async function socraticReply(ctx: ActionCtx, d: Diag, studentId: Id<"students">, expectedTurnNo: number) {
+  const latest: Turn | null = await ctx.runQuery(internal.conductor.turnContext, { studentId });
+  if (!latest?.socratic || latest.turnNo !== expectedTurnNo) return { status: "fallback" as const };
+  const c = latest;
+  const context: HintContext = {
+    lang: c.lang, task: publicTask(c.task), escalationLevel: c.socratic!.escalationLevel,
+    misconceptionTag: c.socratic!.misconceptionTag, interestTheme: c.socratic!.interestTheme,
+  };
+  let rendered: ReturnType<typeof renderHint> = null;
+  if (approvedHints(context).length) {
+    const tail = hintSelectionTail(context);
+    const selection = await callStructured({
+      ...llm(), breaker, cache: cacheOf(ctx), step: "socraticHint", model: MODELS.ustozTurn,
+      schema: HintSelection, system: HINT_SELECTOR_PREFIX, tail,
+      timeoutMs: TIMEOUTS_MS.ustoz, effort: "low", thinkingOff: true,
+      cacheKey: cacheKey({ step: "socraticHint", beat: HINT_CATALOG_VERSION, itemId: c.task.id, lang: c.lang, normInput: tail }),
+    });
+    d.ustoz = sd(selection);
+    if (selection.ok) rendered = renderHint(selection.value.templateId, context);
+  }
+  if (rendered && context.escalationLevel === 3 && !safeAnalogy(rendered.visualOperands, c.task.answer)) rendered = null;
+  if (rendered) {
+    // Even reviewed copy is checked after code interpolation. The private
+    // answer is used only by server checks, never by the selector prompt.
+    const checked = postUstoz({
+      reply: rendered.reply, component: rendered.component, intent: "hint",
+      hintLevel: c.socratic!.escalationLevel - 1, revealsAnswer: false,
+    }, {
+      answer: c.task.answer, numbersShown: rendered.numbersShown, childNumbers: [], recent: c.recent,
+      operands: rendered.visualOperands, childFractions: [],
+    });
+    if (checked.result.ok && await outputOk(ctx, d, c, checked.result.value.reply)) {
+      const written = await ctx.runMutation(internal.conductor.recordReply, {
+        studentId, turnNo: expectedTurnNo, reply: checked.result.value.reply,
+        component: checked.result.value.component && toStored(checked.result.value.component), hintButton: true,
+      });
+      return { status: written ? "replied" as const : "fallback" as const };
+    }
+  }
+  d.component = "code";
+  await ctx.runMutation(internal.conductor.recordReply, {
+    studentId, turnNo: expectedTurnNo, reply: null, hintButton: true,
+    component: toStored(normalizeComponent(null, { operands: operandFractions(c.task.params), childFractions: [], answer: c.task.answer }).component),
+  });
+  return { status: "fallback" as const };
+}
+
 // Категории guard, при которых Ustoz отвечает В РОЛИ (отказ по-доброму): реплика всё равно идёт через postChecks и outputCheck.
 // JAILBREAK сюда не входит: реплика сгенерирована из состязательного ввода, а outputCheck проверяет только персону —
 // идём в запасной путь (компонент + лесенка кода); riskCount при этом растёт (flagRisk ниже).
@@ -131,7 +189,10 @@ type Status = "crisis" | "replied" | "fallback" | "rejected";
 export const turn = action({
   args: {
     ...whoArgs,
-    input: v.object({ type: v.union(v.literal("answer"), v.literal("text"), v.literal("hint")), value: v.string() }),
+    input: v.object({
+      type: v.union(v.literal("answer"), v.literal("text"), v.literal("hint")), value: v.string(),
+      taskInstanceId: v.optional(v.id("taskProgress")), requestId: v.optional(v.string()),
+    }),
   },
   returns: v.object({
     status: v.union(v.literal("crisis"), v.literal("replied"), v.literal("fallback"), v.literal("rejected")),
@@ -146,8 +207,20 @@ export const turn = action({
     const c: Turn | null = await ctx.runQuery(internal.conductor.turnContext, { studentId });
     if (!c) return { status: "rejected" };
 
+    const submitHelp = async (): Promise<{ status: Status }> => {
+      if (!input.taskInstanceId || !input.requestId) return { status: "rejected" };
+      const result = await ctx.runMutation(internal.conductor.submitAttempt, {
+        studentId, taskInstanceId: input.taskInstanceId, requestId: input.requestId, kind: "hint", value: "",
+      });
+      if (result.stale) return { status: "rejected" };
+      if (result.duplicate) return { status: "fallback" };
+      d.path = "socratic_hint";
+      return done(await socraticReply(ctx, d, studentId, result.turnNo));
+    };
+
     // Подсказка: лесенку и компонент ведёт код, текст ребёнка не участвует.
     if (input.type === "hint") {
+      if (c.socratic || input.taskInstanceId) return submitHelp();
       await ctx.runMutation(internal.conductor.pressHint, { studentId });
       return { status: "fallback" };
     }
@@ -158,6 +231,7 @@ export const turn = action({
       await ctx.runMutation(internal.conductor.setCrisis, { studentId, category: pg.crisis.category, also: pg.crisis.also });
       return { status: "crisis" };
     }
+    if (c.socratic && isExplicitHelpRequest(pg.text, c.lang)) return submitHelp();
 
     // Код-вердикт и номер хода. Нераспознанный ответ — это текст ребёнка: идёт тем же путём с guardIn.
     let turnNo: number;
@@ -165,11 +239,24 @@ export const turn = action({
     let beat = "child_text";
     let hintLevel = c.hintLevel;
     if (input.type === "answer") {
-      const r: { turnNo: number; verdict: string; beat: string; hintLevel: number } =
-        await ctx.runMutation(internal.conductor.submitAnswer, { studentId, value: pg.text });
+      const tracked = Boolean(c.socratic || input.taskInstanceId);
+      if (tracked && (!input.taskInstanceId || !input.requestId)) return { status: "rejected" };
+      const r = tracked
+        ? await ctx.runMutation(internal.conductor.submitAttempt, {
+          studentId, taskInstanceId: input.taskInstanceId!, requestId: input.requestId!, kind: "answer", value: pg.text,
+        })
+        : await ctx.runMutation(internal.conductor.submitAnswer, { studentId, value: pg.text });
+      if ("stale" in r && r.stale) return { status: "rejected" };
+      if ("duplicate" in r && r.duplicate) return { status: "fallback" };
       ({ turnNo, verdict, beat, hintLevel } = r);
+      if (c.socratic && (verdict === "wrong" || verdict.startsWith("misconception:"))) {
+        d.path = "socratic_answer";
+        return done(await socraticReply(ctx, d, studentId, turnNo));
+      }
     } else {
-      turnNo = await ctx.runMutation(internal.conductor.recordText, { studentId, value: pg.text });
+      const recorded = await ctx.runMutation(internal.conductor.recordText, { studentId, value: pg.text, expectedTurnNo: c.turnNo });
+      if (recorded === null) return { status: "rejected" };
+      turnNo = recorded;
     }
     const cc: Turn = { ...c, hintLevel };
     // verdict "ok": задача уже сменилась на следующую — кнопки подсказки нет, «следующую задачу» показывает код.
@@ -188,12 +275,16 @@ export const turn = action({
       d.component = "code";
       await ctx.runMutation(internal.conductor.recordReply, {
         studentId, turnNo, reply: null, hintButton,
-        component: solvedNow ? null : toStored(normalizeComponent(d.askedType ? { type: d.askedType, fractions: [] } : null, { operands: operandFractions(c.task.params), childFractions: [], answer: c.task.answer }).component),
+        component: solvedNow || c.socratic ? null : toStored(normalizeComponent(d.askedType ? { type: d.askedType, fractions: [] } : null, { operands: operandFractions(c.task.params), childFractions: [], answer: c.task.answer }).component),
       });
       return { status: "fallback" };
     };
 
     const fallback = () => respond(null);
+
+    // The verdict already confirms success. A generic Ustoz confirmation could
+    // praise independent work even after the child used scaffolding.
+    if (c.socratic && input.type === "answer" && (solvedNow || verdict === "almost")) return done(await fallback());
 
     // Верный ответ: LLM-guard не нужен (ввод — разобранная дробь), вердикт посчитал код.
     if (input.type === "answer" && verdict !== "unparsed") { d.path = "answer"; return done(await respond(await ustozStep(ctx, d, cc, beat, verdict, pg.text))); }
@@ -209,7 +300,12 @@ export const turn = action({
         }))
       : undefined;
     d.path = "text";
-    const [g, u] = await Promise.all([guardStep(ctx, cc, pg.text), ustozStep(ctx, d, cc, beat, verdict, pg.text, claimed)]);
+    const [g, u] = await Promise.all([
+      guardStep(ctx, cc, pg.text),
+      // Tracked tasks grant scaffolding only through submitAttempt. Free text
+      // still triggers safety checks and cannot silently count as independent help.
+      c.socratic ? null : ustozStep(ctx, d, cc, beat, verdict, pg.text, claimed),
+    ]);
     d.guard = sd(g, g.ok && g.value.category !== "SAFE" ? `category:${g.value.category}/${g.value.severity}` : undefined);
 
     if (!g.ok) {
