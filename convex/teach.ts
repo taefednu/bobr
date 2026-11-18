@@ -78,6 +78,7 @@ const replyV = v.object({
   rounds: v.union(v.number(), v.null()),
   bobrLevel: v.union(v.number(), v.null()),
   demo: v.union(demoV, v.null()),
+  diag: v.optional(v.any()), // только причины и тайминги, без текста ребёнка
 });
 
 type Att = {
@@ -87,8 +88,12 @@ type Att = {
   misconception: string | null;
 };
 type Status = "replied" | "copied" | "retry" | "crisis" | "rejected" | "stale";
-type Outcome = "pass" | "partial" | "fail" | "copy" | "retry";
+type Outcome = "pass" | "partial" | "fail" | "copy" | "retry" | "unavailable";
+// Диагностика хода без текста: что сломалось и сколько заняло.
+type StepDiag = { ok: boolean; why?: string; ms?: number };
+type Diag = { guard?: StepDiag; judge?: StepDiag; bobr?: StepDiag; outputCheck?: StepDiag };
 type Reply = {
+  diag?: Diag;
   status: Status; state: string | null; beat: Beat | null; reply: string | null; lineKey: string | null; pose: BobrPose | null;
   attempt: string | null; expression: string | null; task: { kind: string; params: Record<string, string>; numbersShown: string[] } | null;
   rounds: number | null; bobrLevel: number | null; demo: { type: "pie" | "strip" | "line"; params: { key: string; value: string }[] } | null;
@@ -186,7 +191,7 @@ export const settleCrisisState = internalMutation({
 export const applyVerdict = internalMutation({
   args: {
     studentId: v.id("students"), turnNo: v.number(),
-    outcome: v.union(v.literal("pass"), v.literal("partial"), v.literal("fail"), v.literal("copy"), v.literal("retry")),
+    outcome: v.union(v.literal("pass"), v.literal("partial"), v.literal("fail"), v.literal("copy"), v.literal("retry"), v.literal("unavailable")),
   },
   returns: v.union(v.null(), v.object({
     state: v.string(), beat: beatV, rounds: v.number(), level: v.number(), attempt: v.union(attemptV, v.null()),
@@ -201,6 +206,12 @@ export const applyVerdict = internalMutation({
     if (outcome === "copy" || outcome === "retry") {
       await ctx.db.patch("students", studentId, { state: "TEACH_BOBR" });
       return { state: "TEACH_BOBR", beat: "question", rounds: row.bobrQuestionRounds, level: await taughtCount(ctx, studentId), attempt: entryAttempt(topic) };
+    }
+
+    // Судья не ответил: наивный вопрос (спека), но круг не сгорает — ребёнок не виноват в сбое.
+    if (outcome === "unavailable") {
+      await ctx.db.patch("students", studentId, { state: "BOBR_QUESTION" });
+      return { state: "BOBR_QUESTION", beat: "question", rounds: row.bobrQuestionRounds, level: await taughtCount(ctx, studentId), attempt: entryAttempt(topic) };
     }
 
     const step = stepScene(row.bobrQuestionRounds, outcome);
@@ -240,21 +251,23 @@ export const recordBobrLine = internalMutation({
 // ── LLM-шаги ──
 
 /** outputCheck (Haiku): нет «я живой», романтики, секретов, ссылок. */
-async function outputOk(ctx: ActionCtx, itemId: string, l: "uz" | "ru", reply: string) {
+async function outputOk(ctx: ActionCtx, d: Diag, itemId: string, l: "uz" | "ru", reply: string) {
   const r = await callStructured({
     ...llm(), breaker, cache: cacheOf(ctx), step: "outputCheck", model: MODELS.outputCheck,
     schema: OutputCheck, system: OUTPUT_CHECK_PREFIX, tail: outputCheckTail({ reply }),
     timeoutMs: TIMEOUTS_MS.guard, effort: "low", thinkingOff: true,
     cacheKey: cacheKey({ step: "outputCheck", beat: "reply", itemId, lang: l, normInput: reply }),
   });
-  return r.ok && r.value.ok && r.value.violatesPersona.length === 0;
+  const pass = r.ok && r.value.ok && r.value.violatesPersona.length === 0;
+  d.outputCheck = { ok: pass, why: r.ok ? (pass ? undefined : "flagged") : r.reason, ms: r.meta.ms };
+  return pass;
 }
 
 type Line = { reply: string | null; lineKey: string | null; pose: BobrPose } | "stale";
 
 /** Реплика Bobr: LLM → zod → postChecks (repeat → 1 перегенерация) → outputCheck → запись. Сбой → без текста, сцена идёт. */
 async function speak(
-  ctx: ActionCtx, a: { studentId: Id<"students">; turnNo: number; c: SceneCtx; beat: Beat; att: Att; missing: string | null; childInput: string | null },
+  ctx: ActionCtx, d: Diag, a: { studentId: Id<"students">; turnNo: number; c: SceneCtx; beat: Beat; att: Att; missing: string | null; childInput: string | null },
 ): Promise<Line> {
   const { c, beat, att, childInput } = a;
   const childNumbers = (childInput ?? "").match(/\d+(?:[.,]\d+)?(?:\/\d+)?/g) ?? [];
@@ -270,17 +283,19 @@ async function speak(
         step: "bobrTurn", beat, itemId: att.task.id, lang: c.lang, normInput: `${childInput ?? ""}\n${att.attempt}\n${a.missing ?? ""}`,
       }),
     });
+    d.bobr = { ok: r.ok, why: r.ok ? undefined : r.reason, ms: r.meta.ms };
     if (!r.ok) return null;
     const post = postChecksBobr(r.value, {
       attempt: att.attempt, expression: att.expression, numbersShown: att.task.numbersShown, childNumbers,
       forbiddenAnswer: beat === "solved" ? null : att.task.answer, recent: c.bobrLines,
     });
+    if (!post.ok) d.bobr = { ok: false, why: `post:${post.reason}`, ms: r.meta.ms };
     return post.ok ? post.value : post.reason === "repeat" ? ("repeat" as const) : null;
   };
   let line = await once();
   if (line === "repeat") line = await once();
   if (line === "repeat") return { reply: null, lineKey: `teach.line.${beat}`, pose: BEAT_POSE[beat] };
-  if (!line || !(await outputOk(ctx, att.task.id, c.lang, line.reply))) return { reply: null, lineKey: null, pose: BEAT_POSE[beat] };
+  if (!line || !(await outputOk(ctx, d, att.task.id, c.lang, line.reply))) return { reply: null, lineKey: null, pose: BEAT_POSE[beat] };
   const ok: boolean = await ctx.runMutation(internal.teach.recordBobrLine, { studentId: a.studentId, turnNo: a.turnNo, reply: line.reply });
   return ok ? { reply: line.reply, lineKey: null, pose: line.pose } : "stale";
 }
@@ -311,9 +326,10 @@ export const start = action({
     if (!att || !c) return NONE("rejected");
     const turnNo: number | null = await ctx.runMutation(internal.teach.beginScene, { studentId, topic });
     if (turnNo === null) return NONE("rejected");
-    const line = await speak(ctx, { studentId, turnNo, c, beat: "entry", att, missing: null, childInput: null });
+    const d: Diag = {};
+    const line = await speak(ctx, d, { studentId, turnNo, c, beat: "entry", att, missing: null, childInput: null });
     if (line === "stale") return NONE("stale");
-    return respond("replied", { state: "TEACH_BOBR", beat: "entry", rounds: 0, level: c.bobrLevel, attempt: att }, att, line);
+    return { ...respond("replied", { state: "TEACH_BOBR", beat: "entry", rounds: 0, level: c.bobrLevel, attempt: att }, att, line), diag: d };
   },
 });
 
@@ -321,94 +337,103 @@ export const explain = action({
   args: { ...whoArgs, value: v.string() },
   returns: replyV,
   handler: async (ctx, { value, ...who }): Promise<Reply> => {
-    const studentId: Id<"students"> | null = await ctx.runQuery(internal.session.resolve, who);
-    if (!studentId) return NONE("rejected");
-    const c: SceneCtx | null = await ctx.runQuery(internal.teach.context, { studentId });
-    if (!c) return NONE("rejected");
-
-    // 1. preGuard (код): маска ПДн, нормализация, CRISIS. Кризис важнее состояния сцены: до любых проверок темы.
-    const pg = preGuard(value, c.lang);
-    if (pg.crisis) {
-      await ctx.runMutation(internal.conductor.setCrisis, { studentId, category: pg.crisis.category, also: pg.crisis.also });
-      await ctx.runMutation(internal.teach.settleCrisisState, { studentId });
-      return NONE("crisis");
-    }
-    const topic = c.currentTopic as TopicId | null;
-    const checklist = topic && (TOPIC_IDS as readonly string[]).includes(topic) ? checklistFor(topic) : null;
-    const entry = checklist && topic ? entryAttempt(topic) : null;
-    if (!topic || !checklist || !entry || c.level !== "solved_self" || !WAITING_STATES.includes(c.state)) return NONE("rejected");
-    if (!pg.text.trim()) return NONE("rejected");
-
-    // 2. ход ребёнка: JUDGING + номер хода
-    const turnNo: number | null = await ctx.runMutation(internal.teach.beginExplain, { studentId, topic, value: pg.text });
-    if (turnNo === null) return NONE("rejected");
-
-    // 3. copyCheck (код) ∥ guardIn ∥ судья. Судья не нужен, если ребёнок переписал Ustoz.
-    const copiedByCode = copyCheck(pg.text, c.ustozLines).copied;
-    // Ответ судьи — дословные цитаты ребёнка: в llmCache он попадает только после guard SAFE (flush ниже).
-    const judgeCache = deferredPut(cacheOf(ctx));
-    const judgeStep = async (): Promise<JudgeDecision> => {
-      const r = await callStructured({
-        ...llm(), breaker, cache: judgeCache.cache, step: "judge", model: MODELS.judge, schema: Judge, system: JUDGE_PREFIX,
-        tail: judgeTail({ lang: c.lang, expression: entry.expression, attempt: entry.attempt, checklist, explanation: pg.text }),
-        timeoutMs: TIMEOUTS_MS.judge, effort: "medium", maxTokens: 2048,
-        cacheKey: cacheKey({ step: "judge", beat: "explain", itemId: entry.task.id, lang: c.lang, normInput: pg.text }),
-      });
-      // TODO(спека): при partial ещё 2 судьи параллельно
-      return r.ok ? decideJudge(r.value, { checklist, explanation: pg.text }) : judgeUnavailable(checklist);
-    };
-    const [g, decision] = await Promise.all([
-      callStructured({
-        ...llm(), breaker, cache: cacheOf(ctx), step: "guardIn", model: MODELS.guardIn, schema: GuardResult, system: GUARD_PREFIX,
-        tail: guardTail({ lang: c.lang, last6: c.last6, riskCount: c.riskCount, childInput: pg.text }),
-        timeoutMs: TIMEOUTS_MS.guard, effort: "low", thinkingOff: true,
-        cacheKey: guardCacheKey({ lang: c.lang, itemId: entry.task.id, last6: c.last6, riskCount: c.riskCount, childInput: pg.text }),
-      }),
-      copiedByCode ? null : judgeStep(),
-    ]);
-
-    // Вердикт кода применяется один раз; null = ход устарел или повтор.
-    const apply = async (outcome: Outcome): Promise<Applied | null> =>
-      await ctx.runMutation(internal.teach.applyVerdict, { studentId, turnNo, outcome });
-    const noText = async (status: "retry" | "copied", outcome: "retry" | "copy"): Promise<Reply> => {
-      const ap = await apply(outcome);
-      return ap ? respond(status, ap, ap.attempt, { reply: null, lineKey: status === "copied" ? "teach.copyCheck" : null, pose: BEAT_POSE.question }) : NONE("stale");
-    };
-
-    // 4. guard, как в turn.ts: наружу и к вердикту идёт только SAFE.
-    if (!g.ok) {
-      if (pg.suppressed) {
-        await ctx.runMutation(internal.conductor.flagRisk, { studentId, category: pg.suppressed.category, severity: 1, notifyParent: false });
-      }
-      return await noText("retry", "retry");
-    }
-    const { category, severity } = g.value;
-    if (category !== "SAFE" && severity >= 2 && crisisRouting(category)) {
-      await ctx.runMutation(internal.conductor.setCrisis, { studentId, category });
-      await ctx.runMutation(internal.teach.settleCrisisState, { studentId });
-      return NONE("crisis");
-    }
-    if (category !== "SAFE") {
-      await ctx.runMutation(internal.conductor.flagRisk, {
-        studentId, category, severity, notifyParent: crisisRouting(category)?.notifyParent ?? false,
-      });
-      if (category === "PII") await ctx.runMutation(internal.conductor.maskChildTurn, { studentId, turnNo });
-      return await noText("retry", "retry");
-    }
-
-    await judgeCache.flush();
-
-    // 5. copied — без LLM
-    if (copiedByCode || decision?.copied) return await noText("copied", "copy");
-    const ap = await apply(decision?.verdict ?? "partial");
-    if (!ap) return NONE("stale");
-
-    // 6. реплика Bobr. Нет попытки (у темы нет генератора) → без текста.
-    const att = ap.attempt;
-    if (!att) return respond("replied", ap, null, { reply: null, lineKey: `teach.line.${ap.beat}`, pose: BEAT_POSE[ap.beat] });
-    const line = await speak(ctx, {
-      studentId, turnNo, c, beat: ap.beat, att, missing: ap.beat === "question" ? (decision?.missingIdea?.about ?? null) : null, childInput: pg.text,
-    });
-    return line === "stale" ? NONE("stale") : respond("replied", ap, att, line);
+    const d: Diag = {};
+    return { ...(await explainTurn(ctx, d, who, value)), diag: d };
   },
 });
+
+async function explainTurn(ctx: ActionCtx, d: Diag, who: { token?: string; studentId?: Id<"students"> }, value: string): Promise<Reply> {
+  const studentId: Id<"students"> | null = await ctx.runQuery(internal.session.resolve, who);
+  if (!studentId) return NONE("rejected");
+  const c: SceneCtx | null = await ctx.runQuery(internal.teach.context, { studentId });
+  if (!c) return NONE("rejected");
+
+  // 1. preGuard (код): маска ПДн, нормализация, CRISIS. Кризис важнее состояния сцены: до любых проверок темы.
+  const pg = preGuard(value, c.lang);
+  if (pg.crisis) {
+    await ctx.runMutation(internal.conductor.setCrisis, { studentId, category: pg.crisis.category, also: pg.crisis.also });
+    await ctx.runMutation(internal.teach.settleCrisisState, { studentId });
+    return NONE("crisis");
+  }
+  const topic = c.currentTopic as TopicId | null;
+  const checklist = topic && (TOPIC_IDS as readonly string[]).includes(topic) ? checklistFor(topic) : null;
+  const entry = checklist && topic ? entryAttempt(topic) : null;
+  if (!topic || !checklist || !entry || c.level !== "solved_self" || !WAITING_STATES.includes(c.state)) return NONE("rejected");
+  if (!pg.text.trim()) return NONE("rejected");
+
+  // 2. ход ребёнка: JUDGING + номер хода
+  const turnNo: number | null = await ctx.runMutation(internal.teach.beginExplain, { studentId, topic, value: pg.text });
+  if (turnNo === null) return NONE("rejected");
+
+  // 3. copyCheck (код) ∥ guardIn ∥ судья. Судья не нужен, если ребёнок переписал Ustoz.
+  const copiedByCode = copyCheck(pg.text, c.ustozLines).copied;
+  // Ответ судьи — дословные цитаты ребёнка: в llmCache он попадает только после guard SAFE (flush ниже).
+  const judgeCache = deferredPut(cacheOf(ctx));
+  let judgeDown = false;
+  const judgeStep = async (): Promise<JudgeDecision> => {
+    const r = await callStructured({
+      ...llm(), breaker, cache: judgeCache.cache, step: "judge", model: MODELS.judge, schema: Judge, system: JUDGE_PREFIX,
+      tail: judgeTail({ lang: c.lang, expression: entry.expression, attempt: entry.attempt, checklist, explanation: pg.text }),
+      timeoutMs: TIMEOUTS_MS.judge, effort: "medium", maxTokens: 2048,
+      cacheKey: cacheKey({ step: "judge", beat: "explain", itemId: entry.task.id, lang: c.lang, normInput: pg.text }),
+    });
+    // TODO(спека): при partial ещё 2 судьи параллельно
+    d.judge = { ok: r.ok, why: r.ok ? undefined : r.reason, ms: r.meta.ms };
+    judgeDown = !r.ok;
+    return r.ok ? decideJudge(r.value, { checklist, explanation: pg.text }) : judgeUnavailable(checklist);
+  };
+  const [g, decision] = await Promise.all([
+    callStructured({
+      ...llm(), breaker, cache: cacheOf(ctx), step: "guardIn", model: MODELS.guardIn, schema: GuardResult, system: GUARD_PREFIX,
+      tail: guardTail({ lang: c.lang, last6: c.last6, riskCount: c.riskCount, childInput: pg.text }),
+      timeoutMs: TIMEOUTS_MS.guard, effort: "low", thinkingOff: true,
+      cacheKey: guardCacheKey({ lang: c.lang, itemId: entry.task.id, last6: c.last6, riskCount: c.riskCount, childInput: pg.text }),
+    }),
+    copiedByCode ? null : judgeStep(),
+  ]);
+
+  // Вердикт кода применяется один раз; null = ход устарел или повтор.
+  const apply = async (outcome: Outcome): Promise<Applied | null> =>
+    await ctx.runMutation(internal.teach.applyVerdict, { studentId, turnNo, outcome });
+  const noText = async (status: "retry" | "copied", outcome: "retry" | "copy"): Promise<Reply> => {
+    const ap = await apply(outcome);
+    return ap ? respond(status, ap, ap.attempt, { reply: null, lineKey: status === "copied" ? "teach.copyCheck" : "teach.line.question", pose: BEAT_POSE.question }) : NONE("stale");
+  };
+
+  // 4. guard, как в turn.ts: наружу и к вердикту идёт только SAFE.
+  d.guard = { ok: g.ok, why: g.ok ? (g.value.category === "SAFE" ? undefined : `category:${g.value.category}`) : g.reason, ms: g.meta.ms };
+  if (!g.ok) {
+    if (pg.suppressed) {
+      await ctx.runMutation(internal.conductor.flagRisk, { studentId, category: pg.suppressed.category, severity: 1, notifyParent: false });
+    }
+    return await noText("retry", "retry");
+  }
+  const { category, severity } = g.value;
+  if (category !== "SAFE" && severity >= 2 && crisisRouting(category)) {
+    await ctx.runMutation(internal.conductor.setCrisis, { studentId, category });
+    await ctx.runMutation(internal.teach.settleCrisisState, { studentId });
+    return NONE("crisis");
+  }
+  if (category !== "SAFE") {
+    await ctx.runMutation(internal.conductor.flagRisk, {
+      studentId, category, severity, notifyParent: crisisRouting(category)?.notifyParent ?? false,
+    });
+    if (category === "PII") await ctx.runMutation(internal.conductor.maskChildTurn, { studentId, turnNo });
+    return await noText("retry", "retry");
+  }
+
+  await judgeCache.flush();
+
+  // 5. copied — без LLM
+  if (copiedByCode || decision?.copied) return await noText("copied", "copy");
+  const ap = await apply(judgeDown ? "unavailable" : (decision?.verdict ?? "partial"));
+  if (!ap) return NONE("stale");
+
+  // 6. реплика Bobr. Нет попытки (у темы нет генератора) → без текста.
+  const att = ap.attempt;
+  if (!att) return respond("replied", ap, null, { reply: null, lineKey: `teach.line.${ap.beat}`, pose: BEAT_POSE[ap.beat] });
+  const line = await speak(ctx, d, {
+    studentId, turnNo, c, beat: ap.beat, att, missing: ap.beat === "question" ? (decision?.missingIdea?.about ?? null) : null, childInput: pg.text,
+  });
+  return line === "stale" ? NONE("stale") : respond("replied", ap, att, line);
+}

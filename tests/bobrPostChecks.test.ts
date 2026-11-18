@@ -141,3 +141,16 @@ describe("postChecksBobr", () => {
     });
   });
 });
+
+describe("postChecksBobr: запись с другими пробелами", () => {
+  const n8 = { attempt: "3/10", expression: "1/5 + 2/5", numbersShown: ["1", "5", "2", "5"], childNumbers: [], forbiddenAnswer: "3/5", recent: [] };
+  const line = (reply: string) => ({ reply, emotion: "happy", pose: "proud" as const, attempt: "9/9" });
+  it("выражение и попытка без пробелов или с лишними пробелами — не утечка", () => {
+    for (const reply of ["1/5+2/5=3/10, красиво же?", "1 / 5 + 2 / 5 = 3 / 10, красиво же?", "Смотри: 1/5 + 2/5 = 3 / 10!"]) {
+      expect(postChecksBobr(line(reply), n8), reply).toMatchObject({ ok: true });
+    }
+  });
+  it("ответ по частям ловится и при таких пробелах", () => {
+    expect(postChecksBobr(line("1 / 5 + 2 / 5 = 3 / 10? Или 3 из 5?"), n8)).toEqual({ ok: false, reason: "leak" });
+  });
+});
