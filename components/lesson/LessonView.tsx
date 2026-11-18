@@ -2,7 +2,7 @@
 // Экран урока: чистое отображение. Convex, localStorage и send живут в app/(child)/lesson/page.tsx.
 import { Fragment } from "react";
 import { motion } from "framer-motion";
-import { AiBadge } from "@/components/child/AiBadge";
+import { useRouter } from "next/navigation";
 import { BackLink } from "@/components/child/BackLink";
 import { Card } from "@/components/child/Card";
 import { Character } from "@/components/child/Character";
@@ -11,6 +11,7 @@ import { Fraction } from "@/components/child/Fraction";
 import { NumberLine } from "@/components/fractions/NumberLine";
 import { Pie } from "@/components/fractions/Pie";
 import { Strip } from "@/components/fractions/Strip";
+import { CrisisOverlay } from "@/components/teach/CrisisOverlay";
 import { PressButton } from "@/components/ui/press-button";
 import type { Key } from "@/lib/i18n";
 import { useT } from "@/lib/i18n";
@@ -22,6 +23,8 @@ export type LessonViewData = {
   state: string;
   lastVerdict: string | null;
   hintLevel: number;
+  /** Сервер решил: тема решена сама, можно учить Bobr. Клиент уровень не выводит. Необязательное: dev-фикстуры без него. */
+  canTeach?: boolean;
   task: { topic: string; kind: string; params: Record<string, string>; numbersShown: string[] } | null;
   reply: {
     text: string | null;
@@ -63,6 +66,7 @@ const inkBorder = { border: "var(--stroke-ink) solid var(--color-ink)" } as cons
 
 export function LessonView(p: LessonViewProps) {
   const { t } = useT();
+  const router = useRouter();
   const { reduced, transitions, targets } = useMotion();
   const { view, busy } = p;
 
@@ -98,7 +102,20 @@ export function LessonView(p: LessonViewProps) {
         </div>
       )}
 
-      {view?.task && taskKey && (
+      {view?.task && view.canTeach && (
+        <>
+          <Card className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
+            <Character who="bobr" size={140} />
+            <p className="text-title">{t("lesson.teach.lead")}</p>
+          </Card>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <PressButton onClick={() => router.push("/teach")} fullWidth>{t("lesson.teach.cta")}</PressButton>
+            <PressButton variant="secondary" onClick={p.onFinish}>{t("plan.toMahalla")}</PressButton>
+          </div>
+        </>
+      )}
+
+      {view?.task && taskKey && !view.canTeach && (
         <>
           <Card className="flex flex-col gap-4">
             {showNext && <p className="text-body text-ink-muted">{t("lesson.next")}</p>}
@@ -180,15 +197,7 @@ export function LessonView(p: LessonViewProps) {
         </>
       )}
 
-      {view?.crisis && (
-        // Спокойно и без движения: полный экран поверх всего, текст и номера только из view.crisis.
-        <div role="alertdialog" aria-modal="true" className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-sand p-6 text-center text-ink">
-          <AiBadge />
-          <p className="max-w-md text-title">{view.crisis.text}</p>
-          <p className="text-title font-bold">{t("lesson.crisis.call")} {view.crisis.numbers.join(", ")}</p>
-          <PressButton onClick={p.onLeaveCrisis}>{t("lesson.crisis.back")}</PressButton>
-        </div>
-      )}
+      {view?.crisis && <CrisisOverlay crisis={view.crisis} onLeave={p.onLeaveCrisis} />}
     </div>
   );
 }

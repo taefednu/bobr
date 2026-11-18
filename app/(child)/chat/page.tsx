@@ -1,24 +1,33 @@
 "use client";
-import { CharacterSays } from "@/components/child/CharacterSays";
-import { PressButton } from "@/components/ui/press-button";
+// Болталка: свободный разговор с Ustoz или Bobr. Токен ребёнка, история у каждого своя (chat:view по who).
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { ChatView } from "@/components/chat/ChatView";
+import type { Partner } from "@/components/chat/model";
+import { useChat } from "@/components/chat/useChat";
 import { useT } from "@/lib/i18n";
+import { useGuard } from "@/lib/ui/session";
 
-// TODO(core): болталка ещё не подключена к бэкенду, поэтому отправка выключена.
 export default function Page() {
+  const router = useRouter();
   const { t } = useT();
+  const { token } = useGuard(4, 4);
+  const [who, setWho] = useState<Partner>("ustoz");
+  const chat = useChat(token, who);
   return (
     <>
-      <h1 className="font-display text-title font-bold">{t("chat.title")}</h1>
-      <CharacterSays who="bobr">{t("chat.empty")}</CharacterSays>
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <input
-          aria-label={t("chat.placeholder")}
-          placeholder={t("chat.placeholder")}
-          className="h-[52px] min-w-0 flex-1 rounded-md bg-paper px-4 text-body text-ink shadow-well"
-          style={{ border: "var(--stroke-ink) solid var(--color-ink)" }}
-        />
-        <PressButton disabled>{t("chat.send")}</PressButton>
-      </div>
+      <h1 className="sr-only">{t("chat.title")}</h1>
+      <ChatView
+        who={who}
+        onWho={setWho}
+        data={chat.data}
+        optimistic={chat.optimistic}
+        pending={chat.pending}
+        notice={chat.notice}
+        crisis={chat.crisis}
+        onSend={chat.submit}
+        onLeave={() => router.push("/mahalla")}
+      />
     </>
   );
 }

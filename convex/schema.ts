@@ -119,6 +119,7 @@ export default defineSchema({
     role: v.union(v.literal("child"), v.literal("ustoz"), v.literal("bobr"), v.literal("system")),
     kind: v.union(v.literal("answer"), v.literal("button"), v.literal("text"), v.literal("action"), v.literal("reply")),
     text: v.string(), // маскированный
+    pose: v.optional(v.string()), // поза реплики в чате (BOBR_POSES, прошла zod)
     turnNo: v.optional(v.number()), // номер хода ребёнка (для маски ПДн задним числом)
     state: convState,
     ts: v.number(), // ms; ключ для антиповтора (последние 20–30 реплик) и чистки по 30 дням

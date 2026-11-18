@@ -33,6 +33,18 @@ describe("lessonView", () => {
     expect(v.task?.kind).toBe("word");
   });
 
+  it("canTeach is decided by the server: solved_self topic in the lesson only", () => {
+    expect(lessonView(student).canTeach).toBe(false);
+    expect(lessonView(student, "gap").canTeach).toBe(false);
+    expect(lessonView(student, "solved_self").canTeach).toBe(true);
+    expect(lessonView({ ...student, state: "TOPIC_DONE" } as unknown as Doc<"students">, "solved_self").canTeach).toBe(true);
+    expect(lessonView({ ...student, state: "BOBR_QUESTION" } as unknown as Doc<"students">, "solved_self").canTeach).toBe(true); // reload mid-scene
+    expect(lessonView({ ...student, state: "HOME" } as unknown as Doc<"students">, "solved_self").canTeach).toBe(false);
+    expect(lessonView(student, "taught_bobr").canTeach).toBe(false);
+    expect(lessonView({ ...student, state: "CRISIS" } as unknown as Doc<"students">, "solved_self").canTeach).toBe(false);
+    expect(JSON.stringify(lessonView(student, "solved_self"))).not.toMatch(/answer|distractor/i);
+  });
+
   it("operand fractions come from params only", () => {
     expect(operandFractions(probe.params)).toEqual(["1/2", "1/3"]);
   });

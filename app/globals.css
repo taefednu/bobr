@@ -30,6 +30,10 @@
   --color-pie-5: oklch(74% 0.12 255);
   --color-pie-6: oklch(74% 0.13 20);
 
+  /* Пузыри болталки: Bobr тёплый (apricot), Ustoz прохладный (tile), оба подмешаны в paper. */
+  --color-bubble-bobr: color-mix(in oklch, var(--color-apricot) 38%, var(--color-paper));
+  --color-bubble-ustoz: color-mix(in oklch, var(--color-tile) 22%, var(--color-paper));
+
   --font-display: "Unbounded Variable", system-ui, sans-serif;
   --font-sans: "Onest Variable", system-ui, sans-serif;
 

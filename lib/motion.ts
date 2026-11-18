@@ -65,6 +65,22 @@ export const IDLE = {
   blinkEveryS: [2, 4] as const,
 } as const;
 
+/** Поза Bobr на одном PNG: наклон-стойка (`rest`) и разовое действие при смене реплики (`act`, ключи).
+ *  Только персонаж: сжатие и подскок. Пока нет PNG под каждую позу, поза читается движением. */
+export const POSE_ACT: Record<string, { rest: { rotate: number; scale: number }; act: { y?: number[]; rotate?: number[]; scale?: number[] }; durationS: number }> = {
+  idle: { rest: { rotate: 0, scale: 1 }, act: {}, durationS: 0.4 },
+  wave: { rest: { rotate: 0, scale: 1 }, act: { rotate: [0, -9, 9, -9, 9, 0] }, durationS: 0.9 },
+  happy: { rest: { rotate: 0, scale: 1 }, act: { y: [0, -16, 0, -6, 0] }, durationS: 0.6 },
+  aha: { rest: { rotate: 0, scale: 1.04 }, act: { y: [0, -34, 0, -14, 0], scale: [1, 1.1, 0.96, 1.03, 1.04] }, durationS: 0.8 },
+  proud: { rest: { rotate: 0, scale: 1.06 }, act: { scale: [1, 1.12, 1.06] }, durationS: 0.5 },
+  think: { rest: { rotate: 6, scale: 1 }, act: { rotate: [0, 10, 6] }, durationS: 0.5 },
+  confused: { rest: { rotate: -6, scale: 1 }, act: { rotate: [0, -11, -6], y: [0, -4, 0] }, durationS: 0.5 },
+  sad: { rest: { rotate: 0, scale: 0.95 }, act: { y: [0, 6, 4] }, durationS: 0.5 },
+};
+
+/** Ожидание ответа: Bobr качает головой, три точки в облачке зажигаются по очереди. Крутится, пока ждём. */
+export const THINKING = { rotate: [-4, 6, -4], periodS: 1.6, dotStepS: 0.25, dotPeriodS: 1.1 } as const;
+
 /** Наведение только на устройствах с мышью: на касании ложный hover поднимает кнопки. */
 export const HOVER_MEDIA = "(hover: hover) and (pointer: fine)";
 

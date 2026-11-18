@@ -10,6 +10,10 @@ export const view = query({
   handler: async (ctx, who) => {
     const studentId = await studentIdOf(ctx, who);
     const s = studentId && (await ctx.db.get("students", studentId));
-    return s ? lessonView(s) : null;
+    if (!s) return null;
+    const row = s.currentTopic
+      ? await ctx.db.query("topicStatus").withIndex("by_student_and_topic", (q) => q.eq("studentId", s._id).eq("topic", s.currentTopic!)).unique()
+      : null;
+    return lessonView(s, row?.level ?? null);
   },
 });

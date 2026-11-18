@@ -9,6 +9,7 @@
  */
 
 import type * as botAuth from "../botAuth.js";
+import type * as chat from "../chat.js";
 import type * as conductor from "../conductor.js";
 import type * as crons from "../crons.js";
 import type * as debug from "../debug.js";
@@ -38,6 +39,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   botAuth: typeof botAuth;
+  chat: typeof chat;
   conductor: typeof conductor;
   crons: typeof crons;
   debug: typeof debug;

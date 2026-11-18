@@ -56,8 +56,8 @@ export const startLesson = mutation({
     const child = await childOf(ctx, token);
     const id = graph.topics.find((t) => t.id === topic)?.id as TopicId | undefined; // topic с клиента — только из графа
     const plan = await ctx.db.query("plans").withIndex("by_student", (q) => q.eq("studentId", child._id)).order("desc").first();
-    // Из махалли можно начать тему и после урока (дирижёр сам в HOME не возвращает); из CRISIS и до плана — нельзя.
-    const from = child.state === "HOME" || child.state === "LESSON_SOLVE" || child.state === "TOPIC_DONE";
+    // Из махалли можно начать тему и после урока или брошенной сцены «Научи Bobr» (в HOME сами не возвращаются); из CRISIS и до плана — нельзя.
+    const from = (["HOME", "LESSON_SOLVE", "TOPIC_DONE", "TEACH_BOBR", "BOBR_QUESTION", "BOBR_ATTEMPT", "JUDGING"] as string[]).includes(child.state);
     if (!from || !id || !GENERATED.has(id) || !plan?.order?.includes(id)) throw new Error("cannot start");
     const { seed: _seed, ...task } = generateTask(id, "word", SEED);
     // Новая сессия темы: выдана 1 задача (эта), серия с нуля. Иначе submitAnswer при счётчике 0 (после диагностики)

@@ -21,7 +21,14 @@ export function operandFractions(p: Record<string, string>): string[] {
   return [];
 }
 
-export function lessonView(s: Doc<"students">) {
+// Состояния урока и сцены «Научи Bobr» (из них сцену можно войти заново: перезагрузка посреди сцены).
+const TEACH_ENTRY_STATES = ["LESSON_SOLVE", "TOPIC_DONE", "TEACH_BOBR", "BOBR_QUESTION", "BOBR_ATTEMPT", "JUDGING"];
+
+/** «Научи Bobr» открыт: тема решена сама (solved_self) и ребёнок в уроке или в сцене. Уровень темы считает код, клиент его не выводит. */
+const canTeachFrom = (s: Doc<"students">, level: string | null) =>
+  level === "solved_self" && TEACH_ENTRY_STATES.includes(s.state);
+
+export function lessonView(s: Doc<"students">, topicLevel: string | null = null) {
   const crisis = s.state === "CRISIS" ? crisisMessage(s.lang) : null;
   return {
     lang: s.lang,
@@ -29,6 +36,7 @@ export function lessonView(s: Doc<"students">) {
     turnNo: s.turnNo ?? 0,
     lastVerdict: s.lastVerdict ?? null,
     hintLevel: s.hintLevel ?? 0,
+    canTeach: canTeachFrom(s, topicLevel),
     task: s.currentTask && s.currentTask.kind !== "mcq" ? publicTask(s.currentTask) : null, // проба диагностики идёт только через diagnose:view
     reply: s.lastReply
       ? { text: s.lastReply.reply, component: s.lastReply.component, hintButton: s.lastReply.hintButton }
@@ -45,6 +53,7 @@ export const viewValidator = v.union(v.null(), v.object({
   turnNo: v.number(),
   lastVerdict: v.union(v.string(), v.null()),
   hintLevel: v.number(),
+  canTeach: v.boolean(),
   task: v.union(v.null(), v.object({
     topic: v.string(), kind: v.string(), params: v.record(v.string(), v.string()), numbersShown: v.array(v.string()),
   })),

@@ -34,6 +34,7 @@ vitest 5, Playwright 1.64.0 (закреплён под скачанный бра
 | `lib/motion.ts` | все пружины и тайминги, `useMotion()` | готово |
 | `lib/utils.ts` | `cn()` | готово |
 | `app/(child)/{goal,diagnose,mahalla,lesson,teach,chat}`, `app/parent`, `app/page.tsx` | экраны, серый каркас без логики (до ок на DESIGN v1) | каркас |
+| `app/(child)/chat/page.tsx`, `components/chat/*` | болталка с Ustoz и Bobr: `useChat` (api.chat.view/send, оптимистичный пузырь), `ChatView` (персонаж + переписка + поле + закрытое состояние + кризис), `Stage`/`Switch`/`Bubbles`/`Composer`/`ClosedPanel`/`Portrait`, `model.ts` (контракт и пороги) | экран готов, проверен вживую 390 и 1280 |
 | `app/page.tsx`, `app/(child)/{start,c/[code],goal,diagnose,plan,mahalla,lesson}`, `lib/ui/session.ts`, `lib/ui/types.ts` | экраны ребёнка на реальном бэкенде core: токен в `localStorage bobr:token`, `routeForState`, `useGuard(min,max)` по ступеням пути; `types.ts` — формы ответов API_CHILD (заглушек нет) | работает |
 | `components/skeleton/Shell.tsx` | оболочка каркаса: `Shell`, `AiBadge` (плашка ИИ), `LangSwitch`, `Character`-заглушка | каркас |
 | `lib/i18n.ts` | `useT()`: язык из `localStorage["bobr:lang"]`, uz по умолчанию, гидрация через `useSyncExternalStore` | готово |
