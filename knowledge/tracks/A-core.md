@@ -10,6 +10,7 @@
 - Ядро урока и безопасность: `convex/{turn,conductor,lesson*,llmCache}.ts`, `lib/{fractions,safety,llm,text}/**`.
 - API для Telegram: `convex/{parents,students,linkCode,outbox,parent,parentLogin,botAuth,demo}.ts`, `docs/specs/API_FOR_BOT.md`.
 - Вход ребёнка по коду (`claimLinkCode` → сессия child, SPEC_SYSTEM §3–4) — закрывает IDOR (B9).
+- **Ревьюер (B11):** authenticated mutation «закрыть флаг» (`reviewQueue.status`), список открытых по `by_status` и внешний сигнал на `withheldPush` (кому — решает владелец). Без этого удержанный кризис-пуш никто не видит.
 - **Мерж:** `front` и `teach` → `main` в **12:00** и **13:30** (`git merge`, verify, `/demo-path`, push).
 
 ## Связанные узлы
