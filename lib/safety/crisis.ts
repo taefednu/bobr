@@ -50,11 +50,11 @@ export function parentNotifyDecision(p: { categories: GuardCategory[]; priorAbus
   return { notify: routes.length > 0, urgent: routes.some((r) => r?.urgent) };
 }
 
-/** Строка reviewQueue про ABUSE_HOME «помнится»: открыта или создана в последние 90 дней, и severity ≥ 2 — то есть
- *  её создал кризис (setCrisis / guard на уровне CRISIS), а не severity-1 флаг flagRisk про слабый сигнал: иначе
- *  один низкоуверенный флаг навсегда глушил бы пуши про SELF_HARM. */
+/** Строка reviewQueue про ABUSE_HOME «помнится»: открыта или создана в последние 90 дней — ЛЮБОЙ severity (fail closed:
+ *  слабый сигнал о насилии дома тоже не даёт отправить пуш родителю-источнику). Тишины нет: удержанный пуш всегда
+ *  пишет строку withheldPush (severity 4) — её видит человек. Снять — закрыть строку ревью (status ≠ open) и подождать 90 дней. */
 export const abuseRowCounts = (r: { category: string; status: string; severity: number; _creationTime: number }, now: number) =>
-  r.category === "ABUSE_HOME" && r.severity >= 2 && (r.status === "open" || now - r._creationTime < ABUSE_MEMORY_DAYS * DAY_MS);
+  r.category === "ABUSE_HOME" && (r.status === "open" || now - r._creationTime < ABUSE_MEMORY_DAYS * DAY_MS);
 
 export const ABUSE_LOOKUP_BOUND = 100;
 
@@ -75,5 +75,8 @@ export const crisisDedupeKey = (studentId: string, category: string) => `crisis:
 export function crisisPushSuppressed(
   rows: { dedupeKey?: string; urgent?: boolean; createdAt: number; sentAt?: number }[], dedupeKey: string, urgent: boolean, now: number,
 ): boolean {
-  return rows.some((r) => r.dedupeKey === dedupeKey && r.sentAt === undefined && now - r.createdAt < CRISIS_DEDUPE_STALE_MS && (r.urgent === true || !urgent));
+  // Первый пуш эпизода уходит сразу (лимита нет — SPEC_SYSTEM §5). Повтор того же (ребёнок, категория) склеивается,
+  // пока предыдущий не отправлен или отправлен < 10 мин назад; несрочная строка срочную не гасит.
+  return rows.some((r) => r.dedupeKey === dedupeKey && (r.urgent === true || !urgent) && (
+    r.sentAt === undefined ? now - r.createdAt < CRISIS_DEDUPE_STALE_MS : now - r.sentAt < CRISIS_DEDUPE_STALE_MS));
 }
