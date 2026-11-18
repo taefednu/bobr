@@ -4,7 +4,7 @@ import { mutation } from "./_generated/server";
 import { assertBot } from "./botAuth";
 
 const lang = v.union(v.literal("uz"), v.literal("ru"));
-const goal = v.union(v.literal("test_soon"), v.literal("homework"), v.literal("unknown"));
+const goal = v.union(v.literal("test_soon"), v.literal("improve"), v.literal("just_practice")); // = GOAL_INTENTS
 
 export const upsertFromTelegram = mutation({
   args: { botSecret: v.string(), telegramUserId: v.string(), chatId: v.string(), firstName: v.string(), lang },
@@ -37,6 +37,7 @@ export const setGoal = mutation({
   handler: async (ctx, { botSecret, parentId, goal, testDate }) => {
     assertBot(botSecret);
     if (testDate !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(testDate)) throw new Error("bad testDate");
+    if (goal !== "test_soon") testDate = undefined; // дата нужна только контрольной
     await ctx.db.patch("parents", parentId, { goal, testDate });
     const links = await ctx.db.query("parentLinks").withIndex("by_parent", (q) => q.eq("parentId", parentId)).take(50);
     for (const l of links) await ctx.db.patch("students", l.studentId, { goal, testDate });

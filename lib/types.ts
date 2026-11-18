@@ -89,8 +89,9 @@ export const OutputCheck = z.object({
 });
 export type OutputCheck = z.infer<typeof OutputCheck>;
 
-// TODO(spec): значения intent кнопок цели — по спеке «скоро контрольная / домашка / не знаю».
-export const GOAL_INTENTS = ["test_soon", "homework", "unknown"] as const;
+// Решение владельца 18.11 (по ТЗ бота): «Скоро контрольная / Подтянуть дроби / Просто заниматься». Дублируется в convex/schema.ts.
+export const GOAL_INTENTS = ["test_soon", "improve", "just_practice"] as const;
+export type Goal = (typeof GOAL_INTENTS)[number];
 export const GoalDialog = z.object({
   reply: z.string(),
   buttons: z.array(z.object({ label: z.string(), intent: ci(GOAL_INTENTS) })),

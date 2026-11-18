@@ -23,6 +23,8 @@
   "goal.test": "Tez orada nazorat ishi",
   "goal.homework": "Uy vazifasi",
   "goal.unknown": "Bilmayman",
+  "goal.improve": "Kasrlarni mustahkamlash",
+  "goal.just_practice": "Shunchaki shugʻullanish",
   "diagnose.title": "Tekshiruv",
   "diagnose.placeholder": "Bu yerda savollar boʻladi.",
   "mahalla.title": "Mahalla",

@@ -22,6 +22,8 @@
   "goal.test": "Скоро контрольная",
   "goal.homework": "Домашка",
   "goal.unknown": "Не знаю",
+  "goal.improve": "Подтянуть дроби",
+  "goal.just_practice": "Просто заниматься",
   "diagnose.title": "Диагностика",
   "diagnose.placeholder": "Здесь будут вопросы.",
   "mahalla.title": "Махалля",

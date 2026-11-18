@@ -21,6 +21,7 @@ import type * as outbox from "../outbox.js";
 import type * as parent from "../parent.js";
 import type * as parentLogin from "../parentLogin.js";
 import type * as parents from "../parents.js";
+import type * as session from "../session.js";
 import type * as students from "../students.js";
 import type * as turn from "../turn.js";
 
@@ -44,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   parent: typeof parent;
   parentLogin: typeof parentLogin;
   parents: typeof parents;
+  session: typeof session;
   students: typeof students;
   turn: typeof turn;
 }>;

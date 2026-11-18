@@ -8,7 +8,11 @@
 
 | Дата | Трек | Что нужно | Зачем | Статус |
 |---|---|---|---|---|
-| — | — | — | — | — |
+| 18.11 | A-front | **Цель:** action `goal.turn({studentId, intent?})` → `{reply: string, buttons: {label: string, intent: "test_soon"\|"improve"\|"just_practice"}[], done: boolean}` (форма `GoalDialog`) | экран `/goal`: Bobr спрашивает кнопками; сейчас заглушка `lib/ui/demo-data.ts` | открыта |
+| 18.11 | A-front | **Диагностика:** query `diagnose.current({studentId})` → `{probe: {id, topic, kind: "input"\|"mcq", prompt: {key: string, params: Record<string,string>}, options?: string[]} \| null, done: boolean}` **без ответа и дистракторов-как-ответа**; mutation/action `diagnose.answer({studentId, probeId, value})` → `null` (следующая проба приходит через query). Экран не считает вердикт и не знает число проб | экран `/diagnose`, адаптивная диагностика | открыта |
+| 18.11 | A-front | **План:** query `plan.current({studentId})` → `{order: TopicId[], days: {date: string, items: {topic: TopicId, kind: "new"\|"review"\|"mixed_check"}[]}[]} \| null` (выход `buildPlan`) | экран `/plan`; заглушка зовёт настоящий `buildPlan` на демо-статусах | открыта |
+| 18.11 | A-front | **Махалля:** query `mahalla.houses({studentId})` → `{topic: TopicId, state: HouseState}[]` на все 10 тем (`houseState` считает сервер) + `nextTopic: TopicId \| null` | экран `/mahalla`; заглушка зовёт настоящий `houseState` | открыта |
+| 18.11 | A-front | **Вход ребёнка:** как экраны получают `studentId` после `claimLinkCode` (сейчас только `bobr:lessonStudent` из `startDemoLesson`) и старт урока по теме из плана (`startLesson({studentId, topic})`) | связать шаги 1–5 в один путь | открыта |
 
 ## Баги в чужих зонах
 

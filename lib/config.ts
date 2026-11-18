@@ -27,7 +27,7 @@ export const CHAT = {
 } as const;
 
 export const THRESHOLDS = {
-  copyCheck: { jaccardOver: 0.6, lastUstozLines: 6 },
+  copyCheck: { jaccardOver: 0.5, lastUstozLines: 6 },
   repeatGuard: { jaccardOver: 0.7, lastLines: 30 },
   preGuardMaxInput: 500,
 } as const;
@@ -49,4 +49,10 @@ export const CRISIS = {
 /** DEMO_MODE (env Convex): `replay` — ответы только из llmCache, даже при ключе (офлайн-демо). Иначе live; без ключа live невозможен → replay. */
 export const resolveDemoMode = (mode: string | undefined, hasKey: boolean): "live" | "replay" =>
   !hasKey || mode === "replay" ? "replay" : "live";
+/** DEMO_MODE=script — диагностика идёт по фиксированным пробам DEMO_PROBE_ORDER; иначе адаптивная. На live/replay LLM не влияет
+ *  (script с ключом = live). Вердикты в обоих режимах считает код по ответу ребёнка. */
+export const isScriptDiagnosis = (mode: string | undefined): boolean => mode === "script";
+// Цель диагностики и плана на хакатон — сложение с разными знаменателями (демо-путь спеки). maxProbes — потолок адаптивной ветки.
+export const DIAGNOSE = { targets: ["N9"], maxProbes: 6 } as const;
+export const SESSION_DAYS = 30; // детская сессия (ТЗ срок не задаёт)
 export const DEMO_PROBE_ORDER = ["N9", "N8", "N2", "N5", "N6", "N1"] as const;
