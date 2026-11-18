@@ -82,11 +82,13 @@ const RULES: { kind: PiiKind; tag: string; re: RegExp }[] = [
 // Имя — только после явного «меня зовут X»: интро остаётся, имя заменяется. Фамилия (второе слово) уходит
 // вместе с именем, если оканчивается как фамилия; запятая останавливает («ismim Ali, 5-sinf»).
 const NAME_RE = new RegExp(
-  String.raw`${NL}(меня\s+зовут|меня\s+звать|мо[её]\s+имя|(?:mening\s+)?ismim|(?:менинг\s+)?исмим)\s*[:,-]?\s*([\p{L}'-]+)(\s+[\p{L}'-]+)?`,
+  String.raw`${NL}(меня\s+зовут|меня\s+звать|мо[её]\s+имя|(?:mening\s+)?ismim|(?:менинг\s+)?исмим)\s*[:,-]?\s*([\p{L}'-]+)`,
   "giu",
 );
 // «меня зовут к доске/играть/домой», «ismim nima?» — после интро не имя. С заглавной это всё-таки имя («ismim Kim»).
-const NOT_NAME = /^(?:к|ко|на|в|во|с|со|по|до|за|у|из|от|и|а|но|домой|сюда|туда|идти|пойти|прийти|зайти|выйти|nima|kim|emas|yo'q|va|ham|deb|shu|bu|lekin|ammo)$|(?:ть|ться)$/u;
+const NOT_NAME = /^(?:к|ко|на|в|во|с|со|по|до|за|у|из|от|и|а|но|домой|сюда|туда|идти|пойти|прийти|зайти|выйти|nima|kim|emas|yo'q|va|ham|deb|shu|bu|lekin|ammo)$/u;
+// Глагольный суффикс — только у слова целиком в нижнем регистре: «Играть» с заглавной — имя.
+const VERB_END = /(?:ть|ться)$/u;
 // ov/ova/ev/eva/yev/yeva, -ов/-ев/-ёв(а): уверенно и без заглавной; остальные окончания — только с заглавной.
 const SURNAME_STRONG = /.{2,}(?:ov|ova|ev|eva|ов|ова|ев|ева|ёв|ёва)$/iu;
 const SURNAME_WEAK = /.{2,}(?:iy|in|ina|yan|enko|dze|uk|ин|ина|ын|ский|ская|цкий|цкая|ий|ой|ый|ко|енко|ян|дзе|юк|ук)$/iu;
@@ -104,10 +106,25 @@ export function maskPii(text: string): { text: string; kinds: PiiKind[] } {
       return tag;
     });
   }
-  out = out.replace(NAME_RE, (m, intro: string, first: string, next?: string) => {
-    if (NOT_NAME.test(first)) return m;
+  // Второе слово не входит в NAME_RE: иначе оно поглощается, даже когда не маскируется, и повторное интро
+  // («ismim Ali ismim Vali») не находится. Фамилию разбираем вручную и сдвигаем lastIndex только за неё.
+  const src = out;
+  let res = "";
+  let last = 0;
+  NAME_RE.lastIndex = 0;
+  for (let m = NAME_RE.exec(src); m; m = NAME_RE.exec(src)) {
+    const [whole, intro, first] = m;
+    const end = m.index + whole.length;
+    const nx = /^(\s+)([\p{L}'-]+)/u.exec(src.slice(end));
+    const surname = !!nx && isSurname(nx[2]);
+    const stop = NOT_NAME.test(first) || (first === first.toLowerCase() && VERB_END.test(first));
+    if (stop && !surname) continue;
     hit("name");
-    return `${intro} [NAME]${next && !isSurname(next.trim()) ? next : ""}`;
-  });
+    const tail = surname ? end + nx![0].length : end;
+    res += `${src.slice(last, m.index)}${intro} [NAME]`;
+    last = tail;
+    NAME_RE.lastIndex = tail;
+  }
+  out = res + src.slice(last);
   return { text: out, kinds };
 }

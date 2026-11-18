@@ -39,9 +39,15 @@ describe("prompts", () => {
   it("guard prefix: olgim keladi (take) is SAFE, oʻlgim keladi (die) stays SELF_HARM, hyperbole does not weaken real signals", () => {
     expect(GUARD_PREFIX).toContain("olgim keladi");
     expect(GUARD_PREFIX).toContain("men bu daftarni olgim keladi");
-    expect(GUARD_PREFIX).toContain("kulgidan oʻlgim keladi");
+    expect(GUARD_PREFIX).toContain("kulgidan o'lgim keladi");
     expect(GUARD_PREFIX).toContain("Гипербола не ослабляет настоящий сигнал");
     expect(GUARD_PREFIX).toContain("men o‘lgim keladi"); // настоящий кризис остаётся примером тяжёлой категории
+    // без названного предмета голое «olgim keladi» не SAFE 0: SELF_HARM sev 1 на проверку; с нормализованным апострофом
+    expect(GUARD_PREFIX).toContain("SAFE 0 только когда рядом явно назван предмет");
+    expect(GUARD_PREFIX).toContain("«men olgim keladi»");
+    expect(GUARD_PREFIX).toContain("«men o'lgim keladi»");
+    expect(GUARD_PREFIX).toContain("SELF_HARM, severity 1");
+    expect(GUARD_PREFIX).not.toContain("olgim keladi» (o без ʻ) — «мне хочется взять»: это SAFE 0");
     expect(GUARD_PREFIX).toContain("я хочу умереть");
   });
   it("outputCheck prefix: figures of speech are not claims_human_or_alive, real claims still are", () => {

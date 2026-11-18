@@ -136,4 +136,26 @@ describe("maskPii: имя с фамилией маскируется целик�
     }
     expect(mask("меня зовут идти домой").kinds).toEqual([]);
   });
+
+  it("повторное интро: второе слово не поглощается, имя после второго интро маскируется", () => {
+    for (const [s, want] of [
+      ["ismim Ali ismim Vali", "ismim [NAME] ismim [NAME]"],
+      ["меня зовут Аня меня зовут Вася", "меня зовут [NAME] меня зовут [NAME]"],
+      // путь NOT_NAME: первое слово служебное, интро не съедено
+      ["ismim nima ismim Vali", "ismim nima ismim [NAME]"],
+      ["меня зовут домой меня зовут Вася", "меня зовут домой меня зовут [NAME]"],
+    ]) {
+      const r = mask(s);
+      expect(r.text, s).toBe(want);
+      expect(r.text).not.toMatch(/Vali|Вася/);
+    }
+  });
+
+  it("глагольный суффикс только в нижнем регистре; фамилия после служебного слова делает фразу именем", () => {
+    expect(mask("меня зовут Играть").kinds).toContain("name");
+    expect(mask("меня зовут Прыгаться").kinds).toContain("name");
+    expect(mask("меня зовут играть").kinds).toEqual([]);
+    expect(mask("меня зовут домой Иванов").text).toBe("меня зовут [NAME]");
+    expect(mask("ismim nima Testov").text).toBe("ismim [NAME]");
+  });
 });
