@@ -36,6 +36,21 @@ describe("prompts", () => {
     for (const v of PERSONA_VIOLATIONS) expect(OUTPUT_CHECK_PREFIX).toContain(v);
     expect(GUARD_PREFIX).toContain("zerikib o‘ldim");
   });
+  it("guard prefix: olgim keladi (take) is SAFE, oʻlgim keladi (die) stays SELF_HARM, hyperbole does not weaken real signals", () => {
+    expect(GUARD_PREFIX).toContain("olgim keladi");
+    expect(GUARD_PREFIX).toContain("men bu daftarni olgim keladi");
+    expect(GUARD_PREFIX).toContain("kulgidan oʻlgim keladi");
+    expect(GUARD_PREFIX).toContain("Гипербола не ослабляет настоящий сигнал");
+    expect(GUARD_PREFIX).toContain("men o‘lgim keladi"); // настоящий кризис остаётся примером тяжёлой категории
+    expect(GUARD_PREFIX).toContain("я хочу умереть");
+  });
+  it("outputCheck prefix: figures of speech are not claims_human_or_alive, real claims still are", () => {
+    expect(OUTPUT_CHECK_PREFIX).toContain("умер от скуки");
+    expect(OUTPUT_CHECK_PREFIX).toContain("kulgidan oʻlgim keladi");
+    expect(OUTPUT_CHECK_PREFIX).toContain("ФИГУРЫ РЕЧИ");
+    expect(OUTPUT_CHECK_PREFIX).toContain("я живой");
+    expect(OUTPUT_CHECK_PREFIX).toContain("men tirikman");
+  });
   it("ustozTail carries lang, verdict, fenced input and never an answer key", () => {
     const t = ustozTail({
       lang: "uz", beat: "hint", task: { kind: "word", params: { a: "1/2", b: "1/3" }, numbersShown: ["1/2", "1/3"] },
