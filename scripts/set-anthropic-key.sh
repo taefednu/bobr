@@ -10,5 +10,8 @@ fi
 read -rsp "Вставь ключ Anthropic (sk-ant-…) и нажми Enter: " key; echo
 key="$(printf '%s' "$key" | tr -d '[:space:]')"
 case "$key" in sk-ant-*) ;; *) echo "Это не похоже на ключ Anthropic (должен начинаться с sk-ant-)" >&2; exit 1;; esac
-npx convex env set ANTHROPIC_API_KEY "$key" </dev/null
-npx convex env list </dev/null
+echo "Ставлю ключ в Convex…"
+if ! timeout 30 npx convex env set ANTHROPIC_API_KEY "$key" </dev/null; then
+  echo "Convex не ответил за 30 с. Перезапусти: Ctrl+C в терминале с npm run dev:convex, снова npm run dev:convex, потом этот скрипт." >&2; exit 1
+fi
+timeout 30 npx convex env list </dev/null
