@@ -21,7 +21,7 @@ import { BobrTurn, GuardResult, Judge, OutputCheck, TOPIC_IDS, type TopicId } fr
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { action, internalMutation, internalQuery, type ActionCtx, type MutationCtx, type QueryCtx } from "./_generated/server";
-import { operandFractions } from "./lessonView";
+import { operandFractions, publicTask } from "./lessonView";
 import { whoArgs } from "./session";
 import { enqueueTaughtBobr } from "./outbox";
 
@@ -87,6 +87,10 @@ type Att = {
   expression: string;
   misconception: string | null;
 };
+function publicAttemptTask(task: Att["task"]) {
+  const { kind, params, numbersShown } = publicTask(task);
+  return { kind, params, numbersShown };
+}
 type Status = "replied" | "copied" | "retry" | "crisis" | "rejected" | "stale";
 type Outcome = "pass" | "partial" | "fail" | "copy" | "retry" | "unavailable";
 // Диагностика хода без текста: что сломалось и сколько заняло.
@@ -304,7 +308,7 @@ function respond(status: Status, ap: Applied, att: Att | null, line: { reply: st
   return {
     status, state: ap.state, beat: ap.beat, reply: line.reply, lineKey: line.lineKey, pose: line.pose,
     attempt: att?.attempt ?? null, expression: att?.expression ?? null,
-    task: att && { kind: att.task.kind, params: att.task.params, numbersShown: att.task.numbersShown }, // без answer и distractors
+    task: att && publicAttemptTask(att.task),
     rounds: ap.rounds, bobrLevel: ap.level,
     demo: att && ap.beat === "give_up"
       ? toStored(normalizeComponent(null, { operands: operandFractions(att.task.params), childFractions: [], answer: att.task.answer }).component)

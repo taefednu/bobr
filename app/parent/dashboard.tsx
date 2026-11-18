@@ -10,6 +10,7 @@ import { PressButton } from "@/components/ui/press-button";
 import { setLang, useT, type Key } from "@/lib/i18n";
 import { useMotion } from "@/lib/motion";
 import { daysUntilTest, formatParentDate, knownHouseState, nextTopicDay } from "./view-model";
+import { LearningSupport, SupportTopic } from "./support";
 
 export type DashboardData = FunctionReturnType<typeof api.parent.dashboard>;
 const TABS = ["mahalla", "path", "week", "settings"] as const;
@@ -48,6 +49,7 @@ export function ParentDashboard({ data, preview = false }: { data: DashboardData
   const today = now === null ? null : new Date(now + 5 * 3600_000).toISOString().slice(0, 10);
   const house = child?.mahalla.find((item) => item.topic === topic);
   const nextDay = child ? nextTopicDay(child.plan.days, topic, today) : null;
+  const topicSupport = child?.learningSupport.topics.find((item) => item.topicNodeId === topic);
   return <>
     {preview && <p className="rounded-md border-2 border-ink bg-clay-100 p-3" role="note">{t("parent.preview")}</p>}
     {data.children.length > 1 && <label className="flex flex-col gap-2 text-label">{t("parent.chooseChild")}
@@ -80,9 +82,9 @@ export function ParentDashboard({ data, preview = false }: { data: DashboardData
           <h2 className="font-display text-title">{house.title}</h2><p>{stateText(house.state)}</p>
           <dl className="space-y-3">
             <div><dt className="text-label font-semibold">{t("parent.learnedAt")}</dt><dd>{t("parent.unavailable")}</dd></div>
-            <div><dt className="text-label font-semibold">{t("parent.commonError")}</dt><dd>{t("parent.unavailable")}</dd></div>
+            <div><dt className="text-label font-semibold">{t("parent.commonError")}</dt><dd>{t(topicSupport?.latestMisconceptionTag === "added_denominators" ? "parent.support.addedDenominators" : "parent.support.noTag")}</dd></div>
             <div><dt className="text-label font-semibold">{t("parent.nextStep")}</dt><dd>{nextDay ? dateText(nextDay.date) : t("parent.unavailable")}</dd></div>
-          </dl><PressButton variant="secondary" onClick={() => setTopic(null)}>{t("parent.closeTopic")}</PressButton>
+          </dl><SupportTopic support={topicSupport} /><PressButton variant="secondary" onClick={() => setTopic(null)}>{t("parent.closeTopic")}</PressButton>
         </section>}
       </section>}
       {tab === "path" && <section className="space-y-4" aria-label={t("parent.path")}>
@@ -102,6 +104,13 @@ export function ParentDashboard({ data, preview = false }: { data: DashboardData
           ["parent.week.lastActive", child.week.lastActive === null ? t("parent.unavailable") : dateText(child.week.lastActive)],
           ["parent.week.minutes", t("parent.unavailable")], ["parent.week.summary", t("parent.unavailable")],
         ] as [Key, string][]).map(([label, value]) => <div key={label}><dt className="font-semibold">{t(label)}</dt><dd>{value}</dd></div>)}</dl>
+        <dl className="grid gap-5 sm:grid-cols-2">
+          {(["independent", "assisted"] as const).map((kind) => {
+            const count = child.week.socratic?.[kind === "independent" ? "independentlySolved" : "assistedSolved"];
+            return <div key={kind}><dt>{t(`parent.support.${kind}`)}</dt><dd className="font-semibold">{count === undefined ? t("parent.support.untracked") : new Intl.NumberFormat(locale).format(count)}</dd></div>;
+          })}
+        </dl>
+        <LearningSupport support={child.learningSupport} titles={child.mahalla} />
       </section>}
     </>}
     {tab === "settings" && <section className="space-y-6" aria-label={t("parent.settings")}>

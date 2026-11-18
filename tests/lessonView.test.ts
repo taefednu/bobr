@@ -27,6 +27,13 @@ describe("lessonView", () => {
     expect(lessonView(student).task).toEqual({ topic: "N9", kind: "word", params: probe.params, numbersShown: probe.numbersShown });
   });
 
+  it("never spreads reference fields or hidden nested params", () => {
+    const hidden = { ...student.currentTask!, answerKey: "PRIVATE_KEY", referenceSteps: ["PRIVATE_STEPS"],
+      params: { ...student.currentTask!.params, answerKey: "PRIVATE_PARAM", referenceSteps: "PRIVATE_PARAM_STEPS" } };
+    const json = JSON.stringify(lessonView({ ...student, currentTask: hidden }));
+    expect(json).not.toContain("PRIVATE_");
+  });
+
   it("keeps lesson state under the CRISIS overlay", () => {
     const v = lessonView({ ...student, state: "CRISIS", stateBeforeCrisis: "LESSON_SOLVE" });
     expect(v.crisis?.numbers).toEqual(["112"]);

@@ -52,6 +52,7 @@ export default defineSchema({
       kind: v.string(), // TaskKind из lib/fractions/task.ts
       params: v.record(v.string(), v.string()),
       answer: v.string(),
+      referenceSteps: v.optional(v.array(v.string())), // приватный эталон, publicTask это поле не возвращает
       distractors: v.array(v.object({ value: v.string(), misconception: v.optional(v.string()) })),
       requireReduced: v.boolean(),
       numbersShown: v.array(v.string()),
@@ -65,6 +66,9 @@ export default defineSchema({
     turnNo: v.optional(v.number()), // растёт на каждый ход; реплика Ustoz пишется только при совпадении
     hintLevel: v.optional(v.number()), // 0..4, считает ТОЛЬКО код: кнопка +1, каждые 2 ошибки на задаче +1, новая задача → 0
     wrongOnTask: v.optional(v.number()), // ошибок на текущей задаче
+    lessonSessionId: v.optional(v.id("lessonSessions")),
+    taskInstanceId: v.optional(v.id("taskProgress")),
+    interestTheme: v.optional(v.union(v.literal("Nonvoyxona"), v.literal("Football"), v.literal("Minecraft"))),
     lastVerdict: v.optional(v.string()), // "ok" | "almost" | "misconception:M9" | "wrong" | "unparsed"
     lastReply: v.optional(v.object({
       turnNo: v.number(),
@@ -77,6 +81,37 @@ export default defineSchema({
       hintButton: v.boolean(),
     })),
   }).index("by_parent", ["parentId"]),
+
+  // Учебная сессия стабильна при новом токене устройства/чате. Сырых ответов здесь нет.
+  lessonSessions: defineTable({
+    studentId: v.id("students"), topicNodeId: v.string(),
+    status: v.union(v.literal("active"), v.literal("completed")),
+    startedAt: v.number(), endedAt: v.optional(v.number()),
+  }).index("by_student_and_startedAt", ["studentId", "startedAt"])
+    .index("by_student_and_topicNodeId_and_startedAt", ["studentId", "topicNodeId", "startedAt"]),
+
+  taskProgress: defineTable({
+    studentId: v.id("students"), lessonSessionId: v.id("lessonSessions"), topicNodeId: v.string(), taskId: v.string(),
+    attemptCount: v.number(), escalationLevel: v.union(v.literal(1), v.literal(2), v.literal(3), v.literal(4)),
+    misconceptionTag: v.union(v.string(), v.null()),
+    outcome: v.union(v.literal("active"), v.literal("independent"), v.literal("assisted")),
+    createdAt: v.number(), finishedAt: v.optional(v.number()),
+  }).index("by_student_and_finishedAt", ["studentId", "finishedAt"])
+    .index("by_lessonSessionId", ["lessonSessionId"]),
+
+  escalationEvents: defineTable({
+    studentId: v.id("students"), lessonSessionId: v.id("lessonSessions"), taskInstanceId: v.id("taskProgress"),
+    topicNodeId: v.string(), escalationLevel: v.union(v.literal(1), v.literal(2), v.literal(3), v.literal(4)),
+    misconceptionTag: v.union(v.string(), v.null()), timestamp: v.number(),
+    reason: v.union(v.literal("wrong"), v.literal("help")),
+  }).index("by_student_and_timestamp", ["studentId", "timestamp"])
+    .index("by_lessonSessionId_and_timestamp", ["lessonSessionId", "timestamp"]),
+
+  attemptRequests: defineTable({
+    studentId: v.id("students"), taskInstanceId: v.id("taskProgress"), requestId: v.string(),
+    kind: v.union(v.literal("answer"), v.literal("hint")), createdAt: v.number(),
+    result: v.object({ turnNo: v.number(), verdict: v.string(), beat: v.string(), hintLevel: v.number(), duplicate: v.boolean(), stale: v.boolean() }),
+  }).index("by_student_and_requestId", ["studentId", "requestId"]),
 
   // Нет строки = unknown (дом empty).
   topicStatus: defineTable({

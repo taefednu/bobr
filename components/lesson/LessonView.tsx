@@ -22,6 +22,7 @@ export type LessonViewData = {
   state: string;
   lastVerdict: string | null;
   hintLevel: number;
+  socratic?: { attemptCount: number; escalationLevel: number; taskInstanceId: string } | null;
   task: { topic: string; kind: string; params: Record<string, string>; numbersShown: string[] } | null;
   reply: {
     text: string | null;
@@ -113,7 +114,7 @@ export function LessonView(p: LessonViewProps) {
                 ))}
               </div>
             )}
-            {!busy && view.hintLevel > 0 && (
+            {!busy && !view.socratic && view.hintLevel > 0 && (
               <p className="rounded-md bg-clay-100 p-4 text-body text-ink">{t(`lesson.hintStep.${view.task.topic}.${Math.min(4, view.hintLevel)}` as Key) ?? t(`lesson.hintStep.${Math.min(4, view.hintLevel)}` as Key)}</p>
             )}
             {!busy && comp && fractions.length > 0 && (
@@ -155,9 +156,10 @@ export function LessonView(p: LessonViewProps) {
                 </div>
               </form>
 
-              {!busy && view.reply?.hintButton && view.hintLevel < 4 && (
-                <div>
+              {!busy && (view.socratic ? view.state === "LESSON_SOLVE" : view.reply?.hintButton && view.hintLevel < 4) && (
+                <div className="space-y-2">
                   <PressButton variant="secondary" onClick={p.onHint}>{t("lesson.hint")}</PressButton>
+                  {view.socratic && <p className="text-label text-ink-muted">{t("lesson.hintControl")}</p>}
                 </div>
               )}
 

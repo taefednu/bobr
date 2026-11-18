@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { lessonView, viewValidator } from "./lessonView";
 import { studentIdOf, whoArgs } from "./session";
+import { progressOf } from "./socraticState";
 
 export const view = query({
   args: whoArgs,
@@ -10,6 +11,6 @@ export const view = query({
   handler: async (ctx, who) => {
     const studentId = await studentIdOf(ctx, who);
     const s = studentId && (await ctx.db.get("students", studentId));
-    return s ? lessonView(s) : null;
+    return s ? lessonView(s, await progressOf(ctx, s)) : null;
   },
 });

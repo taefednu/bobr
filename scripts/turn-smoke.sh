@@ -21,7 +21,12 @@ STEP=0
 ok() { STEP=$((STEP+1)); echo "PASS  $STEP. $1"; }
 bad() { echo "FAIL  $((STEP+1)). $1 ($2)"; exit 1; }
 eq() { [ "$2" = "$3" ] && ok "$1" || bad "$1" "got '$2', want '$3'"; }
-ans() { run turn:turn "{\"studentId\":\"$1\",\"input\":{\"type\":\"answer\",\"value\":\"$2\"}}" >/dev/null; }
+ans() {
+  local payload who="{\"studentId\":\"$1\"}"
+  if [ -n "${3:-}" ]; then who="{\"token\":\"$3\"}"; fi
+  payload=$(js "$(run lesson:view "$who")" "JSON.stringify({ ...$who, input:{type:'answer',value:'$2',...(d.socratic?{taskInstanceId:d.socratic.taskInstanceId,requestId:require('node:crypto').randomUUID()}:{})}})")
+  run turn:turn "$payload" >/dev/null
+}
 view() { run lesson:view "{\"studentId\":\"$1\"}"; }
 snap() { run debug:snapshot "{\"studentId\":\"$1\"}"; }
 unq() { tr -d '"\r\n '; }
@@ -78,7 +83,7 @@ run plan:accept "$T" >/dev/null
 eq "mahalla next" "$(js "$(run mahalla:view "$T")" d.next)" "N8"
 run mahalla:startLesson "{\"token\":\"$TOK\",\"topic\":\"N8\"}" >/dev/null
 ID1=$(js "$(snap "$D")" d.taskId)
-run turn:turn "{\"token\":\"$TOK\",\"input\":{\"type\":\"answer\",\"value\":\"$(js "$(snap "$D")" d.answer)\"}}" >/dev/null
+ans "$D" "$(js "$(snap "$D")" d.answer)" "$TOK"
 [ "$(js "$(snap "$D")" d.taskId)" != "$ID1" ] && ok "plan lesson: correct answer -> different task" || bad "plan lesson: next task" "same id $ID1"
 run mahalla:startLesson "{\"token\":\"$TOK\",\"topic\":\"N6\"}" >/dev/null
 eq "next plan topic starts after a lesson" "$(js "$(run lesson:view "$T")" d.task.topic)" "N6"

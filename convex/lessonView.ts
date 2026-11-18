@@ -3,13 +3,14 @@
 import { crisisMessage } from "../lib/safety/crisis";
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
+import { publicProgress } from "./socraticState";
 
 type Task = NonNullable<Doc<"students">["currentTask"]>;
 
-export const publicTask = (t: Task) => ({
+export const publicTask = (t: Pick<Task, "topic" | "kind" | "params" | "numbersShown">) => ({
   topic: t.topic,
   kind: t.kind,
-  params: t.params,
+  params: Object.fromEntries(Object.entries(t.params).filter(([key]) => ["a", "b", "c", "d", "den", "num", "toDen"].includes(key))),
   numbersShown: t.numbersShown,
 });
 
@@ -21,14 +22,15 @@ export function operandFractions(p: Record<string, string>): string[] {
   return [];
 }
 
-export function lessonView(s: Doc<"students">) {
+export function lessonView(s: Doc<"students">, progress: Doc<"taskProgress"> | null = null) {
   const crisis = s.state === "CRISIS" ? crisisMessage(s.lang) : null;
   return {
     lang: s.lang,
     state: s.state,
     turnNo: s.turnNo ?? 0,
     lastVerdict: s.lastVerdict ?? null,
-    hintLevel: s.hintLevel ?? 0,
+    hintLevel: progress ? progress.escalationLevel - 1 : (s.hintLevel ?? 0),
+    socratic: publicProgress(progress, s),
     task: s.currentTask && s.currentTask.kind !== "mcq" ? publicTask(s.currentTask) : null, // проба диагностики идёт только через diagnose:view
     reply: s.lastReply
       ? { text: s.lastReply.reply, component: s.lastReply.component, hintButton: s.lastReply.hintButton }
@@ -45,6 +47,11 @@ export const viewValidator = v.union(v.null(), v.object({
   turnNo: v.number(),
   lastVerdict: v.union(v.string(), v.null()),
   hintLevel: v.number(),
+  socratic: v.union(v.null(), v.object({
+    taskInstanceId: v.id("taskProgress"), lessonSessionId: v.id("lessonSessions"),
+    attemptCount: v.number(), escalationLevel: v.union(v.literal(1), v.literal(2), v.literal(3), v.literal(4)),
+    misconceptionTag: v.union(v.string(), v.null()), interestTheme: v.union(v.literal("Nonvoyxona"), v.literal("Football"), v.literal("Minecraft")),
+  })),
   task: v.union(v.null(), v.object({
     topic: v.string(), kind: v.string(), params: v.record(v.string(), v.string()), numbersShown: v.array(v.string()),
   })),
