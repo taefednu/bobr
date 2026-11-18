@@ -79,6 +79,12 @@ export const BobrTurn = z.object({
 });
 export type BobrTurn = z.infer<typeof BobrTurn>;
 
+// Свободный чат с Ustoz и Bobr (экран /chat): только реплика и поза. Чисел и вердиктов здесь нет: задачи решает урок.
+export const CHAT_PARTNERS = ["ustoz", "bobr"] as const;
+export type ChatPartner = (typeof CHAT_PARTNERS)[number];
+export const ChatTurn = z.object({ reply: z.string(), pose: ci(BOBR_POSES) });
+export type ChatTurn = z.infer<typeof ChatTurn>;
+
 export const PERSONA_VIOLATIONS = [
   "claims_human_or_alive", "romance", "missed_you_dont_leave", "secrets", "photo", "url",
 ] as const;
