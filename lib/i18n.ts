@@ -17,6 +17,22 @@ function read(): Lang {
   }
 }
 
+/** Язык, явно сохранённый в браузере; null — выбора ещё не было. */
+export function storedChoice(): Lang | null {
+  try {
+    const v = localStorage.getItem(KEY);
+    return v === "ru" || v === "uz" ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Интерфейс и students.lang (от него язык реплик) разошлись: выбор в браузере главнее, без выбора берём язык ребёнка. */
+export function langSyncStep(stored: Lang | null, server: Lang): { to: "ui" | "server"; lang: Lang } | null {
+  if (stored === null) return { to: "ui", lang: server };
+  return stored === server ? null : { to: "server", lang: stored };
+}
+
 export function setLang(l: Lang) {
   try {
     localStorage.setItem(KEY, l);

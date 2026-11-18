@@ -1,12 +1,13 @@
 "use client";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { setLang, useT, type Key, type Lang } from "@/lib/i18n";
+import { useT, type Key, type Lang } from "@/lib/i18n";
+import { useSetLang } from "@/lib/ui/useSetLang";
 
 const NAV: [string, Key][] = [
   ["/goal", "nav.goal"],
   ["/diagnose", "nav.diagnose"],
-  ["/mahalla", "nav.mahalla"],
+  ["/home", "nav.tab.home"],
   ["/lesson", "nav.lesson"],
   ["/teach", "nav.teach"],
   ["/chat", "nav.chat"],
@@ -25,6 +26,7 @@ export function AiBadge() {
 
 function LangSwitch() {
   const { t, lang } = useT();
+  const setLangBoth = useSetLang();
   return (
     <div role="group" aria-label={t("lang.label")} className="flex gap-1 text-sm">
       {(["uz", "ru"] as Lang[]).map((l) => (
@@ -32,7 +34,7 @@ function LangSwitch() {
           key={l}
           type="button"
           aria-pressed={lang === l}
-          onClick={() => setLang(l)}
+          onClick={() => void setLangBoth(l)}
           className={`border border-ink-muted px-3 py-1 ${lang === l ? "bg-clay-100 text-ink" : "bg-paper text-ink-muted"}`}
         >
           {t(`lang.${l}`)}

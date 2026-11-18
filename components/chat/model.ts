@@ -2,7 +2,9 @@
 export type Partner = "ustoz" | "bobr";
 export const PARTNERS: Partner[] = ["ustoz", "bobr"];
 
-export type ChatMsg = { id: string; role: "child" | Partner; text: string; ts: number };
+/** Картинка к реплике: код берёт дробь из сохранённого текста (lib/chat/visual.ts), у ребёнка всегда null. */
+export type Visual = { type: "pie"; fraction: string };
+export type ChatMsg = { id: string; role: "child" | Partner; text: string; ts: number; visual?: Visual | null };
 export type ClosedReason = "night" | "session_limit" | "day_limit" | "crisis_block";
 export type ChatData = {
   who: Partner;

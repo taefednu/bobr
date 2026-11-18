@@ -12,8 +12,8 @@ const G = (active: boolean) =>
 
 export const NAV_ITEMS: { href: string; label: Key; icon: (active: boolean) => ReactNode }[] = [
   {
-    href: "/mahalla",
-    label: "nav.mahalla",
+    href: "/home",
+    label: "nav.tab.home",
     // дом с плоской крышей и дверью
     icon: (a) => (
       <>

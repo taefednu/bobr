@@ -317,7 +317,7 @@ function respond(status: Status, ap: Applied, att: Att | null, line: { reply: st
 }
 
 // ── публичные action ──
-// Вход как у turn: токен ребёнка; studentId работает только на демо-стенде (session.resolve).
+// Вход как у turn: только токен ребёнка (session.resolve).
 
 export const start = action({
   args: { ...whoArgs, topic: v.string() },
@@ -346,7 +346,7 @@ export const explain = action({
   },
 });
 
-async function explainTurn(ctx: ActionCtx, d: Diag, who: { token?: string; studentId?: Id<"students"> }, value: string): Promise<Reply> {
+async function explainTurn(ctx: ActionCtx, d: Diag, who: { token: string }, value: string): Promise<Reply> {
   const studentId: Id<"students"> | null = await ctx.runQuery(internal.session.resolve, who);
   if (!studentId) return NONE("rejected");
   const c: SceneCtx | null = await ctx.runQuery(internal.teach.context, { studentId });

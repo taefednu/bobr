@@ -66,13 +66,13 @@ export function routeForState(state: string): string {
     case "GOAL_SETUP": return "/goal";
     case "DIAGNOSE": return "/diagnose";
     case "PLAN": return "/plan";
-    case "HOME": return "/mahalla";
+    case "HOME": return "/home";
     case "TEACH_BOBR": case "JUDGING": case "BOBR_ATTEMPT": case "BOBR_QUESTION": return "/teach";
-    default: return "/lesson"; // LESSON_SOLVE, TOPIC_DONE (из него в махаллю ведёт кнопка урока), CRISIS и всё урочное
+    default: return "/lesson"; // LESSON_SOLVE, TOPIC_DONE (из него на /home ведёт кнопка урока), CRISIS и всё урочное
   }
 }
 
-/** Ступень пути: 0 согласие, 1 цель, 2 диагностика, 3 план, 4 махалля и уроки. */
+/** Ступень пути: 0 согласие, 1 цель, 2 диагностика, 3 план, 4 дом, чат и уроки. */
 const EARLY = ["ONBOARD_CONSENT", "GOAL_SETUP", "DIAGNOSE", "PLAN"];
 const stage = (state: string) => (EARLY.includes(state) ? EARLY.indexOf(state) : 4);
 

@@ -11,7 +11,9 @@ type Answer = { answer: string; numbersShown: string[] };
 // task — текущая задача урока (если есть): её ответ и показанные числа. childNumbers — числа из текста ребёнка.
 // open — нерешённые выражения ребёнка (openAnswers): их значение для Ustoz тот же «ответ». who "ustoz": можно использовать свои числа
 // в примерах, зато ложное арифметическое утверждение в реплике = сбой. Без who — правила Bobr как были.
-export type ChatCtx = { lang: "uz" | "ru"; task: Answer | null; childNumbers: string[]; recent: string[]; who?: "ustoz" | "bobr"; open?: Answer[] };
+export type ChatCtx = { lang: "uz" | "ru"; task: Answer | null; childNumbers: string[]; recent: string[]; who?: "ustoz" | "bobr"; open?: Answer[];
+  // утверждения ребёнка из scanMath (код посчитал): при любом ok:false реплика не вправе его подтверждать (любой собеседник)
+  childClaims?: { ok: boolean }[] };
 
 // UTF-8, прочитанный как Latin-1/CP1252: такую реплику ребёнку не показываем (как в postChecksUstoz).
 const MOJIBAKE = /â€|Ã[\u0080-¿]|Ð[\u0080-¿]/;
@@ -22,6 +24,11 @@ const APOS = "['’‘`´ʹʻʼ]";
 /** uz: oʻ/gʻ → U+02BB, остальные апострофы внутри слова → U+02BC. Одна функция для всех реплик модели. */
 export const uzApostrophes = (s: string): string =>
   s.replace(new RegExp(`(\\p{L})${APOS}(?=\\p{L})`, "gu"), (_, a: string) => a + (/[oOgG]/.test(a) ? "\u02BB" : "\u02BC"));
+
+// Подтверждение («верно», «молодец», «toʻgʻri»): слово целиком (в «неверно» не срабатывает), без отрицания в том же предложении.
+const AFFIRM = new RegExp(`(?<!\\p{L})(верно|правильно|молодец|умница|точно|barakalla|to${APOS}?g${APOS}?ri|aniq|afarin)(?!\\p{L})`, "iu");
+const NEGATE = new RegExp(`(?<!\\p{L})не(?!\\p{L})|неверн|неправильн|ошиб|нет(?!\\p{L})|xato|emas|noto${APOS}?g${APOS}?ri|yo${APOS}?q`, "iu");
+const praisesWrong = (reply: string) => reply.split(/[.!?\n]+/).some((x) => AFFIRM.test(x) && !NEGATE.test(x));
 
 export function postChecksChat(out: ChatTurn, ctx: ChatCtx): ChatPostResult {
   const reply = out.reply.trim();
@@ -39,6 +46,7 @@ export function postChecksChat(out: ChatTurn, ctx: ChatCtx): ChatPostResult {
   }
   for (const o of ctx.open ?? []) if (detectLeak(reply, o.answer, o.numbersShown).leaked) return { ok: false, reason: "leak" };
   if (ctx.who === "ustoz" && scanMath(reply).claims.some((c) => !c.ok)) return { ok: false, reason: "claim" };
+  if (ctx.childClaims?.some((c) => !c.ok) && praisesWrong(reply)) return { ok: false, reason: "claim" };
   if (repeatGuard(reply, ctx.recent).repeat) return { ok: false, reason: "repeat" };
   return { ok: true, value: { ...out, reply: ctx.lang === "uz" ? uzApostrophes(reply) : reply } };
 }

@@ -1,5 +1,5 @@
 "use client";
-// «Научи Bobr»: вход (start) из урока и после перезагрузки посреди сцены, ходы ребёнка (explain). Токен ребёнка, не studentId.
+// «Научи Bobr»: вход (start) из урока и после перезагрузки посреди сцены, ходы ребёнка (explain). Только токен ребёнка.
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -94,7 +94,7 @@ export default function Page() {
       retry={retry}
       entryFailed={entryFailed}
       onRetryEntry={() => void enter()}
-      onToMahalla={() => router.push("/mahalla")}
+      onToMahalla={() => router.push("/home")}
       crisis={view?.crisis ?? null}
       onLeaveCrisis={() => token && void leaveCrisis({ token })}
     />

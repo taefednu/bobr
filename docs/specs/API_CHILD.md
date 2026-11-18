@@ -11,7 +11,7 @@
 | `session:startDemo` | mutation | `{lang: "uz"\|"ru"}` | `{token}` — новый ребёнок в `ONBOARD_CONSENT` (дальше `session:acceptConsent`); токен в `localStorage`. Работает только при `DEMO_ALLOW_ANON=1` в env Convex (локально включено), иначе `unauthorized` |
 | `linkCode:claim` | mutation | `{code}` (8 символов, регистр не важен) | `{token}`; страница `/c/{code}` и поле «введи код». Ошибка `invalid or expired code` |
 | `session:acceptConsent` | mutation | `{token}` | `null`; экран раскрытия ИИ: `ONBOARD_CONSENT → GOAL_SETUP` |
-| `session:me` | query | `{token}` | `null \| {studentId, lang, state, goal\|null, testDate\|null}` |
+| `session:me` | query | `{token}` | `null \| {lang, state, goal\|null, testDate\|null}` |
 | `goal:set` | mutation | `{token, goal: "test_soon"\|"improve"\|"just_practice", testDate?: "YYYY-MM-DD"}` | `null`; из `GOAL_SETUP` переводит в `DIAGNOSE` |
 | `diagnose:start` | mutation | `{token}` | `null`; выдаёт первую пробу (идемпотентно) |
 | `diagnose:view` | query | `{token}` | `null \| {state, asked, maxProbes, probe}` |
@@ -24,9 +24,8 @@
 | `turn:turn` | action | `{token, input}` | `{status}` |
 | `conductor:leaveCrisis` | mutation | `{token}` | `null` |
 
-Урок: `lesson:view`, `turn:turn`, `conductor:leaveCrisis` принимают `token` **вместо** `studentId`. Старый `studentId` пока
-работает (только при `DEMO_ALLOW_ANON=1`), чтобы не сломать текущий экран урока; он будет удалён (BLOCKERS B9) — новые вызовы пиши на `token`.
-`conductor:startDemoLesson` работает только при `DEMO_ALLOW_ANON=1`.
+Урок: `lesson:view`, `turn:turn`, `conductor:leaveCrisis`, `teach:start`, `teach:explain` принимают только `token`; `studentId` в args нет (B9 закрыт).
+`conductor:startDemoLesson` `{lang}` → `{token}` (ребёнок в `LESSON_SOLVE` с задачей N9) работает только при `DEMO_ALLOW_ANON=1`: это создание ученика без привязки, не вход по чужому id.
 
 Включить демо-вход на своём локальном Convex: `npx convex env set DEMO_ALLOW_ANON 1` (на общем бэкенде core уже стоит).
 

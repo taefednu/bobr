@@ -4,7 +4,14 @@ import { CHAT } from "../config";
 
 export const GAP_CAP_MS = 2 * 60_000; // каждая пауза засчитывается не больше 2 минут
 export const NEW_SESSION_GAP_MS = 10 * 60_000; // пауза дольше 10 минут начинает новую сессию
+/** Сколько последних строк turns (все роли) читаем у каждого собеседника: ~половина — сообщения ребёнка. 30 строк не хватало:
+ *  при сообщении раз в ≤64 с в окно попадало ≤15 сообщений ≈ 14 мин, и session_limit не наступал. */
+export const CHAT_SCAN_ROWS = 300; // ponytail: при потоке чаще ~1 сообщения в 9 с окно короче сессии; тогда сессия считается неполной
 const TASHKENT_MS = 5 * 3_600_000; // Asia/Tashkent = UTC+5 без перехода на летнее время
+
+/** Времена сообщений ребёнка из строк turns обоих собеседников (лимиты общие), по возрастанию. */
+export const childTimesOf = (rows: { role: string; ts: number }[][]): number[] =>
+  rows.flat().filter((t) => t.role === "child").map((t) => t.ts).sort((a, b) => a - b);
 
 export type ChatAccess = {
   open: boolean;

@@ -25,13 +25,10 @@ export async function childOf(ctx: QueryCtx, token: string): Promise<Doc<"studen
   return child;
 }
 
-/** Переходный вход урока: token (как надо) или studentId (старый экран урока, IDOR — BLOCKERS B9; только при DEMO_ALLOW_ANON=1).
- *  TODO(B9): когда front перейдёт на token, убрать studentId из args turn / lesson:view / leaveCrisis и эту ветку. */
-export const whoArgs = { token: v.optional(v.string()), studentId: v.optional(v.id("students")) };
-export async function studentIdOf(ctx: QueryCtx, who: { token?: string; studentId?: Id<"students"> }): Promise<Id<"students"> | null> {
-  if (who.token !== undefined) return (await childOrNull(ctx, who.token))?._id ?? null;
-  // старый вход по studentId жив только на демо-стенде (DEMO_ALLOW_ANON=1); без флага — закрыт
-  return env("DEMO_ALLOW_ANON") === "1" ? (who.studentId ?? null) : null;
+/** Вход детских функций: только токен (B9: studentId с клиента не принимаем, IDOR). Для query: нет сессии → null. */
+export const whoArgs = { token: v.string() };
+export async function studentIdOf(ctx: QueryCtx, who: { token: string }): Promise<Id<"students"> | null> {
+  return (await childOrNull(ctx, who.token))?._id ?? null;
 }
 
 /** Для action (turn): тот же разбор через runQuery. */
@@ -70,16 +67,16 @@ export const acceptConsent = mutation({
   },
 });
 
-/** Кто я и на каком экране: по state front решает маршрут. studentId — пока урок (turn, lesson:view) не переведён на токен. */
+/** Кто я и на каком экране: по state front решает маршрут. */
 export const me = query({
   args: { token: v.string() },
   returns: v.union(v.null(), v.object({
-    studentId: v.id("students"), lang, state: v.string(),
+    lang, state: v.string(),
     goal: v.union(v.null(), v.literal("test_soon"), v.literal("improve"), v.literal("just_practice")),
     testDate: v.union(v.null(), v.string()),
   })),
   handler: async (ctx, { token }) => {
     const s = await childOrNull(ctx, token);
-    return s && { studentId: s._id, lang: s.lang, state: s.state, goal: s.goal ?? null, testDate: s.testDate ?? null };
+    return s && { lang: s.lang, state: s.state, goal: s.goal ?? null, testDate: s.testDate ?? null };
   },
 });

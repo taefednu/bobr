@@ -3,16 +3,30 @@ import { v } from "convex/values";
 import { graph } from "../lib/content";
 import { generateTask } from "../lib/fractions";
 import type { TopicId } from "../lib/types";
-import { mutation, query } from "./_generated/server";
+import { pickNext } from "../lib/home/progress";
+import type { Id } from "./_generated/dataModel";
+import { mutation, query, type QueryCtx } from "./_generated/server";
 import { childOf, childOrNull } from "./session";
 import { beginLesson } from "./socraticState";
 
-const SEED = 101; // как у submitAnswer: первая задача темы, дальше 102, 103…
+const SEED = 101; // первая сессия темы: 101, 102, 103… (демо-путь). Каждая следующая сессия сдвигает seed на SESSION_STEP.
+const SESSION_STEP = 100; // больше LESSON.maxTasksPerTopicPerSession, диапазоны сессий не пересекаются
+const MAX_SESSIONS = 50; // ponytail: после 50 сессий темы seed повторится
 
 // Темы, по которым генератор умеет задачи (зонд один раз при загрузке модуля).
-const GENERATED = new Set<string>(graph.topics.map((t) => t.id).filter((id) => {
+export const GENERATED = new Set<string>(graph.topics.map((t) => t.id).filter((id) => {
   try { generateTask(id, "word", SEED); return true; } catch { return false; }
 }));
+
+/** План и уровни тем ребёнка. `next` — первая тема плана без прохождения, с которой стартует mahalla:startLesson
+ *  (в плане и в GENERATED), иначе стрелка баннера /home мертва. Общий для mahalla:view и home:view. */
+export async function planProgress(ctx: QueryCtx, studentId: Id<"students">) {
+  const rows = await ctx.db.query("topicStatus").withIndex("by_student_and_topic", (q) => q.eq("studentId", studentId)).take(20);
+  const plan = await ctx.db.query("plans").withIndex("by_student", (q) => q.eq("studentId", studentId)).order("desc").first();
+  const order: string[] = plan?.order ?? [];
+  const level = new Map(rows.map((r) => [r.topic as string, r.level as string]));
+  return { rows, plan, order, level, next: pickNext(order, (t) => level.get(t), (t) => GENERATED.has(t)) };
+}
 
 export const view = query({
   args: { token: v.string() },
@@ -30,10 +44,7 @@ export const view = query({
     const child = await childOrNull(ctx, token);
     if (!child) return null;
     const houses = await ctx.db.query("houses").withIndex("by_student_and_topic", (q) => q.eq("studentId", child._id)).take(20);
-    const rows = await ctx.db.query("topicStatus").withIndex("by_student_and_topic", (q) => q.eq("studentId", child._id)).take(20);
-    const plan = await ctx.db.query("plans").withIndex("by_student", (q) => q.eq("studentId", child._id)).order("desc").first();
-    const order: string[] = plan?.order ?? [];
-    const level = new Map(rows.map((r) => [r.topic as string, r.level]));
+    const { order, next } = await planProgress(ctx, child._id);
     return {
       lang: child.lang,
       state: child.state,
@@ -44,7 +55,7 @@ export const view = query({
         inPlan: order.includes(t.id),
         canStart: order.includes(t.id) && GENERATED.has(t.id),
       })),
-      next: order.find((id) => { const l = level.get(id); return l === undefined || l === "gap"; }) ?? null,
+      next,
     };
   },
 });
@@ -62,7 +73,10 @@ export const startLesson = mutation({
     if (!from || !id || !GENERATED.has(id) || !plan?.order?.includes(id)) throw new Error("cannot start");
     // Re-entering an active lesson (including another device) cannot erase its ladder.
     if (child.state === "LESSON_SOLVE" && child.currentTask && child.currentTopic === id) return null;
-    const { seed: _seed, ...task } = generateTask(id, "word", SEED);
+    // Seed зависит от номера сессии темы (101, 201, …): повторная сессия не выдаёт уже решённые задачи. Дальше conductor: seed + 1.
+    const earlier = await ctx.db.query("lessonSessions")
+      .withIndex("by_student_and_topicNodeId_and_startedAt", (q) => q.eq("studentId", child._id).eq("topicNodeId", id)).take(MAX_SESSIONS);
+    const { seed: _seed, ...task } = generateTask(id, "word", SEED + SESSION_STEP * earlier.length);
     // Новая сессия темы: выдана 1 задача (эта), серия с нуля. Иначе submitAnswer при счётчике 0 (после диагностики)
     // выдаёт ту же задачу ещё раз, а при старом счётчике 8 сразу закрывает тему.
     const row = await ctx.db.query("topicStatus")

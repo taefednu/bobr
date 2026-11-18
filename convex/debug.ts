@@ -1,10 +1,13 @@
 // Только для scripts/turn-smoke.sh (`npx convex run debug:snapshot`): internal, из браузера недоступно.
 import { v } from "convex/values";
 import { internalQuery } from "./_generated/server";
+import { studentIdOf } from "./session";
 
 export const snapshot = internalQuery({
-  args: { studentId: v.id("students") },
-  handler: async (ctx, { studentId }) => {
+  args: { token: v.string() },
+  handler: async (ctx, who) => {
+    const studentId = await studentIdOf(ctx, who);
+    if (!studentId) return null;
     const s = await ctx.db.get("students", studentId);
     const topic = s?.currentTask?.topic ?? "N9";
     const row = await ctx.db.query("topicStatus")

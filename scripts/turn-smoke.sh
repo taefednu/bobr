@@ -22,19 +22,18 @@ ok() { STEP=$((STEP+1)); echo "PASS  $STEP. $1"; }
 bad() { echo "FAIL  $((STEP+1)). $1 ($2)"; exit 1; }
 eq() { [ "$2" = "$3" ] && ok "$1" || bad "$1" "got '$2', want '$3'"; }
 ans() {
-  local payload who="{\"studentId\":\"$1\"}"
-  if [ -n "${3:-}" ]; then who="{\"token\":\"$3\"}"; fi
+  local payload who="{\"token\":\"$1\"}"
   payload=$(js "$(run lesson:view "$who")" "JSON.stringify({ ...$who, input:{type:'answer',value:'$2',...(d.socratic?{taskInstanceId:d.socratic.taskInstanceId,requestId:require('node:crypto').randomUUID()}:{})}})")
   run turn:turn "$payload" >/dev/null
 }
-view() { run lesson:view "{\"studentId\":\"$1\"}"; }
-snap() { run debug:snapshot "{\"studentId\":\"$1\"}"; }
+view() { run lesson:view "{\"token\":\"$1\"}"; }
+snap() { run debug:snapshot "{\"token\":\"$1\"}"; }
 unq() { tr -d '"\r\n '; }
 noleak() { # ключей answer/distractors нет нигде в JSON
   js "$1" '(function f(o){return o&&typeof o==="object"&&Object.entries(o).some(([k,v])=>k==="answer"||k==="distractors"||f(v))})(d)'; }
 
-A=$(run conductor:startDemoLesson '{"lang":"uz"}' | unq)
-[ -n "$A" ] && ok "startDemoLesson -> $A" || bad "startDemoLesson" "no id"
+A=$(js "$(run conductor:startDemoLesson '{"lang":"uz"}')" d.token)
+[ -n "$A" ] && ok "startDemoLesson -> session token" || bad "startDemoLesson" "no token"
 ans "$A" "2/5"; V=$(view "$A")
 eq "2/5 -> lastVerdict misconception:M9" "$(js "$V" d.lastVerdict)" "misconception:M9"
 T1=$(js "$V" 'JSON.stringify(d.task.params)')
@@ -46,20 +45,20 @@ eq "5/6 -> verdict ok" "$(js "$V" d.lastVerdict)" "ok"
 [ "$(js "$S" d.taskId)" != "$ID1" ] && ok "new task id ($ID1 -> $(js "$S" d.taskId))" || bad "new task id" "unchanged"
 eq "view has no answer/distractors keys" "$(noleak "$V")" "false"
 
-B=$(run conductor:startDemoLesson '{"lang":"uz"}' | unq)
+B=$(js "$(run conductor:startDemoLesson '{"lang":"uz"}')" d.token)
 for i in 1 2 3; do ans "$B" "$(js "$(snap "$B")" d.answer)"; done
 S=$(snap "$B")
 eq "3 clean correct on different tasks: N9 solved_self" "$(js "$S" d.level)" "solved_self"
 eq "house built" "$(js "$S" d.house)" "built"
 
-C=$(run conductor:startDemoLesson '{"lang":"uz"}' | unq)
-run turn:turn "{\"studentId\":\"$C\",\"input\":{\"type\":\"hint\",\"value\":\"\"}}" >/dev/null
+C=$(js "$(run conductor:startDemoLesson '{"lang":"uz"}')" d.token)
+run turn:turn "{\"token\":\"$C\",\"input\":{\"type\":\"hint\",\"value\":\"\"}}" >/dev/null
 eq "hint press -> hintLevel 1" "$(js "$(view "$C")" d.hintLevel)" "1"
-run turn:turn "{\"studentId\":\"$C\",\"input\":{\"type\":\"text\",\"value\":\"хочу умереть\"}}" >/dev/null
+run turn:turn "{\"token\":\"$C\",\"input\":{\"type\":\"text\",\"value\":\"хочу умереть\"}}" >/dev/null
 V=$(view "$C")
 eq "crisis text -> crisis in view" "$(js "$V" 'd.crisis!==null&&d.state')" "CRISIS"
 eq "crisis view has no answer/distractors keys" "$(noleak "$V")" "false"
-run conductor:leaveCrisis "{\"studentId\":\"$C\"}" >/dev/null
+run conductor:leaveCrisis "{\"token\":\"$C\"}" >/dev/null
 V=$(view "$C")
 eq "leaveCrisis -> crisis null, state restored" "$(js "$V" 'd.crisis===null&&d.state')" "LESSON_SOLVE"
 
@@ -67,7 +66,7 @@ eq "leaveCrisis -> crisis null, state restored" "$(js "$V" 'd.crisis===null&&d.s
 TOK=$(js "$(run session:startDemo '{"lang":"ru"}')" d.token); T="{\"token\":\"$TOK\"}"
 run session:acceptConsent "$T" >/dev/null
 run goal:set "{\"token\":\"$TOK\",\"goal\":\"improve\"}" >/dev/null
-D=$(js "$(run session:me "$T")" d.studentId)
+D="$TOK"
 run diagnose:start "$T" >/dev/null
 ASKED=""
 for _ in 1 2 3 4 5 6 7; do
@@ -83,7 +82,7 @@ run plan:accept "$T" >/dev/null
 eq "mahalla next" "$(js "$(run mahalla:view "$T")" d.next)" "N8"
 run mahalla:startLesson "{\"token\":\"$TOK\",\"topic\":\"N8\"}" >/dev/null
 ID1=$(js "$(snap "$D")" d.taskId)
-ans "$D" "$(js "$(snap "$D")" d.answer)" "$TOK"
+ans "$D" "$(js "$(snap "$D")" d.answer)"
 [ "$(js "$(snap "$D")" d.taskId)" != "$ID1" ] && ok "plan lesson: correct answer -> different task" || bad "plan lesson: next task" "same id $ID1"
 run mahalla:startLesson "{\"token\":\"$TOK\",\"topic\":\"N6\"}" >/dev/null
 eq "next plan topic starts after a lesson" "$(js "$(run lesson:view "$T")" d.task.topic)" "N6"

@@ -128,3 +128,94 @@ body {
 .tabular {
   font-variant-numeric: tabular-nums lining-nums;
 }
+
+/* ── v3: мобильные экраны (docs/design/v3/README.md). Нет ink-обводок, мягкий объём, шрифт Onest.
+   OKLCH — канон, sRGB с эталонов (пипетка) в комментарии. Компоненты читают только эти имена. ── */
+:root {
+  --v3-bg-top: oklch(96.3% 0.021 72);      /* #fcf1e4 */
+  --v3-bg-mid: oklch(93.7% 0.041 68);      /* #fde6ce */
+  --v3-bg-bottom: oklch(92.7% 0.054 72);   /* #fee2c0 */
+  --v3-bg: linear-gradient(to bottom in oklch, var(--v3-bg-top), var(--v3-bg-mid) 50%, var(--v3-bg-bottom));
+  --v3-card: oklch(97.7% 0.016 74);        /* #fef6ec баннер */
+  --v3-card-settings: oklch(98% 0.009 52); /* #fef7f3 */
+  --v3-card-ustoz: oklch(98.1% 0.014 78);  /* #fef8ef пузырь Ustoz */
+  --v3-field: oklch(98.1% 0.01 73);        /* #fdf8f2 поле ввода */
+  --v3-card-warm: oklch(94.2% 0.041 71);   /* #fee8cf «Советуем» */
+  --v3-note: oklch(93.9% 0.043 67);        /* #ffe6cd заметка */
+  --v3-card-peach: oklch(91.1% 0.062 69);  /* #fddbb6 статистика */
+  --v3-circle: oklch(97.4% 0.02 77);       /* #fef5e8 круги разделов, чипы */
+  --v3-nav: oklch(97.6% 0.016 79);         /* #fdf6eb таб-бар */
+  --v3-teal: oklch(75.6% 0.121 198);       /* #2cc7cb круглые кнопки, пузырь ребёнка */
+  --v3-teal-strong: oklch(68.1% 0.113 199);/* #16adb3 */
+  --v3-teal-active: oklch(72.3% 0.12 198); /* #16bcc1 активный таб */
+  --v3-round: oklch(69.1% 0.118 205);      /* #03b0be круглые кнопки экрана дома */
+  --v3-blue-top: oklch(59.1% 0.13 244);    /* #2684c5 пилюля-заголовок дома */
+  --v3-blue-bottom: oklch(45.9% 0.13 251); /* #08599d */
+  --v3-avatar: oklch(90% 0.055 196);       /* #b4eaea фон аватара */
+  --v3-pie-other: oklch(82% 0.13 75);      /* ~#f9b65e вторые доли лепёшки в чате */
+  --v3-ink: oklch(28% 0.041 43);           /* #3a2218 заголовки (проверить по снимку) */
+  --v3-ink-soft: oklch(49.7% 0.049 48);    /* #7a5a4a второстепенный текст */
+  --v3-on-teal: oklch(99% 0.008 85);       /* текст и иконки на бирюзе */
+  --v3-ic-lang-bg: oklch(90% 0.05 245);    /* круг иконки строки «Язык» профиля */
+  --v3-ic-lang-fg: oklch(55% 0.13 250);
+  --v3-ic-sound-bg: oklch(72% 0.11 180);   /* «Звук» */
+  --v3-ic-goal-bg: oklch(90% 0.06 65);     /* «Цель» */
+  --v3-ic-goal-fg: oklch(65% 0.17 40);
+  --v3-ic-parents-bg: oklch(90% 0.05 300); /* «Что видят родители» */
+  --v3-ic-parents-fg: oklch(45% 0.15 295);
+  --v3-divider: oklch(85% 0.04 65 / 0.7);  /* разделитель строк настроек */
+  --v3-shadow-track: inset 0 2px 4px oklch(40% 0.06 50 / 0.25); /* дорожка переключателя */
+  --v3-shadow-knob: 0 2px 4px oklch(40% 0.06 50 / 0.3);
+  --v3-mint: oklch(94.6% 0.025 132);       /* #e7f1e0 плашка прогресса дома (эталон зеленовато-мятная) */
+  --v3-ring: oklch(76.7% 0.131 192);       /* #08cdc8 дуга кольца прогресса */
+  --v3-label: oklch(31.1% 0.093 37);       /* #561a07 подписи кругов дома */
+  --v3-stone-rim: oklch(55% 0.09 285);     /* синеватый борт камня уровня, как на эталоне */
+  --v3-sun: oklch(84% 0.15 78);            /* текущий уровень: единственный янтарный камень на острове */
+  --v3-sun-deep: oklch(70% 0.16 65);
+  --v3-sub: oklch(33.7% 0.108 36);       /* #631b05 подзаголовки карточек дома */
+  --v3-title: oklch(19% 0.052 44);          /* #260a01 заголовки дома */
+
+  /* Мягкая тёплая тень (README: 0 6px 18px rgb(190 120 60 / .14)) и блик сверху. Подбирается наложением. */
+  --v3-shadow-card: inset 0 1px 0 oklch(100% 0 0 / 0.7), 0 6px 18px oklch(64% 0.1 60 / 0.14);
+  --v3-shadow-nav: inset 0 1px 0 oklch(100% 0 0 / 0.7), 0 8px 22px oklch(64% 0.1 60 / 0.16);
+  --v3-shadow-round: inset 0 2px 3px oklch(100% 0 0 / 0.35), 0 6px 14px oklch(62% 0.11 200 / 0.35);
+  --v3-shadow-sheet: 0 -10px 30px oklch(50% 0.08 50 / 0.18);
+
+  --v3-r-banner: 32px;
+  --v3-r-card: 28px;
+  --v3-r-stat: 26px;   /* и строки настроек */
+  --v3-r-bubble: 24px;
+  --v3-r-nav: 30px;
+
+  /* Геометрия колонки и таб-бара: 390 px — кадр эталона, шире 430 не растём. */
+  --v3-col-min: 390px;
+  --v3-col-max: 430px;
+  --v3-gutter: 16px;
+  --v3-nav-h: 60px;
+  --v3-nav-gap: 17px;      /* зазор от низа кадра 845 до таб-бара */
+  --v3-nav-slot: 56px;
+  --v3-nav-pad: 8px;
+
+  /* Типографские роли: вес / кегль / строка. Onest, заголовки 700–800. */
+  --v3-type-greeting: 800 34px/38px var(--font-sans);
+  --v3-type-screen: 800 32px/36px var(--font-sans);
+  --v3-type-name: 800 30px/34px var(--font-sans);
+  --v3-type-banner: 800 24px/28px var(--font-sans);
+  --v3-type-section: 800 22px/26px var(--font-sans);
+  --v3-type-card: 800 20px/24px var(--font-sans);
+  --v3-type-caption: 500 15px/20px var(--font-sans);
+  --v3-type-label: 700 16px/20px var(--font-sans);
+  --v3-type-chat: 500 18px/24px var(--font-sans);
+
+  --v3-ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@utility v3-type-greeting { font: var(--v3-type-greeting); }
+@utility v3-type-screen { font: var(--v3-type-screen); }
+@utility v3-type-name { font: var(--v3-type-name); }
+@utility v3-type-banner { font: var(--v3-type-banner); }
+@utility v3-type-section { font: var(--v3-type-section); }
+@utility v3-type-card { font: var(--v3-type-card); }
+@utility v3-type-caption { font: var(--v3-type-caption); }
+@utility v3-type-label { font: var(--v3-type-label); }
+@utility v3-type-chat { font: var(--v3-type-chat); }

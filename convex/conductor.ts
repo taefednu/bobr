@@ -11,7 +11,7 @@ import { internalMutation, internalQuery, mutation } from "./_generated/server";
 import { operandFractions } from "./lessonView";
 import { enqueueCrisis } from "./outbox";
 import { env } from "./botAuth";
-import { studentIdOf, whoArgs } from "./session";
+import { createChildSession, studentIdOf, whoArgs } from "./session";
 import { attachTask, beginLesson, progressOf, publicProgress, type StoredTask } from "./socraticState";
 import { escalate, independentResult, misconceptionTag } from "../lib/socratic/state";
 import type { MutationCtx } from "./_generated/server";
@@ -37,21 +37,22 @@ const BEAT: Record<string, string> = {
   wrong: "nudge_step", unparsed: "clarify_input",
 };
 
-/** Демо-урок: задача N9 `1/2 + 1/3` (текстовая), ответ 5/6, дистрактор 2/5 = M9. Из DEMO_PROBES, не выдумана. */
+/** Демо-урок: выдаёт сессию (token), как session:startDemo. Задача N9 `1/2 + 1/3` (текстовая), ответ 5/6, дистрактор 2/5 = M9. Из DEMO_PROBES, не выдумана. */
 export const startDemoLesson = mutation({
   args: { lang },
-  returns: v.id("students"),
+  returns: v.object({ token: v.string() }),
   handler: async (ctx, { lang }) => {
     // тот же замок, что у session:startDemo: без флага демо анонимно учеников не создаём (BLOCKERS B9)
     if (env("DEMO_ALLOW_ANON") !== "1") throw new Error("unauthorized");
     const probe = DEMO_PROBES.find((p) => p.topic === "N9");
     if (!probe) throw new Error("DEMO_PROBES: нет пробы N9");
     const { seed: _seed, ...task } = probe;
-    return await ctx.db.insert("students", {
+    const studentId = await ctx.db.insert("students", {
       lang, consent: true, state: "LESSON_SOLVE", currentTopic: "N9", riskCount: 0,
       currentTask: { ...task, id: "demo-N9-word", kind: "word" },
       turnNo: 0, hintLevel: 0,
     });
+    return { token: await createChildSession(ctx, studentId) };
   },
 });
 
@@ -124,7 +125,7 @@ export const submitAnswer = internalMutation({
         patch.state = "TOPIC_DONE";
       } else {
         served++;
-        const fresh = generateTask(task.topic as TopicId, KINDS[(served - 1) % KINDS.length], 100 + served);
+        const fresh = generateTask(task.topic as TopicId, KINDS[(served - 1) % KINDS.length], nextSeed(task.id, served));
         const { seed: _seed, ...rest } = fresh;
         patch.currentTask = rest;
         nextHint = 0;
@@ -154,6 +155,13 @@ export const submitAnswer = internalMutation({
     return { turnNo, verdict, beat: BEAT[r.status] ?? "nudge_step", hintLevel: nextHint };
   },
 });
+
+/** Следующая задача сессии = seed текущей + 1 (id задачи хранит seed: `N8-word-201`). Сессия темы стартует с 101, 201, …
+ *  (mahalla:startLesson), поэтому повтор темы не выдаёт те же задачи. Нет seed в id (проба/mcq) — прежние 100 + served. */
+export function nextSeed(taskId: string, served: number) {
+  const m = /-(\d+)$/.exec(taskId);
+  return m ? Number(m[1]) + 1 : 100 + served;
+}
 
 const attemptResultV = v.object({ turnNo: v.number(), verdict: v.string(), beat: v.string(), hintLevel: v.number(), duplicate: v.boolean(), stale: v.boolean() });
 export type AttemptArgs = { studentId: Id<"students">; taskInstanceId: Id<"taskProgress">; requestId: string; kind: "answer" | "hint"; value: string };
@@ -199,7 +207,7 @@ export async function submitAttemptHandler(ctx: MutationCtx, args: AttemptArgs) 
   let nextHint = counts.escalationLevel - 1;
   if (solved && served < LESSON.maxTasksPerTopicPerSession) {
     served++;
-    const { seed: _seed, ...nextTask } = generateTask(task.topic as TopicId, KINDS[(served - 1) % KINDS.length], 100 + served);
+    const { seed: _seed, ...nextTask } = generateTask(task.topic as TopicId, KINDS[(served - 1) % KINDS.length], nextSeed(task.id, served));
     await attachTask(ctx, studentId, progress.lessonSessionId, nextTask, now);
     nextHint = 0;
   } else if (solved) {

@@ -1,11 +1,13 @@
 "use client";
-import { setLang, useT, type Lang } from "@/lib/i18n";
+import { useT, type Lang } from "@/lib/i18n";
+import { useSetLang } from "@/lib/ui/useSetLang";
 
 const LANGS: Lang[] = ["uz", "ru"];
 
 /** Сегмент UZ/RU: выбранный язык залит ink, второй тихий. Цель касания 44 px, тонкий ink-контур, без выступа. */
 export function LangSwitch() {
   const { t, lang } = useT();
+  const setLangBoth = useSetLang();
   return (
     <div
       role="group"
@@ -19,7 +21,7 @@ export function LangSwitch() {
           type="button"
           aria-pressed={lang === l}
           aria-label={t(`lang.${l}`)}
-          onClick={() => setLang(l)}
+          onClick={() => void setLangBoth(l)}
           className={`h-full min-w-11 cursor-pointer px-3 text-label ${lang === l ? "bg-ink text-paper" : "text-ink-muted"}`}
         >
           {t(`lang.short.${l}`)}

@@ -1,33 +1,45 @@
 "use client";
 // Болталка: свободный разговор с Ustoz или Bobr. Токен ребёнка, история у каждого своя (chat:view по who).
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { ChatView } from "@/components/chat/ChatView";
+// Партнёр берётся из ?who=ustoz|bobr (по умолчанию ustoz); useSearchParams требует Suspense при пререндере.
+import { useRouter, useSearchParams } from "next/navigation";
+import { useMutation } from "convex/react";
+import { Suspense } from "react";
+import { api } from "@/convex/_generated/api";
 import type { Partner } from "@/components/chat/model";
 import { useChat } from "@/components/chat/useChat";
-import { useT } from "@/lib/i18n";
+import { ChatScreen } from "@/components/v3/chat/ChatScreen";
 import { useGuard } from "@/lib/ui/session";
 
-export default function Page() {
+function Chat() {
   const router = useRouter();
-  const { t } = useT();
+  const who: Partner = useSearchParams().get("who") === "bobr" ? "bobr" : "ustoz";
   const { token } = useGuard(4, 4);
-  const [who, setWho] = useState<Partner>("ustoz");
   const chat = useChat(token, who);
+  const leaveCrisis = useMutation(api.conductor.leaveCrisis);
+  // выход из кризиса снимает CRISIS-стейт (иначе уроки заперты); вне кризиса мутация ничего не меняет
+  const leave = async () => {
+    if (token) await leaveCrisis({ token }).catch(() => {});
+    router.push("/home");
+  };
   return (
-    <>
-      <h1 className="sr-only">{t("chat.title")}</h1>
-      <ChatView
-        who={who}
-        onWho={setWho}
-        data={chat.data}
-        optimistic={chat.optimistic}
-        pending={chat.pending}
-        notice={chat.notice}
-        crisis={chat.crisis}
-        onSend={chat.submit}
-        onLeave={() => router.push("/mahalla")}
-      />
-    </>
+    <ChatScreen
+      who={who}
+      data={chat.data}
+      optimistic={chat.optimistic}
+      pending={chat.pending}
+      notice={chat.notice}
+      crisis={chat.crisis}
+      onSend={chat.submit}
+      onLeave={leave}
+      onBack={() => router.push("/home")}
+    />
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense>
+      <Chat />
+    </Suspense>
   );
 }

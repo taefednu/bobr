@@ -23,7 +23,7 @@ export default function Page() {
     setFailed(false);
     try {
       if (me?.state === "PLAN") await accept({ token });
-      router.push("/mahalla");
+      router.push("/home");
     } catch {
       setFailed(true);
     } finally {

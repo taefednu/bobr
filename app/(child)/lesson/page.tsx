@@ -25,7 +25,7 @@ export default function Page() {
 
   // Задачи нет (тема не выбрана или токен не признан) — обратно в махаллю.
   useEffect(() => {
-    if (token && view !== undefined && !view?.task) router.replace("/mahalla");
+    if (token && view !== undefined && !view?.task) router.replace("/home");
   }, [token, view, router]);
 
   async function send(type: "answer" | "text" | "hint", value: string) {
@@ -75,8 +75,8 @@ export default function Page() {
       onSubmitAnswer={() => void send("answer", answer).then((sent) => { if (sent) setAnswer(""); })}
       onSubmitText={() => void send("text", text).then((sent) => { if (sent) setText(""); })}
       onHint={() => void send("hint", "")}
-      onStart={() => router.push("/mahalla")}
-      onFinish={() => router.push("/mahalla")}
+      onStart={() => router.push("/home")}
+      onFinish={() => router.push("/home")}
       onLeaveCrisis={() => token && void leaveCrisis({ token })}
     />
   );

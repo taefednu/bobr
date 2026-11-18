@@ -7,8 +7,8 @@ import { describe, expect, it } from "vitest";
 const walk = (d: string): string[] =>
   readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
 const files = [
-  "convex/turn.ts", "convex/conductor.ts", "convex/lesson.ts", "convex/lessonView.ts", "convex/llmCache.ts", "convex/debug.ts",
-  ...walk("lib/llm"), ...walk("lib/safety"),
+  "convex/turn.ts", "convex/chat.ts", "convex/conductor.ts", "convex/lesson.ts", "convex/lessonView.ts", "convex/llmCache.ts", "convex/debug.ts",
+  ...walk("lib/llm"), ...walk("lib/safety"), ...walk("lib/chat"),
 ];
 
 describe("displayName stays out of the LLM / turns path", () => {

@@ -14,22 +14,26 @@ const THIRD_PARTY: Record<Lang, RegExp> = {
   uz: /amaki|kattalar|katta (odam|yoshli)|begona|notanish|bir odam|yozdi|yozyapti|yozmoqda|so'radi|so'rayapti|taklif|chaqir|deydi|dedi|aytdi|qo'ng'iroq/,
 };
 
-// Просьба к самому персонажу: второе лицо.
+// Просьба к самому персонажу: ВСЯ фраза (каждая её часть между знаками препинания) обязана совпасть с якорной формой целиком.
+// Подстрока не годится: «завтра встретимся с другом из игры, ему 25 лет» и «отправила свои фото в телеграм, мне страшно» содержат
+// «встретимся» / «свои фото», но это рассказ о реальном человеке. Цифр в якорях нет: возраст и номера всегда ломают совпадение.
+const RU_OBJ = "(?:(?:свой|свое|свою|свои|твой|твое|твою|твои) )?(?:номер(?: телефона)?|телефон|фото|фотку|фотографию|селфи|адрес|инст\\p{L}*|телеграм\\p{L}*|аккаунт|ссылку|соцсети)(?: (?:своего |твоего )?двора)?";
 const DIRECTED: Record<Lang, RegExp[]> = {
   ru: [
-    cyr(/\b(дай|давай|скажи|пришли|пошли|отправь|напиши|покажи|сообщи|продиктуй)\b[^.?!]{0,30}\b(телефон|номер|фот|селфи|адрес|инст|телеграм|соцсет|ссылк|аккаунт)/),
-    cyr(/\b(у тебя|твой|твое|твою|твои|свой|свое|свою|свои)\b[^.?!]{0,20}\b(номер|телефон|фот|адрес|инст|телеграм|школ)/),
-    cyr(/где ты (живеш|учишься)|в какой ты школе|в какой школе ты/),
-    cyr(/встретимс|увидимс|\b(придеш|приходи|приезжай|выходи)\b/),
-    cyr(/наш секрет|никому не (скажеш|расскажеш|говори)|не (скажеш|расскажеш|проболтаеш)|сохранишь (мой )?секрет|\bпообещай\b/),
+    cyr(new RegExp(`^(?:пожалуйста )?(?:дай|давай|скажи|пришли|пошли|отправь|покажи|сообщи|продиктуй|напиши)(?: мне)? ${RU_OBJ}$`)),
+    cyr(new RegExp(`^(?:а )?(?:какой )?(?:у тебя|твой) (?:номер|телефон|адрес)$`)),
+    /^(?:как (?:тебя|вас) зовут|где ты (?:живешь|учишься)|в какой (?:ты )?школе (?:ты )?(?:учишься)?)$/,
+    /^(?:давай )?(?:встретимся|увидимся)$|^(?:ты )?(?:придешь|приходи|приезжай|выходи)$|^я приду$/,
+    /^(?:это )?наш секрет$|^(?:пообещай(?: что)? )?никому не (?:скажешь|расскажешь|говори)$|^не (?:скажешь|расскажешь|проболтаешься)(?: (?:родителям|маме|папе))?$|^сохранишь (?:мой )?секрет$|^мне надо рассказать секрет$/,
   ],
   uz: [
-    /\b(telefon|raqam|nomer|rasm|surat|manzil|sahifa|akkaunt|instagram|telegram)\w*(ing|ang)\w*/,
-    /qaysi maktab(da|ga)san|qayerda (yashaysan|turasan)/,
-    /uchrash(aylik|amiz|asanmi)|\bkel(asan|asanmi|gin)?\b/,
-    /bizning sir|sirimiz|sir saqlay?san|aytmaysan|gapirmaysan/,
+    /^(?:telefon )?(?:raqam|nomer|rasm|surat|manzil|sahifa|akkaunt|instagram|telegram|telefon)\w*?(?:ing|ang)\w* (?:ber|yubor|ayt|tashla|jonat)$/,
+    /^(?:uchrashaylik|uchrashamizmi|uchrashamiz|kel|kelasanmi|kelgin)$/,
+    /^(?:qaysi maktab(?:da|ga)san|qayerda (?:yashaysan|turasan))$/,
+    /^(?:bu )?(?:bizning sir(?:imiz)?|sirimiz)$|^(?:ota-onamga |hech kimga )?(?:aytmaysan|gapirmaysan)$|^(?:sen menga )?sir saqlaysanmi$/,
   ],
 };
+const FILLER = /^(?:ha|да|ok|ок)$/;
 
 const CHEAT: Record<Lang, RegExp> = {
   ru: cyr(/списа(ть|л)|списыв|шпаргалк|(обмануть|соврать|наврать) (мам|пап|родител|учител)|(скрыть|подделать|исправить) (оценк|дневник)/),
@@ -43,7 +47,9 @@ export function addressedToCharacter(text: string, lang: Lang, earlier: string[]
   // «как тебя зовут» — вопрос к персонажу; любое другое «зовут» («меня зовут в гости») остаётся третьим лицом.
   const clean = (x: string) => (lang === "ru" ? x.replace(/как (тебя|вас) зовут|(тебя|вас) как зовут/g, " ") : x);
   if ([t, ...earlier.map(normalizeForMatch)].some((x) => THIRD_PARTY[lang].test(clean(x)))) return false;
-  return DIRECTED[lang].some((re) => re.test(t));
+  const parts = t.split(/[,.!?;:]+/).map((x) => x.replace(/\s+/g, " ").trim()).filter(Boolean);
+  const anchored = parts.filter((x) => !FILLER.test(x));
+  return anchored.length > 0 && anchored.every((x) => DIRECTED[lang].some((re) => re.test(x)));
 }
 
 /** Просьба списать / обмануть про оценки: не «дай ответ задачи», а отдельный отказ. */

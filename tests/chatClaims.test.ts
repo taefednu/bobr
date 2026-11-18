@@ -109,3 +109,39 @@ describe("tutor tail", () => {
     expect(chatTail({ lang: "ru", history: hist, forbiddenLines: [], childInput: "x" })).not.toContain("code_check");
   });
 });
+
+describe("scanMath: mixed numbers, word and symbol operators (review findings 5, 10)", () => {
+  it.each([
+    ["1/2 плюс 1/2 = 1/2", false],
+    ["1/2 плюс 1/2 = 1", true],
+    ["2 x 1/2 = 1/2", false],
+    ["2 х 1/2 = 1", true],
+    ["3/4 · 2/5 = 3/10", true],
+    ["1 1/2 + 1/2 = 1", false],
+    ["1 1/2 + 1/2 = 2", true],
+    ["1/2 + 1/2 = 1 1/2", false],
+    ["1 1/2 + 1/4 = 1 3/4", true],
+    ["3/4 x 2/5 = 6/20", true],
+    ["3/4 x 2/5 = 6/9", false],
+    ["1/2 минус 1/3 = 1/6", true],
+    ["3/4 умножить на 2/5 = 3/10", true],
+    ["1/2 qoʻshish 1/3 = 5/6", true],
+    ["3/4 ko'paytirish 2/5 = 3/9", false],
+    ["1 1/2 = 3/2", true],
+    ["1 1/2 = 2/2", false],
+  ])("%s", (t, v) => expect(ok(t)).toEqual([v]));
+
+  it("unknown operator word never yields a verdict", () => {
+    expect(ok("1/2 добавим к 1/3 = 5/6")).toEqual([]);
+    expect(ok("1/2 добавим 1/2 = 1/2")).toEqual([]);
+  });
+
+  it("open expressions with any operator spelling, mixed operands", () => {
+    for (const t of ["3/4 x 2/5 = ?", "3/4 · 2/5 = ?", "3/4 умножить на 2/5 = ?"]) expect(scanMath(t).open[0]).toEqual({ expr: "3/4*2/5", value: "3/10", operands: ["3/4", "2/5"] });
+    expect(scanMath("12 + 7 = ?").open[0].value).toBe("19");
+    expect(scanMath("10-12 = ?").open).toEqual([]);
+    expect(scanMath("1 1/2 + 1/2 = ?").open[0].value).toBe("2");
+    expect(openAnswers(["3/4 x 2/5 = ?", "3/4 * 2/5 = 3/10"])).toEqual([]);
+    expect(postChecksChat(turn("Ответ 3/10."), { ...ustoz, open: openAnswers(["3/4 · 2/5 = ?"]) })).toEqual({ ok: false, reason: "leak" });
+  });
+});

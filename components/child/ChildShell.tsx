@@ -3,13 +3,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
 import { useT } from "@/lib/i18n";
+import { useLangSync } from "@/lib/ui/useSetLang";
 import { AiBadge } from "./AiBadge";
 import { BottomNav, hasBottomNav } from "./BottomNav";
 import { LangSwitch } from "./LangSwitch";
 import { SideRail } from "./SideRail";
+import { isV3Route } from "@/components/v3/routes";
 
 /** Куда ведёт «назад» на экранах без навигации (урок, «Научи Bobr», цель). У остальных кнопки нет. */
-const BACK: [string, string][] = [["/lesson", "/mahalla"], ["/teach", "/lesson"], ["/goal", "/start"]];
+const BACK: [string, string][] = [["/lesson", "/home"], ["/teach", "/lesson"], ["/goal", "/start"]];
 
 /**
  * Каркас экранов ребёнка как у приложения: верхняя полоса (назад, плашка ИИ, язык) в один ряд,
@@ -18,12 +20,21 @@ const BACK: [string, string][] = [["/lesson", "/mahalla"], ["/teach", "/lesson"]
  */
 export function ChildShell({ children }: { children: ReactNode }) {
   const { t } = useT();
+  useLangSync();
   const path = usePathname();
+  const v3 = isV3Route(path);
   const withNav = hasBottomNav(path);
   const back = BACK.find(([p]) => path.startsWith(p))?.[1];
   const bar = useRef<HTMLElement>(null);
 
   useEffect(() => {
+    const root = document.documentElement;
+    if (v3) {
+      // v3: шапки и старого таб-бара нет, чат считает высоту от нулей
+      root.style.setProperty("--top-bar-h", "0px");
+      root.style.setProperty("--bottom-nav-h", "0px");
+      return () => root.style.removeProperty("--bottom-nav-h");
+    }
     const el = bar.current;
     if (!el) return;
     const write = () => document.documentElement.style.setProperty("--top-bar-h", `${el.offsetHeight}px`);
@@ -31,7 +42,9 @@ export function ChildShell({ children }: { children: ReactNode }) {
     const ro = new ResizeObserver(write);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [v3]);
+
+  if (v3) return <div className="min-h-dvh text-ink">{children}</div>;
 
   return (
     <div className="flex min-h-dvh text-ink">
