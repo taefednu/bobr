@@ -9,6 +9,7 @@ import { crisisRouting } from "../lib/safety/crisis";
 import { GUARD_CATEGORIES, type GuardCategory, type TopicId } from "../lib/types";
 import { internalMutation, internalQuery, mutation } from "./_generated/server";
 import { operandFractions } from "./lessonView";
+import { enqueueCrisis } from "./outbox";
 
 const lang = v.union(v.literal("uz"), v.literal("ru"));
 // дублирует Component из lib/types.ts
@@ -249,6 +250,7 @@ export const setCrisis = internalMutation({
     await ctx.db.insert("reviewQueue", {
       studentId, category: cat, severity: route?.urgent ? 4 : 3, status: "open", notifyParent: route?.notifyParent ?? false,
     });
+    await enqueueCrisis(ctx, studentId, cat); // родителю без цитат; ABUSE_HOME — ничего
     return null;
   },
 });

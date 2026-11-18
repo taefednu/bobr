@@ -13,6 +13,9 @@ vitest 5, Playwright 1.64.0 (закреплён под скачанный бра
 | `convex/conductor.ts` | mutations: `startDemoLesson`, `turnContext`, `submitAnswer` (вердикт, серия по разным задачам, следующая задача, topicStatus, дома), `pressHint` (hintLevel считает код), `recordText`, `recordReply` (сверка turnNo), `setCrisis`, `leaveCrisis`, `flagRisk`, `maskChildTurn` | урок готов |
 | `convex/lesson.ts`, `convex/lessonView.ts` | query `view` — публичная проекция задачи (без answer/distractors) | готово |
 | `convex/llmCache.ts` | internal `get`/`put` — адаптер REPLAY | готово |
+| `convex/{parents,students,linkCode,outbox,parent,parentLogin,botAuth,demo}.ts` | API для бота и Mini App (`docs/specs/API_FOR_BOT.md`): бот — с `BOT_SECRET`, Mini App — `sessionToken` после проверки `initData`; outbox — пуши «научил Bobr» и кризис | готово, живьём с Python не проверено |
+| `lib/telegram/` | `initData.ts` (HMAC Telegram на Web Crypto), `secure.ts`, `texts.ts` (ru/uz тексты пушей) | готово |
+| `scripts/demo-reset.sh` | засев демо-родителя и демо-ребёнка (после диагностики), печатает link code и sessionToken | готово |
 | `components/ConvexClientProvider.tsx` | `ConvexReactClient` в `app/layout.tsx` | готово |
 | `convex/crons.ts` | «дом гаснет», сводка родителю | пустой cronJobs |
 | `lib/fractions/` | `task.ts` (контракт задачи), `parseAnswer.ts`, `generator.ts` (+`DEMO_PROBES`), `numberCheck.ts`, `leakDetector.ts` | готово |

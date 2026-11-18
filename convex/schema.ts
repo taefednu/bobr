@@ -33,7 +33,11 @@ export default defineSchema({
     state: convState, // стейт урока; CRISIS — оверлей, не заменяет его (см. crisisUntil)
     stateBeforeCrisis: v.optional(convState),
     currentTopic: v.optional(topicId),
-    // TODO(spec): имя ребёнка не храним — ПДн; ник/аватар в спеке не описан.
+    // ДЕТСКИЕ ПДн (противоречие с правилом «ПДн не в БД», см. docs/specs/API_FOR_BOT.md): имя, которое родитель ввёл
+    // в боте. Читают только функции родителя (parent.dashboard, notify* в outbox). НИКОГДА не в промпты LLM, turns,
+    // llmCache и логи — это держит tests/displayNameGuard.test.ts.
+    displayName: v.optional(v.string()),
+    grade: v.optional(v.number()),
     chatBlockedUntil: v.optional(v.number()), // ms; CRISIS блокирует только болталку на 24 ч
     chatDay: v.optional(v.string()), // "YYYY-MM-DD" локального дня для лимита 30 мин/день
     chatMsToday: v.optional(v.number()),
@@ -127,12 +131,45 @@ export default defineSchema({
 
   parents: defineTable({
     lang,
-    linkCode: v.optional(v.string()), // код привязки к ребёнку
+    linkCode: v.optional(v.string()), // устарело: коды живут в linkCodes
     telegramChatId: v.optional(v.string()),
-    longGoal: v.optional(v.string()), // «долгую цель ставит родитель»; TODO(spec): формат цели
+    longGoal: v.optional(v.string()), // устарело: см. goal/testDate
+    telegramUserId: v.optional(v.string()),
+    firstName: v.optional(v.string()),
+    consent: v.optional(v.boolean()), // родитель принял условия в боте
+    goal: v.optional(v.union(v.literal("test_soon"), v.literal("homework"), v.literal("unknown"))),
+    testDate: v.optional(v.string()), // ISO "YYYY-MM-DD"
   })
     .index("by_link_code", ["linkCode"])
-    .index("by_telegram_chat", ["telegramChatId"]),
+    .index("by_telegram_chat", ["telegramChatId"])
+    .index("by_telegram_user", ["telegramUserId"]),
+
+  // Родитель ↔ ребёнок, многие-ко-многим (второй родитель). students.parentId — тот, кто создал.
+  parentLinks: defineTable({ parentId: v.id("parents"), studentId: v.id("students") })
+    .index("by_parent", ["parentId"])
+    .index("by_student", ["studentId"]),
+
+  // Одноразовый код привязки (24 ч). Хранится как есть: код короткий и живёт сутки.
+  linkCodes: defineTable({
+    code: v.string(),
+    studentId: v.id("students"),
+    expiresAt: v.number(),
+    usedAt: v.optional(v.number()),
+  }).index("by_code", ["code"]),
+
+  // Очередь сообщений родителю; бот забирает опросом и шлёт сам. Текст без цитат ребёнка.
+  outbox: defineTable({
+    parentId: v.id("parents"),
+    chatId: v.string(),
+    kind: v.union(v.literal("taught_bobr"), v.literal("crisis")),
+    text: v.string(),
+    createdAt: v.number(),
+    sentAt: v.optional(v.number()),
+  }).index("by_sent_and_created", ["sentAt", "createdAt"]),
+
+  // Сессии Mini App (из parentLogin). 7 дней.
+  parentSessions: defineTable({ parentId: v.id("parents"), token: v.string(), expiresAt: v.number() })
+    .index("by_token", ["token"]),
 
   // Контент из content/ (граф, шаблоны, заблуждения), загруженный в БД. TODO(spec): форма data.
   content: defineTable({
