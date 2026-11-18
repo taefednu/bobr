@@ -1,8 +1,10 @@
+"use client";
 // Дом-тема в 2.5D (DESIGN.md §2, §5): светлая передняя стена, тёмная боковая, плоская крыша с парапетом,
 // торцы балок (вассо) выступают из-под края крыши, бирюзовые дверь и рамы, контур ink. Только токены.
-type State = "empty" | "scaffold" | "built" | "alive" | "dimmed";
+import { useId } from "react";
+import type { HouseState } from "@/lib/types";
 
-const WALL: Record<Exclude<State, "empty">, string> = {
+const WALL: Record<Exclude<HouseState, "empty">, string> = {
   scaffold: "var(--color-terracotta)",
   built: "var(--color-non)",
   alive: "var(--color-non)",
@@ -13,9 +15,9 @@ const THIN = { stroke: "var(--color-ink)", strokeWidth: "var(--stroke-ink-thin)"
 const BEAM_X = [18, 32, 46, 60];
 const SCAFFOLD = ["M10 94 V30", "M80 94 V30", "M10 40 H80", "M10 70 H80", "M10 40 L80 70", "M10 70 L80 40"];
 
-export function House({ state, size = 150 }: { state: State; size?: number }) {
+export function House({ state, size = 150 }: { state: HouseState; size?: number }) {
   const h = (size * 104) / 130;
-  const id = `halo-${state}`;
+  const id = `halo-${useId().replace(/:/g, "")}`;
   if (state === "empty") {
     return (
       <svg width={size} height={h} viewBox="0 0 130 104" aria-hidden>
@@ -106,22 +108,6 @@ export function House({ state, size = 150 }: { state: State; size?: number }) {
           />
         </g>
       )}
-    </svg>
-  );
-}
-
-/** Тонкая полоса плитки (≤ 16 px): простой геометрический узор, один раз на экран. */
-export function TileBand() {
-  return (
-    <svg width="100%" height="16" aria-hidden className="block">
-      <defs>
-        <pattern id="tile-band" width="16" height="16" patternUnits="userSpaceOnUse">
-          <rect width="16" height="16" fill="var(--color-tile)" />
-          <path d="M8 2 L14 8 L8 14 L2 8 Z" fill="none" stroke="var(--color-paper)" strokeWidth="1.5" />
-          <circle cx="8" cy="8" r="1.5" fill="var(--color-paper)" />
-        </pattern>
-      </defs>
-      <rect width="100%" height="16" fill="url(#tile-band)" />
     </svg>
   );
 }

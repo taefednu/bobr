@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { Shell } from "@/components/skeleton/Shell";
+import { ChildShell } from "@/components/child/ChildShell";
 
 export default function ChildLayout({ children }: { children: ReactNode }) {
-  return <Shell badge>{children}</Shell>;
+  return <ChildShell>{children}</ChildShell>;
 }
