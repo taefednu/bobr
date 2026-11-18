@@ -3,6 +3,7 @@
 import { v } from "convex/values";
 import { SESSION_DAYS } from "../lib/config";
 import { randomString } from "../lib/telegram/secure";
+import { env } from "./botAuth";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 
@@ -30,14 +31,26 @@ export async function createChildSession(ctx: MutationCtx, studentId: Id<"studen
   return token;
 }
 
-/** Демо-вход без бота: новый ребёнок в GOAL_SETUP + сессия. TODO(B9): до выкладки наружу закрыть (вход только через
- *  claimLinkCode) — сейчас любой может создать ученика; согласие ставится без экрана, как в startDemoLesson. */
+/** Демо-вход без бота: новый ребёнок + сессия. Закрыт, пока в env Convex нет DEMO_ALLOW_ANON=1 (fail closed):
+ *  иначе любой создаёт учеников в обход привязки. Согласие не ставится — его даёт экран раскрытия ИИ (acceptConsent). */
 export const startDemo = mutation({
   args: { lang },
   returns: v.object({ token: v.string() }),
   handler: async (ctx, { lang }) => {
-    const studentId = await ctx.db.insert("students", { lang, consent: true, state: "GOAL_SETUP", riskCount: 0 });
+    if (env("DEMO_ALLOW_ANON") !== "1") throw new Error("unauthorized");
+    const studentId = await ctx.db.insert("students", { lang, consent: false, state: "ONBOARD_CONSENT", riskCount: 0 });
     return { token: await createChildSession(ctx, studentId) };
+  },
+});
+
+/** Экран раскрытия ИИ пройден: ONBOARD_CONSENT → GOAL_SETUP. В другом стейте — без изменений. */
+export const acceptConsent = mutation({
+  args: { token: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { token }) => {
+    const s = await childOf(ctx, token);
+    if (s.state === "ONBOARD_CONSENT") await ctx.db.patch("students", s._id, { consent: true, state: "GOAL_SETUP" });
+    return null;
   },
 });
 

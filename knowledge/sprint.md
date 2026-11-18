@@ -23,8 +23,12 @@
 - ТЗ `docs/specs/SPEC_{SYSTEM,PARENT_BOT,BOBR}.md` в `main`; противоречия — [[decisions]] (строка «Противоречия ТЗ»).
 - Дизайн v1: `docs/design/v1/` — **ок владельца 18.11**.
 
+- **Этап 3, бэкенд (core, 18.11):** `session` (токен ребёнка, согласие) → `goal:set` → `diagnose` (адаптивная) → `plan` → `mahalla` (+`startLesson`). Контракт для front — `docs/specs/API_CHILD.md`. Живой прогон с ответами демо: пробы N9 → N8 → N2 → N5 → N6, план N8 → N6 → N5 → N9.
+- **Привязка (для Нуриддина):** цели `test_soon/improve/just_practice`; `linkCode:create` → `{PUBLIC_APP_URL}/c/{code}`; `linkCode:claim({code})` → сессия child; `redeem` удалён. `API_FOR_BOT.md` обновлён.
+
 ### Сломано / открыто
-- Противоречия ТЗ (8 пунктов) ждут владельца — [[decisions]]. Самое срочное для core: привязка по ТЗ (`claimLinkCode` → сессия child) вместо «второго родителя».
+- core, дальше: урок (`turn`, `lesson:view`, `leaveCrisis`, `startDemoLesson`) ещё на `studentId` — перевести на токен (остаток B9); фраза Bobr на экране цели (Haiku + outputCheck); ревьюер B11.
+- Противоречия ТЗ ждут владельца — [[decisions]].
 - Кризис-маршрутизация, ревью безопасности раунд 2 — в работе/см. последний коммит; нет внешнего канала для «пуш удержан» (только reviewQueue).
 - Задержка хода 4–6 с (решено не трогать). Нет входа ребёнка (B9) — закрывает `claimLinkCode`.
 - Stop-хук плагина Convex краснеет на Node 20 ([[lessons]]).

@@ -4,11 +4,13 @@
 `null` (экран «введи код»), mutation бросает `unauthorized`. Числа, вердикты и переходы считает сервер; ответа
 на пробу (`answer`, `distractors`) в ответах нет. Дроби — строки.
 
-Стейты: `GOAL_SETUP → DIAGNOSE → PLAN → HOME → LESSON_SOLVE`. Маршрут экрана — по `session:me().state`.
+Стейты: `ONBOARD_CONSENT → GOAL_SETUP → DIAGNOSE → PLAN → HOME → LESSON_SOLVE`. Маршрут экрана — по `session:me().state`.
 
 | Функция | Тип | Args | Returns |
 |---|---|---|---|
-| `session:startDemo` | mutation | `{lang: "uz"\|"ru"}` | `{token}` — новый ребёнок в `GOAL_SETUP`; токен в `localStorage` |
+| `session:startDemo` | mutation | `{lang: "uz"\|"ru"}` | `{token}` — новый ребёнок в `ONBOARD_CONSENT` (дальше `session:acceptConsent`); токен в `localStorage`. Работает только при `DEMO_ALLOW_ANON=1` в env Convex (локально включено), иначе `unauthorized` |
+| `linkCode:claim` | mutation | `{code}` (8 символов, регистр не важен) | `{token}`; страница `/c/{code}` и поле «введи код». Ошибка `invalid or expired code` |
+| `session:acceptConsent` | mutation | `{token}` | `null`; экран раскрытия ИИ: `ONBOARD_CONSENT → GOAL_SETUP` |
 | `session:me` | query | `{token}` | `null \| {studentId, lang, state, goal\|null, testDate\|null}` |
 | `goal:set` | mutation | `{token, goal: "test_soon"\|"improve"\|"just_practice", testDate?: "YYYY-MM-DD"}` | `null`; из `GOAL_SETUP` переводит в `DIAGNOSE` |
 | `diagnose:start` | mutation | `{token}` | `null`; выдаёт первую пробу (идемпотентно) |
