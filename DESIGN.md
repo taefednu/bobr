@@ -298,7 +298,7 @@ minarets as decoration. The child should feel "this is my street", not "this is 
 - No Duolingo cues: flat vector fills, a ledge in a darker shade of the fill, owl-green, a guilt-tripping mascot.
 - No purple or neon gradients, gradient text, glassmorphism, bento grids, landing-page heroes.
 - No GSAP, Three.js, Lottie or other new animation dependencies: framer-motion + CSS cover it.
-- No emoji in the UI; icons are inline SVG.
+- No emoji in UI chrome (buttons, badges, titles, labels); icons are inline SVG. Emoji are allowed inside characters' speech (Bobr, Ustoz) and in bot messages to parents, when they fit the line: that is conversation, not interface (owner, 18.11).
 - No red for wrong answers, no shaking inputs, no timers on answers.
 - No text baked into images (both languages must work).
 - No pure black, no pure white page background, no grey shadows.
