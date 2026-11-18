@@ -1,3 +1,8 @@
-// TODO: клиент Claude, zod-схемы (UstozTurn, Judge, BobrTurn, OutputCheck, GoalDialog), таймауты, llmCache, circuit breaker.
-// Вызывается только из Convex actions. Скилл: bobr-llm-call.
-export {};
+// Слой вызова Claude (stage 2). Вызывается только из Convex actions; скилл bobr-llm-call.
+export * from "./call";
+export * from "./postChecks";
+export { fence, fenceChildInput } from "./prompts/fence";
+export { USTOZ_PREFIX } from "./prompts/ustoz";
+export { GUARD_PREFIX } from "./prompts/guard";
+export { OUTPUT_CHECK_PREFIX } from "./prompts/outputCheck";
+export * from "./prompts/tails";

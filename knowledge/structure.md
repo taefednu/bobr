@@ -13,9 +13,9 @@ vitest 5, Playwright 1.64.0 (закреплён под скачанный бра
 | `convex/conductor.ts` | mutations машины состояний | заглушка |
 | `convex/crons.ts` | «дом гаснет», сводка родителю | пустой cronJobs |
 | `lib/fractions/` | `task.ts` (контракт задачи), `parseAnswer.ts`, `generator.ts` (+`DEMO_PROBES`), `numberCheck.ts`, `leakDetector.ts` | готово |
-| `lib/safety/` | `copyCheck.ts`, `repeatGuard.ts` готовы; preGuard — этап 2 | частично |
+| `lib/safety/` | `preGuard.ts` (лимит, нормализация, транслит, base64, ПДн, триггеры от 1-го лица), `pii.ts`, `crisis.ts` (текст — заглушка), `copyCheck.ts`, `repeatGuard.ts` | готово, триггеры не вычитаны |
 | `lib/text/` | `normalize.ts` (NFKC, апострофы, ½), `similarity.ts` (триграммный Jaccard) | готово |
-| `lib/llm/` | клиент Claude, схемы, llmCache, breaker | заглушка |
+| `lib/llm/` | `call.ts` (`callStructured`: таймаут, retry 1, refusal/null → сбой, breaker, llmCache replay/live), `postChecks.ts` (Ustoz + `fallbackUstoz`), `prompts/` (Ustoz, guard, outputCheck, хвосты, `fenceChildInput`) | готово, живьём не гонялось |
 | `lib/content/index.ts` | загрузка и проверка `content/graph.json` (пререквизиты, ацикличность) | готово |
 | `lib/planner/planner.ts`, `lib/houses/houseMapper.ts` | план (правила вне спеки — в шапке файла), дома + demote | готово |
 | `lib/types.ts` | состояния, уровни, дома, вход хода, zod-схемы спеки (enum без регистра через `ci`) | готово |
