@@ -2,7 +2,7 @@
 import { v } from "convex/values";
 import { DIAGNOSE } from "../lib/config";
 import { graph } from "../lib/content";
-import { buildPlan, type Plan } from "../lib/planner";
+import { buildPlan, type Plan, validTestDate } from "../lib/planner";
 import type { TopicId, TopicLevel } from "../lib/types";
 import type { Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx } from "./_generated/server";
@@ -14,10 +14,9 @@ const TARGET = DIAGNOSE.targets[0] as TopicId; // topic элемента mixed_c
 type StoredDay = { date: string; newTopics: string[]; reviewTopics: string[]; mixedCheck: boolean };
 type Kind = "new" | "review" | "mixed_check";
 
-/** Прошедшая или кривая дата теста → undefined (buildPlan не должен падать из-за ввода ребёнка). */
+/** Прошедшая, кривая или слишком далёкая дата теста → undefined (buildPlan не должен падать из-за ввода ребёнка). */
 export function usableTestDate(testDate: string | undefined, today: string): string | undefined {
-  return testDate && /^\d{4}-\d{2}-\d{2}$/.test(testDate) && !Number.isNaN(Date.parse(testDate)) && testDate >= today
-    ? testDate : undefined;
+  return testDate && validTestDate(testDate, today) ? testDate : undefined;
 }
 
 /** Результат buildPlan → дни для таблицы plans. */

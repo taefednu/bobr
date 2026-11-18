@@ -55,7 +55,8 @@ export const turnContext = internalQuery({
   })),
   handler: async (ctx, { studentId }) => {
     const s = await ctx.db.get("students", studentId);
-    if (!s || !s.currentTask) return null;
+    // Проба диагностики (mcq) — не задача урока: ход урока по ней дал бы вердикт-подсказку и затёр пробу.
+    if (!s || !s.currentTask || s.currentTask.kind === "mcq") return null;
     const last = await ctx.db.query("turns").withIndex("by_student_and_ts", (q) => q.eq("studentId", studentId))
       .order("desc").take(60);
     return {
@@ -76,7 +77,7 @@ export const submitAnswer = internalMutation({
   returns: v.object({ turnNo: v.number(), verdict: v.string(), beat: v.string(), hintLevel: v.number() }),
   handler: async (ctx, { studentId, value }) => {
     const s = await ctx.db.get("students", studentId);
-    if (!s?.currentTask) throw new Error("no current task");
+    if (!s?.currentTask || s.currentTask.kind === "mcq") throw new Error("no current task");
     const task = s.currentTask;
     const r = checkAnswer(value, { ...task, kind: task.kind as TaskKind });
     const verdict = r.status === "misconception" ? `misconception:${r.misconception}` : r.status;
@@ -140,7 +141,7 @@ export const pressHint = internalMutation({
   returns: v.number(),
   handler: async (ctx, { studentId }) => {
     const s = await ctx.db.get("students", studentId);
-    if (!s?.currentTask) throw new Error("no current task");
+    if (!s?.currentTask || s.currentTask.kind === "mcq") throw new Error("no current task");
     const hintLevel = Math.min(4, (s.hintLevel ?? 0) + 1);
     const turnNo = (s.turnNo ?? 0) + 1;
     const params = operandFractions(s.currentTask.params).map((value, i) => ({ key: `f${i + 1}`, value }));

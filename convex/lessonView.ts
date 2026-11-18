@@ -29,7 +29,7 @@ export function lessonView(s: Doc<"students">) {
     turnNo: s.turnNo ?? 0,
     lastVerdict: s.lastVerdict ?? null,
     hintLevel: s.hintLevel ?? 0,
-    task: s.currentTask ? publicTask(s.currentTask) : null,
+    task: s.currentTask && s.currentTask.kind !== "mcq" ? publicTask(s.currentTask) : null, // проба диагностики идёт только через diagnose:view
     reply: s.lastReply
       ? { text: s.lastReply.reply, component: s.lastReply.component, hintButton: s.lastReply.hintButton }
       : null,

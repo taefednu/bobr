@@ -24,7 +24,7 @@ const breaker = createBreaker();
 // eslint-disable-next-line @convex-dev/no-process-env -- ключ задан владельцем в env деплоя (BLOCKERS B8)
 const env = (k: string) => process.env[k];
 let cached: { key: string; client: LlmClient } | null = null;
-function llm(): { mode: "live" | "replay"; client: LlmClient } {
+export function llm(): { mode: "live" | "replay"; client: LlmClient } {
   const key = env("ANTHROPIC_API_KEY");
   const mode = resolveDemoMode(env("DEMO_MODE"), !!key);
   if (mode === "replay" || !key) return { mode: "replay", client: { messages: { parse: () => Promise.reject(new Error("replay: no network")) } } };
@@ -32,7 +32,7 @@ function llm(): { mode: "live" | "replay"; client: LlmClient } {
   return { mode, client: cached.client };
 }
 
-const cacheOf = (ctx: ActionCtx): LlmCache => ({
+export const cacheOf = (ctx: ActionCtx): LlmCache => ({
   get: (key) => ctx.runQuery(internal.llmCache.get, { key }),
   put: async (key, step, response) => {
     await ctx.runMutation(internal.llmCache.put, { key, step, response });
@@ -40,14 +40,14 @@ const cacheOf = (ctx: ActionCtx): LlmCache => ({
 });
 
 // Форма ответа conductor.turnContext (явно, иначе TS видит цикл через api).
-type Turn = {
+export type Turn = {
   lang: "uz" | "ru"; task: NonNullable<Doc<"students">["currentTask"]>; hintLevel: number; lastVerdict: string;
   riskCount: number; recent: string[]; last6: string[];
 };
 
 // Диагностика хода (без текста ребёнка и реплик): какой шаг сколько занял, где сломалось, попал ли кэш промпта.
-type StepDiag = { ok: boolean; why?: string; ms: number; cacheRead?: number; cacheWrite?: number; input?: number };
-type Diag = { totalMs: number; guard?: StepDiag; ustoz?: StepDiag; outputCheck?: StepDiag; component?: "model" | "code"; askedType?: "pie" | "strip" | "line"; path?: string; ustozRetry?: boolean };
+export type StepDiag = { ok: boolean; why?: string; ms: number; cacheRead?: number; cacheWrite?: number; input?: number };
+export type Diag = { totalMs: number; guard?: StepDiag; ustoz?: StepDiag; outputCheck?: StepDiag; component?: "model" | "code"; askedType?: "pie" | "strip" | "line"; path?: string; ustozRetry?: boolean };
 const sd = (r: { ok: boolean; meta: LlmMeta } & ({ reason: string } | object), why?: string): StepDiag => ({
   ...r.meta, ok: r.ok && !why, why: why ?? ("reason" in r ? r.reason : undefined),
 });
@@ -99,7 +99,7 @@ async function ustozOnce(
 }
 
 /** outputCheck (Haiku) на свободной реплике: нет ответа или нарушение персоны → сбой. */
-async function outputOk(ctx: ActionCtx, d: Diag, c: Turn, reply: string) {
+export async function outputOk(ctx: ActionCtx, d: Diag, c: Turn, reply: string) {
   const r = await callStructured({
     ...llm(), breaker, cache: cacheOf(ctx), step: "outputCheck", model: MODELS.outputCheck,
     schema: OutputCheck, system: OUTPUT_CHECK_PREFIX, tail: outputCheckTail({ reply }),
@@ -111,7 +111,7 @@ async function outputOk(ctx: ActionCtx, d: Diag, c: Turn, reply: string) {
   return pass;
 }
 
-async function guardStep(ctx: ActionCtx, c: Turn, childInput: string) {
+export async function guardStep(ctx: ActionCtx, c: Turn, childInput: string) {
   return await callStructured({
     ...llm(), breaker, cache: cacheOf(ctx), step: "guardIn", model: MODELS.guardIn, schema: GuardResult,
     system: GUARD_PREFIX, tail: guardTail({ lang: c.lang, last6: c.last6, riskCount: c.riskCount, childInput }),

@@ -17,4 +17,10 @@ describe("normalizeGoal", () => {
   it.each(["18.11.2026", "2026-1-5", "2026-02-31", "2026-13-01", "2026-11-17", "soon"])("bad date %s throws", (d) => {
     expect(() => normalizeGoal({ goal: "test_soon", testDate: d, today })).toThrow("bad testDate");
   });
+
+  it("дата дальше года → bad testDate (buildPlan строит день на каждую дату)", () => {
+    expect(() => normalizeGoal({ goal: "test_soon", testDate: "9999-12-31", today: "2026-11-18" })).toThrow("bad testDate");
+    expect(() => normalizeGoal({ goal: "test_soon", testDate: "2027-11-19", today: "2026-11-18" })).toThrow("bad testDate");
+    expect(normalizeGoal({ goal: "test_soon", testDate: "2027-11-18", today: "2026-11-18" }).testDate).toBe("2027-11-18");
+  });
 });

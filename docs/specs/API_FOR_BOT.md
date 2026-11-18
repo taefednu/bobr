@@ -47,7 +47,7 @@ parent = c.mutation("parents:upsertFromTelegram", {"botSecret": BOT_SECRET, "tel
 
 ### 2. `parents:setConsent`, `parents:setGoal` (mutation)
 Согласие родителя и долгая цель (по спеке цель ставит родитель). `setGoal` копирует цель и дату всем привязанным детям (planner читает их со `students`).
-Args: `parentId: str, consent: bool` / `parentId: str, goal: "test_soon"|"improve"|"just_practice", testDate?: "YYYY-MM-DD"`. Returns: `None`. Errors: `unauthorized`, `bad testDate`.
+Args: `parentId: str, consent: bool` / `parentId: str, goal: "test_soon"|"improve"|"just_practice", testDate?: "YYYY-MM-DD"`. Returns: `None`. Errors: `unauthorized`, `bad testDate` (не `YYYY-MM-DD`, несуществующая дата, в прошлом или дальше 365 дней).
 ```python
 c.mutation("parents:setConsent", {"botSecret": BOT_SECRET, "parentId": parent, "consent": True})
 c.mutation("parents:setGoal", {"botSecret": BOT_SECRET, "parentId": parent, "goal": "test_soon", "testDate": "2026-12-01"})

@@ -1,6 +1,7 @@
 // Функции для Telegram-бота (botSecret). Родитель создаётся по telegramUserId (идемпотентно).
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
+import { normalizeGoal } from "../lib/planner";
 import { assertBot } from "./botAuth";
 
 const lang = v.union(v.literal("uz"), v.literal("ru"));
@@ -36,8 +37,8 @@ export const setGoal = mutation({
   returns: v.null(),
   handler: async (ctx, { botSecret, parentId, goal, testDate }) => {
     assertBot(botSecret);
-    if (testDate !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(testDate)) throw new Error("bad testDate");
-    if (goal !== "test_soon") testDate = undefined; // дата нужна только контрольной
+    // та же проверка, что у ребёнка (goal:set): настоящая дата, не в прошлом, не дальше года; не test_soon → даты нет
+    testDate = normalizeGoal({ goal, testDate, today: new Date(Date.now() + 5 * 3600_000).toISOString().slice(0, 10) }).testDate;
     await ctx.db.patch("parents", parentId, { goal, testDate });
     const links = await ctx.db.query("parentLinks").withIndex("by_parent", (q) => q.eq("parentId", parentId)).take(50);
     for (const l of links) await ctx.db.patch("students", l.studentId, { goal, testDate });
