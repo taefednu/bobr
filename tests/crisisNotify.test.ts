@@ -43,27 +43,28 @@ describe("abuseRowCounts", () => {
     expect(abuseRowCounts(row({ status: "reviewed", _creationTime: now - 91 * DAY }), now)).toBe(false);
     expect(abuseRowCounts(row({ category: "SELF_HARM", _creationTime: now }), now)).toBe(false);
   });
-  it("severity-1 (слабый флаг flagRisk) не считается, severity-2 — да", () => {
-    expect(abuseRowCounts(row({ severity: 1 }), now)).toBe(false);
+  it("любой ABUSE_HOME-флаг (и слабый severity-1) удерживает пуш — fail closed; удержание видно через withheldPush", () => {
+    expect(abuseRowCounts(row({ severity: 1 }), now)).toBe(true);
     expect(abuseRowCounts(row({ severity: 2 }), now)).toBe(true);
   });
   it("priorAbuseFrom: пусто — нет; лимит достигнут без ответа — fail closed", () => {
     expect(priorAbuseFrom([], now)).toBe(false);
-    const weak = Array.from({ length: ABUSE_LOOKUP_BOUND }, () => row({ severity: 1 }));
-    expect(priorAbuseFrom(weak.slice(1), now)).toBe(false);
-    expect(priorAbuseFrom(weak, now)).toBe(true);
+    const old = Array.from({ length: ABUSE_LOOKUP_BOUND }, () => row({ status: "dismissed", _creationTime: 0 }));
+    expect(priorAbuseFrom(old.slice(1), 400 * DAY)).toBe(false);
+    expect(priorAbuseFrom(old, 400 * DAY)).toBe(true);
   });
 });
 
-describe("crisisPushSuppressed: только точный дубль неотправленного", () => {
+describe("crisisPushSuppressed: первый пуш сразу, повторы того же эпизода склеиваются", () => {
   const now = 10 * DAY;
   const K = "crisis:s:SELF_HARM";
   const row = (o: object) => ({ dedupeKey: K, urgent: true, createdAt: now - 1000, ...o });
   it("неотправленный с тем же ключом → пропуск", () => {
     expect(crisisPushSuppressed([row({})], K, true, now)).toBe(true);
   });
-  it("отправленный (даже секунду назад) не гасит: лимита раз в час нет", () => {
-    expect(crisisPushSuppressed([row({ sentAt: now - 500 })], K, true, now)).toBe(false);
+  it("отправленный < 10 мин назад с тем же ключом — тот же эпизод, склеиваем; позже — новый пуш", () => {
+    expect(crisisPushSuppressed([row({ sentAt: now - 500 })], K, true, now)).toBe(true);
+    expect(crisisPushSuppressed([row({ sentAt: now - 11 * 60_000, createdAt: now - 12 * 60_000 })], K, true, now)).toBe(false);
   });
   it("неотправленный старше 10 мин не гасит", () => {
     expect(crisisPushSuppressed([row({ createdAt: now - 11 * 60_000 })], K, true, now)).toBe(false);
