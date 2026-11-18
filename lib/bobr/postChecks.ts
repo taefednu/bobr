@@ -13,7 +13,7 @@ export type BobrPostCtx = {
   recent: string[];
 };
 export type BobrLine = { reply: string; emotion: string; pose: BobrPose; attempt: string | null };
-export type BobrPostResult = { ok: true; value: BobrLine } | { ok: false; reason: "empty" | "leak" | "numbers" | "repeat" };
+export type BobrPostResult = { ok: true; value: BobrLine } | { ok: false; reason: "empty" | "leak" | "numbers" | "repeat" | "mojibake" };
 
 const cut = (text: string, part: string) => (part ? text.split(part).join(" ") : text);
 // «1 / 5 + 2/5» и «1/5+2/5» — одна запись: иначе выражение не вырежется и его числа сойдут за ответ по частям
