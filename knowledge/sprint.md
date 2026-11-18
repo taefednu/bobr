@@ -35,7 +35,7 @@ Bobr, трек A, сессия core: папка /home/taef/projects/bobr, вет
 knowledge/tracks/A-core.md → «Сейчас» в knowledge/sprint.md. Convex: `npm run dev:convex` (ключ в env; один
 бэкенд на все сессии). Ты единственный правишь convex/schema.ts, lib/types.ts, lib/config.ts — в начале и каждый
 час разбирай SCHEMA_REQUESTS.md (front и teach пишут туда). Цель до 13:30 — бэкенд демо-шагов 1–4: GOAL
-(goalDialog Haiku; цели по решению владельца: test_soon / improve / just_practice — «Скоро контрольная / Подтянуть дроби / Просто заниматься»; переведи GOAL_INTENTS, schema и parents.setGoal, обнови API_FOR_BOT.md) → DIAGNOSE (DEMO_PROBES, 6 проб, вердикт кода)
+(сначала: `lib/config.ts` copyCheck → 0.5; `DEMO_MODE` += `script`; goalDialog Haiku; цели по решению владельца: test_soon / improve / just_practice — «Скоро контрольная / Подтянуть дроби / Просто заниматься»; переведи GOAL_INTENTS, schema и parents.setGoal, обнови API_FOR_BOT.md) → DIAGNOSE адаптивная (следующая проба зависит от ответа: ошибка → пререквизит из графа, верно → дальше/стоп; фиксированные 6 проб DEMO_PROBES только при DEMO_MODE=script; вердикт всегда считает код по ответу ребёнка — никаких if под числа демо, исход честный)
 → PLAN (buildPlan, сохранить в plans) → данные махалли (houseState) — queries/mutations для экранов front.
 Затем вход ребёнка по ТЗ SPEC_SYSTEM §3–4: linkCodes 6 цифр → claimLinkCode → sessions(kind=child) → токен во
 все детские функции (закрывает B9). Мерж в 12:00 и 13:30: `git merge front teach` → npm run verify →
@@ -50,7 +50,7 @@ DESIGN.md (v1) и docs/design/v1/. Один раз: `npm install`; скопир�
 НЕ запускай convex dev и npm run verify — общий локальный Convex у core; проверка — `npm run verify:nodeploy`,
 UI — `npm run dev -- -p 3001` и `npm run ui-check -- <route>` (порт поправь в скрипте, если нужно) + взгляд на PNG.
 Зона: только app/** (кроме app/parent), components/**, lib/ui/**, public/**, i18n (ключи экранов ребёнка, uz+ru).
-Цель до 13:30 — демо-шаги 1–5 красиво по DESIGN v1: цель (Bobr спрашивает кнопками) → диагностика → план →
+Цель до 13:30 — демо-шаги 1–5 красиво по DESIGN v1: цель (Bobr спрашивает кнопками) → диагностика (адаптивная: экран показывает пробу, пришедшую из бэкенда, не список из 6) → план →
 карта-махалля (10 домов 2.5D, плоские крыши, состояния) → урок (живой Ustoz, Лепёшка/Полоска/Прямая в стиле v1,
 press-button). Данных нет — пиши заявку в ../bobr/SCHEMA_REQUESTS.md (через core), пока заглушка с TODO.
 Коммить в front часто; в main мержит core в 12:00 и 13:30 — к этому времени ветка зелёная.
@@ -65,7 +65,7 @@ knowledge/tracks/A-teach.md → docs/specs/SPEC_BOBR.md (§1 характер, �
 функциями в lib/judge/ и lib/bobr/ с vitest (каждый тест краснеет без кода). Зона: convex/teach.ts, lib/judge/**,
 lib/bobr/**, lib/llm/prompts/bobr*.ts, lib/llm/prompts/judge*.ts. Схема (bobrState, topicStatus) — заявкой в
 ../bobr/SCHEMA_REQUESTS.md. Цель к 15:00 — бэкенд сцены: Bobr приходит с ошибкой ребёнка (attempt = дистрактор
-M9 от кода) → объяснение → copyCheck (порог 0.6, lib/config.ts) → judge Sonnet (схема Judge,
+M9 от кода) → объяснение → copyCheck (порог 0.5 — THRESHOLDS.copyCheck в lib/config.ts, ставит core; не хардкодь) → judge Sonnet (схема Judge,
 цитата — подстрока, проверяет код; чек-листов нет — заглушка по спеке + TODO) → PASS: новая задача, Bobr решает
 (ответ кода), taught_bobr, level+1, enqueueTaughtBobr | PARTIAL: наивный вопрос, ≤3 круга, микро-демо | FAIL:
 «правило ребёнка» считает код. BobrTurn (Haiku) → postChecks + outputCheck. Интеграция с экраном — вечером.
