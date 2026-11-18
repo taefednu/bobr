@@ -117,4 +117,27 @@ describe("postChecksBobr", () => {
       expect(postChecksBobr(turn("Ура, 3/5! 1/5 + 2/5 = 3/5"), ctx({ ...n8, attempt: "3/5", forbiddenAnswer: null })).ok).toBe(true);
     });
   });
+
+  describe("модель не задаёт числа: дроби реплики", () => {
+    it.each([
+      ["2/5 + 1/3", "11/15", "Ура, вышло 2/15!"],
+      ["3/7 + 2/7", "5/7", "7/5"],
+      ["1/2 + 1/3", "2/5", "1/2 + 1/3 = 3/2"],
+    ])("выражение %s, attempt %s, чужая дробь → numbers", (expression, attempt, reply) => {
+      const c = ctx({ expression, attempt, forbiddenAnswer: null, numbersShown: expression.split(" + ") });
+      expect(postChecksBobr(turn(reply), c)).toEqual({ ok: false, reason: "numbers" });
+    });
+    it("верная реплика с attempt на solved → ok, пробелы в дроби не важны", () => {
+      const c = ctx({ expression: "2/5 + 1/3", attempt: "11/15", forbiddenAnswer: null, numbersShown: ["2/5", "1/3"] });
+      expect(postChecksBobr(turn("Ура, 2/5 + 1/3 = 11 / 15!"), c).ok).toBe(true);
+    });
+    it("solved без attempt в реплике → numbers", () => {
+      const c = ctx({ attempt: "5/6", forbiddenAnswer: null });
+      expect(postChecksBobr(turn("Ого, дошло! Спасибо, учитель!"), c)).toEqual({ ok: false, reason: "numbers" });
+      expect(postChecksBobr(turn("Ого, 1/2 и 1/3, спасибо!"), c)).toEqual({ ok: false, reason: "numbers" });
+    });
+    it("attempt 5/6 не прячется внутри 15/6", () => {
+      expect(postChecksBobr(turn("Выходит 15/6!"), ctx({ attempt: "5/6", forbiddenAnswer: null }))).toEqual({ ok: false, reason: "numbers" });
+    });
+  });
 });

@@ -31,9 +31,22 @@ function leaksAnswer(reply: string, answer: string, ctx: BobrPostCtx): boolean {
   return seen.has(fr[1]) && seen.has(fr[2]) && !(child.has(fr[1]) && child.has(fr[2]));
 }
 
+const fractionsIn = (s: string) => (s.match(/\d+\s*\/\s*\d+/g) ?? []).map((f) => f.replace(/\s+/g, ""));
+
+/** Модель не задаёт числа: любая дробь реплики есть в выражении, attempt (код) или у ребёнка; на solved attempt обязан быть в реплике. */
+function fractionsBad(reply: string, ctx: BobrPostCtx): boolean {
+  const allowed = new Set([ctx.expression, ctx.attempt ?? "", ...ctx.childNumbers].flatMap(fractionsIn));
+  if (fractionsIn(reply).some((f) => !allowed.has(f))) return true;
+  const solved = ctx.forbiddenAnswer === null && ctx.attempt;
+  if (!solved) return false;
+  const tok = ctx.attempt!.replace(/\s+/g, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return !new RegExp(`(?<!\\d)${tok}(?!\\d)`).test(reply.replace(/\s+/g, ""));
+}
+
 export function postChecksBobr(out: BobrTurn, ctx: BobrPostCtx): BobrPostResult {
   if (!out.reply.trim()) return { ok: false, reason: "empty" };
   if (ctx.forbiddenAnswer !== null && leaksAnswer(out.reply, ctx.forbiddenAnswer, ctx)) return { ok: false, reason: "leak" };
+  if (fractionsBad(out.reply, ctx)) return { ok: false, reason: "numbers" };
   const r = postChecksUstoz(
     { reply: out.reply, intent: "", component: null, hintLevel: 0, revealsAnswer: false },
     {
