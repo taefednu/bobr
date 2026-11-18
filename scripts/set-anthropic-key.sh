@@ -1,23 +1,17 @@
 #!/usr/bin/env bash
 # Ставит ANTHROPIC_API_KEY в окружение локального Convex (actions читают ключ оттуда, не из .env.local).
-# Ключ вводится скрытно и не попадает в историю шелла. Нужен запущенный `npm run dev:convex`.
+# Нужен запущенный `npm run dev:convex`. Ключ идёт через stdin, не аргументом (аргументы видны в ps).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 . scripts/node22.sh
-if ! (exec 3<>/dev/tcp/127.0.0.1/3210) 2>/dev/null; then
-  echo "Convex не запущен: сначала в другом терминале  npm run dev:convex" >&2; exit 1
-fi
-read -rsp "Вставь ключ Anthropic (sk-ant-…) и нажми Enter: " key; echo
-# Терминал оборачивает вставку в escape-коды bracketed paste (ESC[200~ … ESC[201~): вырезаем их,
-# затем оставляем только символы, из которых состоит ключ.
-key="$(printf '%s' "$key" | sed $'s/\e\[20[01]~//g; s/\e\[[0-9;]*[A-Za-z~]//g' | tr -cd 'A-Za-z0-9_-')"
-if [[ ! "$key" =~ ^sk-ant-[A-Za-z0-9_-]{20,}$ ]]; then
-  echo "Это не похоже на ключ Anthropic (sk-ant-…). Вставь ещё раз." >&2; exit 1
-fi
-echo "Ключ принят: ${#key} символов, начало ${key:0:10}…"
-echo "Ставлю ключ в Convex…"
-# Ключ идёт через stdin, не аргументом: аргументы видны всем в `ps`.
-if ! printf '%s' "$key" | timeout 30 npx convex env set ANTHROPIC_API_KEY --force; then
-  echo "Convex не ответил за 30 с. Перезапусти: Ctrl+C в терминале с npm run dev:convex, снова npm run dev:convex, потом этот скрипт." >&2; exit 1
-fi
-timeout 30 npx convex env list </dev/null
+(exec 3<>/dev/tcp/127.0.0.1/3210) 2>/dev/null || { echo "Convex не запущен: сначала  npm run dev:convex" >&2; exit 1; }
+read -rsp "Вставь ключ Anthropic и нажми Enter: " key; echo
+# Терминал оборачивает вставку в ESC[200~ … ESC[201~ — вырезаем, потом оставляем только символы ключа.
+esc=$'\e'
+key="${key//${esc}\[200~/}"; key="${key//${esc}\[201~/}"
+key="$(printf '%s' "$key" | tr -cd 'A-Za-z0-9_-')"
+[[ "$key" =~ ^sk-ant-[A-Za-z0-9_-]{20,}$ ]] || { echo "Не похоже на ключ (sk-ant-…). Вставь ещё раз." >&2; exit 1; }
+echo "Ключ принят: ${#key} символов. Ставлю…"
+printf '%s' "$key" | timeout 30 npx convex env set ANTHROPIC_API_KEY --force </dev/stdin \
+  || { echo "Convex не ответил за 30 с — перезапусти npm run dev:convex и повтори." >&2; exit 1; }
+echo "Готово."
