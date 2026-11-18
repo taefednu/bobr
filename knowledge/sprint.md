@@ -26,6 +26,11 @@
 - **Этап 3, бэкенд (core, 18.11):** `session` (токен ребёнка, согласие) → `goal:set` → `diagnose` (адаптивная) → `plan` → `mahalla` (+`startLesson`). Контракт для front — `docs/specs/API_CHILD.md`. Живой прогон с ответами демо: пробы N9 → N8 → N2 → N5 → N6, план N8 → N6 → N5 → N9.
 - **Привязка (для Нуриддина):** цели `test_soon/improve/just_practice`; `linkCode:create` → `{PUBLIC_APP_URL}/c/{code}`; `linkCode:claim({code})` → сессия child; `redeem` удалён. `API_FOR_BOT.md` обновлён.
 
+### teach (ветка `teach`)
+- Бэкенд сцены готов: `teach:start`, `teach:explain` (вход по токену, как `turn`). PASS / PARTIAL / FAIL, 3 круга, микро-демо, copyCheck, guard и CRISIS. Проверено `verify:nodeploy` и разовым прогоном на `convex-test` (replay).
+- Не проверено на живом Claude: нужен мерж в `main` и развёртывание у core. Дальше: живой прогон, eval судьи 18+3, интеграция с экраном.
+- Упрощено: FAIL показывает заблуждение темы, вход берёт пробу темы, судья один (спека: при partial ещё 2), чек-листы — заглушка до B1.
+
 ### Сломано / открыто
 - core, дальше: урок (`turn`, `lesson:view`, `leaveCrisis`, `startDemoLesson`) ещё на `studentId` — перевести на токен (остаток B9); фраза Bobr на экране цели (Haiku + outputCheck); ревьюер B11.
 - Противоречия ТЗ ждут владельца — [[decisions]].

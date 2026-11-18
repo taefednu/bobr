@@ -22,6 +22,7 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { action, internalMutation, internalQuery, type ActionCtx, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { operandFractions } from "./lessonView";
+import { whoArgs } from "./session";
 import { enqueueTaughtBobr } from "./outbox";
 
 // ── тонкая копия из turn.ts ──
@@ -297,12 +298,14 @@ function respond(status: Status, ap: Applied, att: Att | null, line: { reply: st
 }
 
 // ── публичные action ──
-// TODO(core): токен сессии (как и в turn.ts, studentId пока принимается без авторизации)
+// Вход как у turn: токен ребёнка; studentId работает только на демо-стенде (session.resolve).
 
 export const start = action({
-  args: { studentId: v.id("students"), topic: v.string() },
+  args: { ...whoArgs, topic: v.string() },
   returns: replyV,
-  handler: async (ctx, { studentId, topic }): Promise<Reply> => {
+  handler: async (ctx, { topic, ...who }): Promise<Reply> => {
+    const studentId: Id<"students"> | null = await ctx.runQuery(internal.session.resolve, who);
+    if (!studentId) return NONE("rejected");
     const att = (TOPIC_IDS as readonly string[]).includes(topic) && checklistFor(topic as TopicId) ? entryAttempt(topic as TopicId) : null;
     const c: SceneCtx | null = att ? await ctx.runQuery(internal.teach.context, { studentId }) : null;
     if (!att || !c) return NONE("rejected");
@@ -315,9 +318,11 @@ export const start = action({
 });
 
 export const explain = action({
-  args: { studentId: v.id("students"), value: v.string() },
+  args: { ...whoArgs, value: v.string() },
   returns: replyV,
-  handler: async (ctx, { studentId, value }): Promise<Reply> => {
+  handler: async (ctx, { value, ...who }): Promise<Reply> => {
+    const studentId: Id<"students"> | null = await ctx.runQuery(internal.session.resolve, who);
+    if (!studentId) return NONE("rejected");
     const c: SceneCtx | null = await ctx.runQuery(internal.teach.context, { studentId });
     if (!c) return NONE("rejected");
 

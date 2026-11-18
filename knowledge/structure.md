@@ -10,6 +10,8 @@ vitest 5, Playwright 1.64.0 (закреплён под скачанный бра
 |---|---|---|
 | `convex/schema.ts` | 10 таблиц спеки с индексами (дроби — string); у `students` поля урока: `currentTask`, `turnNo`, `hintLevel`, `lastVerdict`, `lastReply` | готово |
 | `convex/turn.ts` | action `turn`: preGuard → вердикт кода → Ustoz (∥ guardIn для текста) → postChecks → outputCheck → `recordReply`; без ключа — replay → запасной путь | готово, LLM не гонялся |
+| `convex/teach.ts` | сцена «Научи Bobr»: actions `start`, `explain`; preGuard → copyCheck ∥ guardIn ∥ судья → `applyVerdict` (атомарно `taught_bobr`, дом, outbox) → реплика Bobr → postChecks → outputCheck | бэкенд готов, экран вечером |
+| `lib/judge/`, `lib/bobr/` | судья: чек-листы (заглушка до B1), проверка цитат и вердикт кодом; Bobr: шаги сцены, попытки от кода, postChecks реплики | готово |
 | `convex/conductor.ts` | mutations: `startDemoLesson`, `turnContext`, `submitAnswer` (вердикт, серия по разным задачам, следующая задача, topicStatus, дома), `pressHint` (hintLevel считает код), `recordText`, `recordReply` (сверка turnNo), `setCrisis`, `leaveCrisis`, `flagRisk`, `maskChildTurn` | урок готов |
 | `convex/lesson.ts`, `convex/lessonView.ts` | query `view` — публичная проекция задачи (без answer/distractors) | готово |
 | `convex/session.ts` | детская сессия: `childOf`/`childOrNull` (токен → ребёнок), `startDemo` (только `DEMO_ALLOW_ANON=1`), `acceptConsent`, `me` | готово |
