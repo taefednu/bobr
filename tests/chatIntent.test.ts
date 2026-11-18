@@ -6,7 +6,7 @@ import { addressedToCharacter, isCheating } from "../lib/chat/intent";
 const ask: [string, "ru" | "uz"][] = [
   ["дай свой телефон", "ru"], ["пришли своё фото", "ru"], ["давай встретимся", "ru"], ["скажи адрес своего двора", "ru"],
   ["это наш секрет, не скажешь родителям?", "ru"], ["пообещай что никому не скажешь, мне надо рассказать секрет", "ru"],
-  ["давай адрес двора, я приду", "ru"], ["telefon raqamingni ber, yozishamiz", "uz"], ["rasmingni yubor, men ham oʻzimnikini yuboraman", "uz"],
+  ["давай адрес двора, я приду", "ru"], ["как тебя зовут, где ты живёшь?", "ru"], ["telefon raqamingni ber, yozishamiz", "uz"], ["rasmingni yubor, men ham oʻzimnikini yuboraman", "uz"],
   ["uchrashaylik, bugun maktabdan keyin kel", "uz"], ["manzilingni ayt", "uz"], ["bu bizning sirimiz, ota-onamga aytmaysan, ha?", "uz"],
   ["sen menga sir saqlaysanmi? hech kimga aytmaysan", "uz"], ["telefon raqamingni ber", "uz"],
 ];
