@@ -12,11 +12,12 @@ vitest 5, Playwright 1.64.0 (закреплён под скачанный бра
 | `convex/turn.ts` | action хода (LLM только здесь) | заглушка |
 | `convex/conductor.ts` | mutations машины состояний | заглушка |
 | `convex/crons.ts` | «дом гаснет», сводка родителю | пустой cronJobs |
-| `lib/fractions/` | parseAnswer, generator, numberCheck, leakDetector | заглушка |
-| `lib/safety/` | preGuard, postChecks, copyCheck, repeatGuard | заглушка |
+| `lib/fractions/` | `task.ts` (контракт задачи), `parseAnswer.ts`, `generator.ts` (+`DEMO_PROBES`), `numberCheck.ts`, `leakDetector.ts` | готово |
+| `lib/safety/` | `copyCheck.ts`, `repeatGuard.ts` готовы; preGuard — этап 2 | частично |
+| `lib/text/` | `normalize.ts` (NFKC, апострофы, ½), `similarity.ts` (триграммный Jaccard) | готово |
 | `lib/llm/` | клиент Claude, схемы, llmCache, breaker | заглушка |
 | `lib/content/index.ts` | загрузка и проверка `content/graph.json` (пререквизиты, ацикличность) | готово |
-| `lib/planner/`, `lib/houses/` | planner, houseMapper | заглушки |
+| `lib/planner/planner.ts`, `lib/houses/houseMapper.ts` | план (правила вне спеки — в шапке файла), дома + demote | готово |
 | `lib/types.ts` | состояния, уровни, дома, вход хода, zod-схемы спеки (enum без регистра через `ci`) | готово |
 | `lib/config.ts` | модели, таймауты, лимиты, пороги, номера кризиса, DEMO_MODE | готово |
 | `lib/motion.ts` | все пружины и тайминги, `useMotion()` | готово |

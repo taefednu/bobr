@@ -18,8 +18,8 @@
 - [x] Скелет UI (серый): Цель, Диагностика, Махалля, Урок, Научи Bobr, Болталка, `/parent`; плашка ИИ на экранах чата
 
 ## Этап 1 — детерминированное ядро + тесты
-- [ ] parseAnswer → generator → leakDetector → numberCheck → copyCheck → repeatGuard → planner → houseMapper
-- [ ] Демо-случаи: `2/5` на `1/2+1/3` → M9; «yarim» = 1/2; «0,5» = 1/2; `2/4` → almost
+- [x] parseAnswer → generator → leakDetector → numberCheck → copyCheck → repeatGuard → planner → houseMapper
+- [x] Демо-случаи: `2/5` на `1/2+1/3` → M9; «yarim» = 1/2; «0,5» = 1/2; `2/4` → almost
 
 ## Этап 2 — один ход целиком (UI серый)
 - [ ] `lib/llm.ts`: caching, таймауты, retry 1, llmCache record/replay, circuit breaker

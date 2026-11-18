@@ -4,6 +4,11 @@
 
 | # | Что | Где | Что пробовал | Как обошёл | Кто снимет |
 |---|---|---|---|---|---|
+| B8 | Нет `ANTHROPIC_API_KEY` в env Convex — живые LLM-шаги (guardIn, Ustoz, outputCheck) не проверить; критерий этапа 2 «Ustoz не сдаётся» — NOT RUN | `convex env`, `.env.local` | проба: SDK в рантайме Convex работает, ответ 401 без ключа | Фейковый клиент + запасные пути; ручные ответы только как mock | владелец (`npx convex env set ANTHROPIC_API_KEY …`) |
+| B7 | Нет `crisis.json` и триггеров кризиса: preGuard на консервативном списке «не вычитано», CRISIS-текст — заглушка + 112 | `lib/safety/preGuard.ts`, CRISIS-оверлей | — | см. [[decisions]] 18.11 | владелец + носитель |
+| B6 | Порог copyCheck 0.6 на грани: близкий ru-пересказ с ключевой фразой Ustoz — 0.586 (не пойман), uz — 0.667 (пойман) | `lib/safety/copyCheck.ts`, `lib/config.ts` | замер на 4 парах | Оставлен 0.6 по спеке; eval судьи (спека) покажет | владелец / eval |
+| B5 | Проба N2 и N1 в демо-диагностике: в спеке нет чисел; N1 нет в генераторе | `lib/fractions/generator.ts` `DEMO_PROBES` | — | N2 — фиксированный сид, `TODO(content)`; N1 пропущена (5 проб из 6) | владелец (контент) |
+| B4 | leakDetector по-узбекски знает только 3 формы спеки (uchdan ikki, yarim, chorak) — дыра в пункте «не режем никогда» | `lib/fractions/leakDetector.ts` | — | `TODO(носитель)`; нужен словарь дробей от носителя | владелец (носитель) |
 | B1 | Нет контента: `content/misconceptions.json`, `templates.json`, `checklists.json`, `crisis.json` (владелец их упомянул, в репо нет) | `content/` | `ls content/*` — только пустые папки с `.gitkeep` | Свой контент не выдумываю. Из спеки взято: граф N1–N10, M9, демо-пробы. Остальное — заглушки с `TODO(content)` | владелец |
 | B2 | Номера кризисной помощи, кроме 112, не подтверждены | `lib/config.ts` | — | Только 112; остальные «проверить звонком» (спека) | владелец |
 | B3 | `thesysdev/skills` без файла лицензии | `.claude/skills/openui/SOURCE.md` | искал LICENSE в репо скиллов | Положен MIT из `thesysdev/openui`, на скилл ссылается его `docs/public/AGENTS.md` | владелец (решить, ок ли) |

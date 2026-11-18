@@ -15,7 +15,12 @@
   (`/goal /diagnose /mahalla /lesson /teach /chat /parent /`) с плашкой ИИ и переключателем uz/ru.
   Проверено: `npm run verify` 0 (4/4 PASS), `ui-check` 8 маршрутов × uz/ru — код 0. Отрезано: контента
   нет (B1), uz-строки ждут носителя. Дальше — этап 1.
-- [ ] Этап 1 · [ ] Этап 2
+- [x] Этап 1 — детерминированное ядро. Работает: parseAnswer (ok/almost/misconception, yarim, 0,5, ½, 1½),
+  generator (5 тем × 3 вида, сид, M9 на N8/N9, договор «найди пропущенное»), leakDetector (эквиваленты, десятичные,
+  смешанные, ru-слова, uz 3 формы + аффиксы), numberCheck, copyCheck/repeatGuard (символьные триграммы),
+  planner (транзитивная готовность, демо N8→N6→N5→N9), houseMapper/demote. Проверено: `npm run verify` 0,
+  117 тестов; каждый тест видели красным; reviewer — 4 major закрыты. Отрезано: N1-проба и uz-словарь (B4, B5).
+- [ ] Этап 2
 
 Ловушки, известные заранее:
 - В `content/` нет `misconceptions.json`, `templates.json`, `checklists.json`, `crisis.json` (владелец их

@@ -40,10 +40,14 @@ export type TurnEvent =
 
 // ── Компонент: {type, params}; params — строки (дроби строкой) ──
 // TODO(spec): точные params для pie/strip/line спека не описывает.
+// params — массив пар, не z.record: structured outputs принимают только additionalProperties:false,
+// открытый словарь даёт 400 на первом живом вызове. В словарь превращает код (paramsToRecord).
 export const Component = z.object({
   type: ci(["pie", "strip", "line"]),
-  params: z.record(z.string(), z.string()),
+  params: z.array(z.object({ key: z.string(), value: z.string() })),
 });
+export const paramsToRecord = (p: { key: string; value: string }[]): Record<string, string> =>
+  Object.fromEntries(p.map(({ key, value }) => [key, value]));
 
 // ── Zod-схемы из спеки ──
 // TODO(spec): значения intent у Ustoz не перечислены — z.string().
