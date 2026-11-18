@@ -2,7 +2,7 @@
 // Писатели — обычные функции (enqueue*), чтобы вызывать их внутри чужих мутаций без под-транзакций.
 import { v } from "convex/values";
 import { graph } from "../lib/content";
-import { crisisDedupeKey, crisisPushSuppressed, crisisRouting, parentNotifyDecision } from "../lib/safety/crisis";
+import { CRISIS_DEDUPE_STALE_MS, crisisDedupeKey, crisisPushSuppressed, crisisRouting, parentNotifyDecision } from "../lib/safety/crisis";
 import { crisisText, taughtBobrText } from "../lib/telegram/texts";
 import type { GuardCategory, TopicId } from "../lib/types";
 import type { Id } from "./_generated/dataModel";
@@ -26,7 +26,9 @@ async function enqueue(
       const dedupeKey = crisisDedupeKey(studentId, crisis.category);
       const unsent = await ctx.db.query("outbox")
         .withIndex("by_parent_and_dedupe_and_sent", (q) => q.eq("parentId", p._id).eq("dedupeKey", dedupeKey).eq("sentAt", undefined)).take(20);
-      if (crisisPushSuppressed(unsent, dedupeKey, crisis.urgent, now)) continue;
+      const recentSent = await ctx.db.query("outbox")
+        .withIndex("by_parent_and_dedupe_and_sent", (q) => q.eq("parentId", p._id).eq("dedupeKey", dedupeKey).gt("sentAt", now - CRISIS_DEDUPE_STALE_MS)).take(20);
+      if (crisisPushSuppressed([...unsent, ...recentSent], dedupeKey, crisis.urgent, now)) continue;
       extra = { studentId, category: crisis.category, urgent: crisis.urgent, dedupeKey };
     }
     await ctx.db.insert("outbox", { parentId: p._id, chatId: p.telegramChatId, kind, text: text(p), createdAt: now, ...extra });
