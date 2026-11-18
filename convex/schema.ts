@@ -10,6 +10,8 @@ const topicLevel = v.union(v.literal("gap"), v.literal("solved_self"), v.literal
 const houseState = v.union(
   v.literal("empty"), v.literal("scaffold"), v.literal("built"), v.literal("alive"), v.literal("dimmed"),
 );
+// дублирует GOAL_INTENTS из lib/types.ts (решение владельца 18.11: «Скоро контрольная / Подтянуть дроби / Просто заниматься»)
+const goal = v.union(v.literal("test_soon"), v.literal("improve"), v.literal("just_practice"));
 const convState = v.union(
   v.literal("ONBOARD_CONSENT"), v.literal("GOAL_SETUP"), v.literal("DIAGNOSE"), v.literal("PLAN"),
   v.literal("HOME"), v.literal("LESSON_INTRO"), v.literal("LESSON_SOLVE"), v.literal("TEACH_BOBR"),
@@ -28,7 +30,7 @@ export default defineSchema({
     lang,
     parentId: v.optional(v.id("parents")),
     consent: v.boolean(), // экран раскрытия ИИ / согласие пройдены
-    goal: v.optional(v.union(v.literal("test_soon"), v.literal("homework"), v.literal("unknown"))),
+    goal: v.optional(goal),
     testDate: v.optional(v.string()), // ISO "2026-12-01"; для planner
     state: convState, // стейт урока; CRISIS — оверлей, не заменяет его (см. crisisUntil)
     stateBeforeCrisis: v.optional(convState),
@@ -53,6 +55,12 @@ export default defineSchema({
       distractors: v.array(v.object({ value: v.string(), misconception: v.optional(v.string()) })),
       requireReduced: v.boolean(),
       numbersShown: v.array(v.string()),
+    })),
+    // Диагностика (этап 3). Текущая проба лежит в currentTask (kind "mcq", answer — только на сервере).
+    // options — перемешанные варианты текущей пробы (в currentTask нет seed, пересчитать в query нельзя).
+    diagnosis: v.optional(v.object({
+      results: v.array(v.object({ topic: topicId, ok: v.boolean(), misconception: v.optional(v.string()) })),
+      options: v.array(v.string()),
     })),
     turnNo: v.optional(v.number()), // растёт на каждый ход; реплика Ustoz пишется только при совпадении
     hintLevel: v.optional(v.number()), // 0..4, считает ТОЛЬКО код: кнопка +1, каждые 2 ошибки на задаче +1, новая задача → 0
@@ -87,6 +95,7 @@ export default defineSchema({
   plans: defineTable({
     studentId: v.id("students"),
     testDate: v.optional(v.string()),
+    order: v.optional(v.array(topicId)), // порядок новых тем из buildPlan (в т.ч. не поместившиеся в дни)
     days: v.array(v.object({
       date: v.string(), // ISO
       newTopics: v.array(topicId), // ≤ 2 в день
@@ -138,7 +147,7 @@ export default defineSchema({
     telegramUserId: v.optional(v.string()),
     firstName: v.optional(v.string()),
     consent: v.optional(v.boolean()), // родитель принял условия в боте
-    goal: v.optional(v.union(v.literal("test_soon"), v.literal("homework"), v.literal("unknown"))),
+    goal: v.optional(goal),
     testDate: v.optional(v.string()), // ISO "YYYY-MM-DD"
   })
     .index("by_link_code", ["linkCode"])
@@ -174,6 +183,15 @@ export default defineSchema({
   })
     .index("by_sent_and_created", ["sentAt", "createdAt"])
     .index("by_parent_and_dedupe_and_sent", ["parentId", "dedupeKey", "sentAt"]),
+
+  // Сессии ребёнка (SPEC_SYSTEM §3–4): токен в localStorage устройства, идёт в каждую детскую функцию.
+  // kind "parent" зарезервирован ТЗ; сессии Mini App пока живут в parentSessions.
+  sessions: defineTable({
+    token: v.string(),
+    kind: v.union(v.literal("child"), v.literal("parent")),
+    studentId: v.optional(v.id("students")),
+    expiresAt: v.number(),
+  }).index("by_token", ["token"]),
 
   // Сессии Mini App (из parentLogin). 7 дней.
   parentSessions: defineTable({ parentId: v.id("parents"), token: v.string(), expiresAt: v.number() })

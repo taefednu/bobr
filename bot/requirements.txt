@@ -1,0 +1,4 @@
+aiogram==3.31.0
+convex==0.8.1
+python-dotenv==1.2.1
+tzdata>=2025.2

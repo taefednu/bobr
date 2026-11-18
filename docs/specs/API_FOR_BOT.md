@@ -21,7 +21,7 @@
 ```bash
 printf %s "$VALUE" | npx convex env set BOT_SECRET            # длинная случайная строка, она же у бота
 printf %s "$VALUE" | npx convex env set TELEGRAM_BOT_TOKEN    # токен от BotFather
-printf %s "$VALUE" | npx convex env set TELEGRAM_BOT_USERNAME # без @, для ссылки t.me
+printf %s "$VALUE" | npx convex env set PUBLIC_APP_URL # адрес веб-приложения без / в конце, для ссылки /c/{code}
 ```
 
 Локальный Convex: `http://127.0.0.1:3210`. Клиент: `ConvexClient("http://127.0.0.1:3210")`. На локальном бэкенде `npx convex env set` требует `CONVEX_AGENT_MODE=anonymous` (как в `scripts/*.sh`).
@@ -47,12 +47,12 @@ parent = c.mutation("parents:upsertFromTelegram", {"botSecret": BOT_SECRET, "tel
 
 ### 2. `parents:setConsent`, `parents:setGoal` (mutation)
 Согласие родителя и долгая цель (по спеке цель ставит родитель). `setGoal` копирует цель и дату всем привязанным детям (planner читает их со `students`).
-Args: `parentId: str, consent: bool` / `parentId: str, goal: "test_soon"|"homework"|"unknown", testDate?: "YYYY-MM-DD"`. Returns: `None`. Errors: `unauthorized`, `bad testDate`.
+Args: `parentId: str, consent: bool` / `parentId: str, goal: "test_soon"|"improve"|"just_practice", testDate?: "YYYY-MM-DD"`. Returns: `None`. Errors: `unauthorized`, `bad testDate` (не `YYYY-MM-DD`, несуществующая дата, в прошлом или дальше 365 дней).
 ```python
 c.mutation("parents:setConsent", {"botSecret": BOT_SECRET, "parentId": parent, "consent": True})
 c.mutation("parents:setGoal", {"botSecret": BOT_SECRET, "parentId": parent, "goal": "test_soon", "testDate": "2026-12-01"})
 ```
-Для `unknown`/`homework` не передавай `testDate` (поле просто опускается).
+Кнопки ТЗ: «Скоро контрольная» = `test_soon`, «Подтянуть дроби» = `improve`, «Просто заниматься» = `just_practice` (решение владельца 18.11; старые `homework`/`unknown` удалены). Для `improve`/`just_practice` `testDate` не нужен: сервер его сбрасывает.
 
 ### 3. `students:create` (mutation)
 Создать ребёнка и привязать к родителю. Язык берётся у родителя. Стейт `ONBOARD_CONSENT`.
@@ -62,16 +62,13 @@ Args: `parentId: str, name: str (1-40), grade: int (1-11)`. Returns: `{"studentI
 sid = c.mutation("students:create", {"botSecret": BOT_SECRET, "parentId": parent, "name": "Madina", "grade": 5})["studentId"]
 ```
 
-### 4. `linkCode:create`, `linkCode:redeem` (mutation)
-`create`: код 8 символов из `ABCDEFGHJKMNPQRSTUVWXYZ23456789`, живёт 24 ч, одноразовый; `url = https://t.me/${TELEGRAM_BOT_USERNAME}?start=${code}`. Ребёнок открывает ссылку у себя (или второй родитель у себя).
-`redeem`: привязывает родителя (по `telegramUserId`, он уже должен быть в `parents`) к ребёнку. Код регистр не различает, второй раз не сработает.
-Args: `studentId: str` / `code: str, telegramUserId: str`. Returns: `{"code","url"}` / `{"studentId","parentId","displayName": str|None}`.
-Errors: `unauthorized`, `student not found`, `TELEGRAM_BOT_USERNAME is not set`, `parent not found`, `invalid or expired code`.
+### 4. `linkCode:create` (mutation)
+Код 8 символов из `ABCDEFGHJKMNPQRSTUVWXYZ23456789`, живёт 24 ч, одноразовый; `url = {PUBLIC_APP_URL}/c/{code}`. Родитель открывает ссылку на устройстве ребёнка (или ребёнок вводит код на главной) — веб вызывает `linkCode:claim({code})` и получает детскую сессию. Боту `claim` не нужен.
+Args: `studentId: str`. Returns: `{"code","url"}`. Errors: `unauthorized`, `student not found`, `PUBLIC_APP_URL is not set`.
 ```python
-lc = c.mutation("linkCode:create", {"botSecret": BOT_SECRET, "studentId": sid})   # lc["url"] родителю
-# на /start <code>:
-c.mutation("linkCode:redeem", {"botSecret": BOT_SECRET, "code": payload, "telegramUserId": str(u.id)})
+lc = c.mutation("linkCode:create", {"botSecret": BOT_SECRET, "studentId": sid})   # lc["url"] и lc["code"] родителю
 ```
+`linkCode:redeem` (второй родитель по коду, `/start <code>`) **удалён 18.11**: код теперь открывает сессию ребёнка, а не делает его владельца родителем (BLOCKERS B10). Кнопка «Новый код» = ещё один `linkCode:create`.
 
 ### 5. `outbox:listUnsent`, `outbox:markSent`
 Очередь сообщений родителю. `listUnsent` (query) — неотправленные, старые первыми, `limit` 1-100. `markSent` (mutation) — идемпотентно.

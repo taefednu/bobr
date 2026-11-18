@@ -12,6 +12,9 @@ vitest 5, Playwright 1.64.0 (закреплён под скачанный бра
 | `convex/turn.ts` | action `turn`: preGuard → вердикт кода → Ustoz (∥ guardIn для текста) → postChecks → outputCheck → `recordReply`; без ключа — replay → запасной путь | готово, LLM не гонялся |
 | `convex/conductor.ts` | mutations: `startDemoLesson`, `turnContext`, `submitAnswer` (вердикт, серия по разным задачам, следующая задача, topicStatus, дома), `pressHint` (hintLevel считает код), `recordText`, `recordReply` (сверка turnNo), `setCrisis`, `leaveCrisis`, `flagRisk`, `maskChildTurn` | урок готов |
 | `convex/lesson.ts`, `convex/lessonView.ts` | query `view` — публичная проекция задачи (без answer/distractors) | готово |
+| `convex/session.ts` | детская сессия: `childOf`/`childOrNull` (токен → ребёнок), `startDemo` (только `DEMO_ALLOW_ANON=1`), `acceptConsent`, `me` | готово |
+| `convex/{goal,diagnose,plan,mahalla}.ts` | этап 3 по `docs/specs/API_CHILD.md`: цель, адаптивная диагностика (проба в `currentTask`, варианты в `students.diagnosis`), план (`rebuildPlan` → `plans`), махалля + `startLesson` | готово |
+| `lib/planner/{diagnose,goal}.ts` | `nextProbeTopic` (адаптивный обход графа / script), `probeFor`; `normalizeGoal` | готово |
 | `convex/llmCache.ts` | internal `get`/`put` — адаптер REPLAY | готово |
 | `convex/{parents,students,linkCode,outbox,parent,parentLogin,botAuth,demo}.ts` | API для бота и Mini App (`docs/specs/API_FOR_BOT.md`): бот — с `BOT_SECRET`, Mini App — `sessionToken` после проверки `initData`; outbox — пуши «научил Bobr» и кризис | готово, живьём с Python не проверено |
 | `lib/telegram/` | `initData.ts` (HMAC Telegram на Web Crypto), `secure.ts`, `texts.ts` (ru/uz тексты пушей) | готово |
@@ -25,7 +28,7 @@ vitest 5, Playwright 1.64.0 (закреплён под скачанный бра
 | `lib/content/index.ts` | загрузка и проверка `content/graph.json` (пререквизиты, ацикличность) | готово |
 | `lib/planner/planner.ts`, `lib/houses/houseMapper.ts` | план (правила вне спеки — в шапке файла), дома + demote | готово |
 | `lib/types.ts` | состояния, уровни, дома, вход хода, zod-схемы спеки (enum без регистра через `ci`) | готово |
-| `lib/config.ts` | модели, таймауты, лимиты, пороги, номера кризиса, `resolveDemoMode` (env `DEMO_MODE` = live\|replay; без ключа — replay) | готово |
+| `lib/config.ts` | модели, таймауты, лимиты, пороги, номера кризиса, `resolveDemoMode` (env `DEMO_MODE` = live\|replay; без ключа — replay), `isScriptDiagnosis` (`DEMO_MODE=script`), `DIAGNOSE` | готово |
 | `lib/motion.ts` | все пружины и тайминги, `useMotion()` | готово |
 | `lib/utils.ts` | `cn()` | готово |
 | `app/(child)/{goal,diagnose,mahalla,lesson,teach,chat}`, `app/parent`, `app/page.tsx` | экраны, серый каркас без логики (до ок на DESIGN v1) | каркас |

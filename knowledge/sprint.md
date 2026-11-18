@@ -23,8 +23,12 @@
 - ТЗ `docs/specs/SPEC_{SYSTEM,PARENT_BOT,BOBR}.md` в `main`; противоречия — [[decisions]] (строка «Противоречия ТЗ»).
 - Дизайн v1: `docs/design/v1/` — **ок владельца 18.11**.
 
+- **Этап 3, бэкенд (core, 18.11):** `session` (токен ребёнка, согласие) → `goal:set` → `diagnose` (адаптивная) → `plan` → `mahalla` (+`startLesson`). Контракт для front — `docs/specs/API_CHILD.md`. Живой прогон с ответами демо: пробы N9 → N8 → N2 → N5 → N6, план N8 → N6 → N5 → N9.
+- **Привязка (для Нуриддина):** цели `test_soon/improve/just_practice`; `linkCode:create` → `{PUBLIC_APP_URL}/c/{code}`; `linkCode:claim({code})` → сессия child; `redeem` удалён. `API_FOR_BOT.md` обновлён.
+
 ### Сломано / открыто
-- Противоречия ТЗ (8 пунктов) ждут владельца — [[decisions]]. Самое срочное для core: привязка по ТЗ (`claimLinkCode` → сессия child) вместо «второго родителя».
+- core, дальше: урок (`turn`, `lesson:view`, `leaveCrisis`, `startDemoLesson`) ещё на `studentId` — перевести на токен (остаток B9); фраза Bobr на экране цели (Haiku + outputCheck); ревьюер B11.
+- Противоречия ТЗ ждут владельца — [[decisions]].
 - Кризис-маршрутизация, ревью безопасности раунд 2 — в работе/см. последний коммит; нет внешнего канала для «пуш удержан» (только reviewQueue).
 - Задержка хода 4–6 с (решено не трогать). Нет входа ребёнка (B9) — закрывает `claimLinkCode`.
 - Stop-хук плагина Convex краснеет на Node 20 ([[lessons]]).
@@ -37,7 +41,7 @@ knowledge/tracks/A-core.md → «Сейчас» в knowledge/sprint.md. Convex: 
 час разбирай SCHEMA_REQUESTS.md (front и teach пишут туда). Цель до 13:30 — бэкенд демо-шагов 1–4: GOAL
 (сначала: `lib/config.ts` copyCheck → 0.5; `DEMO_MODE` += `script`; goalDialog Haiku; цели по решению владельца: test_soon / improve / just_practice — «Скоро контрольная / Подтянуть дроби / Просто заниматься»; переведи GOAL_INTENTS, schema и parents.setGoal, обнови API_FOR_BOT.md) → DIAGNOSE адаптивная (следующая проба зависит от ответа: ошибка → пререквизит из графа, верно → дальше/стоп; фиксированные 6 проб DEMO_PROBES только при DEMO_MODE=script; вердикт всегда считает код по ответу ребёнка — никаких if под числа демо, исход честный)
 → PLAN (buildPlan, сохранить в plans) → данные махалли (houseState) — queries/mutations для экранов front.
-Затем вход ребёнка по ТЗ SPEC_SYSTEM §3–4: linkCodes 6 цифр → claimLinkCode → sessions(kind=child) → токен во
+Затем вход ребёнка по ТЗ SPEC_SYSTEM §3–4: linkCodes 8 символов (как в API) → ссылка {PUBLIC_APP_URL}/c/{code} → claimLinkCode → sessions(kind=child) → токен во
 все детские функции (закрывает B9). Мерж в 12:00 и 13:30: `git merge front teach` → npm run verify →
 /demo-path → bash scripts/turn-smoke.sh → push. Каждый шаг: verify → коммит → git pull --rebase → push.
 Работа: ты — Opus-оркестратор. Код пишут агенты `implementer` (Sonnet), независимые таски — параллельно, по одному ограниченному таску на агента; после каждого куска — быстрое ревью агентом `reviewer` (Opus) по диффу куска, чинишь находки, verify, коммит. Сначала MVP, полировка потом.

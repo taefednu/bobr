@@ -12,9 +12,10 @@ import { crisisRouting, preGuard } from "../lib/safety";
 import { GuardResult, OutputCheck, UstozTurn } from "../lib/types";
 import type { UstozTurn as UstozTurnT } from "../lib/types";
 import { internal } from "./_generated/api";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { action, type ActionCtx } from "./_generated/server";
 import { operandFractions, publicTask } from "./lessonView";
+import { whoArgs } from "./session";
 
 // ponytail: breaker живёт в изоляте — не глобальный; при нескольких изолятах порог 3/30 с считается на каждом.
 const breaker = createBreaker();
@@ -24,7 +25,7 @@ const breaker = createBreaker();
 // eslint-disable-next-line @convex-dev/no-process-env -- ключ задан владельцем в env деплоя (BLOCKERS B8)
 const env = (k: string) => process.env[k];
 let cached: { key: string; client: LlmClient } | null = null;
-function llm(): { mode: "live" | "replay"; client: LlmClient } {
+export function llm(): { mode: "live" | "replay"; client: LlmClient } {
   const key = env("ANTHROPIC_API_KEY");
   const mode = resolveDemoMode(env("DEMO_MODE"), !!key);
   if (mode === "replay" || !key) return { mode: "replay", client: { messages: { parse: () => Promise.reject(new Error("replay: no network")) } } };
@@ -32,7 +33,7 @@ function llm(): { mode: "live" | "replay"; client: LlmClient } {
   return { mode, client: cached.client };
 }
 
-const cacheOf = (ctx: ActionCtx): LlmCache => ({
+export const cacheOf = (ctx: ActionCtx): LlmCache => ({
   get: (key) => ctx.runQuery(internal.llmCache.get, { key }),
   put: async (key, step, response) => {
     await ctx.runMutation(internal.llmCache.put, { key, step, response });
@@ -40,14 +41,14 @@ const cacheOf = (ctx: ActionCtx): LlmCache => ({
 });
 
 // Форма ответа conductor.turnContext (явно, иначе TS видит цикл через api).
-type Turn = {
+export type Turn = {
   lang: "uz" | "ru"; task: NonNullable<Doc<"students">["currentTask"]>; hintLevel: number; lastVerdict: string;
   riskCount: number; recent: string[]; last6: string[];
 };
 
 // Диагностика хода (без текста ребёнка и реплик): какой шаг сколько занял, где сломалось, попал ли кэш промпта.
-type StepDiag = { ok: boolean; why?: string; ms: number; cacheRead?: number; cacheWrite?: number; input?: number };
-type Diag = { totalMs: number; guard?: StepDiag; ustoz?: StepDiag; outputCheck?: StepDiag; component?: "model" | "code"; askedType?: "pie" | "strip" | "line"; path?: string; ustozRetry?: boolean };
+export type StepDiag = { ok: boolean; why?: string; ms: number; cacheRead?: number; cacheWrite?: number; input?: number };
+export type Diag = { totalMs: number; guard?: StepDiag; ustoz?: StepDiag; outputCheck?: StepDiag; component?: "model" | "code"; askedType?: "pie" | "strip" | "line"; path?: string; ustozRetry?: boolean };
 const sd = (r: { ok: boolean; meta: LlmMeta } & ({ reason: string } | object), why?: string): StepDiag => ({
   ...r.meta, ok: r.ok && !why, why: why ?? ("reason" in r ? r.reason : undefined),
 });
@@ -99,7 +100,7 @@ async function ustozOnce(
 }
 
 /** outputCheck (Haiku) на свободной реплике: нет ответа или нарушение персоны → сбой. */
-async function outputOk(ctx: ActionCtx, d: Diag, c: Turn, reply: string) {
+export async function outputOk(ctx: ActionCtx, d: Diag, c: Turn, reply: string) {
   const r = await callStructured({
     ...llm(), breaker, cache: cacheOf(ctx), step: "outputCheck", model: MODELS.outputCheck,
     schema: OutputCheck, system: OUTPUT_CHECK_PREFIX, tail: outputCheckTail({ reply }),
@@ -111,7 +112,7 @@ async function outputOk(ctx: ActionCtx, d: Diag, c: Turn, reply: string) {
   return pass;
 }
 
-async function guardStep(ctx: ActionCtx, c: Turn, childInput: string) {
+export async function guardStep(ctx: ActionCtx, c: Turn, childInput: string) {
   return await callStructured({
     ...llm(), breaker, cache: cacheOf(ctx), step: "guardIn", model: MODELS.guardIn, schema: GuardResult,
     system: GUARD_PREFIX, tail: guardTail({ lang: c.lang, last6: c.last6, riskCount: c.riskCount, childInput }),
@@ -129,14 +130,16 @@ type Status = "crisis" | "replied" | "fallback" | "rejected";
 
 export const turn = action({
   args: {
-    studentId: v.id("students"),
+    ...whoArgs,
     input: v.object({ type: v.union(v.literal("answer"), v.literal("text"), v.literal("hint")), value: v.string() }),
   },
   returns: v.object({
     status: v.union(v.literal("crisis"), v.literal("replied"), v.literal("fallback"), v.literal("rejected")),
     diag: v.optional(v.any()), // только тайминги, причины и токены — без текста ребёнка
   }),
-  handler: async (ctx, { studentId, input }): Promise<{ status: Status; diag?: Diag }> => {
+  handler: async (ctx, { input, ...who }): Promise<{ status: Status; diag?: Diag }> => {
+    const studentId: Id<"students"> | null = await ctx.runQuery(internal.session.resolve, who);
+    if (!studentId) return { status: "rejected" };
     const t0 = Date.now();
     const d: Diag = { totalMs: 0 };
     const done = <R extends { status: Status }>(r: R) => ({ ...r, diag: { ...d, totalMs: Date.now() - t0 } });
