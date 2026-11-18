@@ -2,8 +2,8 @@
 node_modules
 .next
 .convex
-.env*
-!.env.example
+**/.env*
+!**/.env.example
 .ref-check
 .ui-check
 .playwright-mcp

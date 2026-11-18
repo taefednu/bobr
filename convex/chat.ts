@@ -133,7 +133,23 @@ export const takeClosedGuard = internalMutation({
     const q = s.closedChatGuard;
     if (!q || now - q.windowStart >= 3_600_000) { await ctx.db.patch("students", studentId, { closedChatGuard: { windowStart: now, count: 1 } }); return true; }
     if (q.count >= CHAT.closedGuardPerHour) return false;
-    await ctx.db.patch("students", studentId, { closedChatGuard: { windowStart: q.windowStart, count: q.count + 1 } });
+    await ctx.db.patch("students", studentId, { closedChatGuard: { ...q, count: q.count + 1 } });
+    return true;
+  },
+});
+
+/** Сигнал preGuard без проверки guard попадает в очередь не чаще раза за окно квоты: поток сообщений её не зальёт. */
+export const claimClosedFlag = internalMutation({
+  args: { studentId: v.id("students") },
+  returns: v.boolean(),
+  handler: async (ctx, { studentId }) => {
+    const s = await ctx.db.get("students", studentId);
+    if (!s) return false;
+    const now = Date.now();
+    const q = s.closedChatGuard;
+    const fresh = !q || now - q.windowStart >= 3_600_000;
+    if (!fresh && q.flagged) return false;
+    await ctx.db.patch("students", studentId, { closedChatGuard: fresh ? { windowStart: now, count: 0, flagged: true } : { ...q, flagged: true } });
     return true;
   },
 });
@@ -215,7 +231,7 @@ export const send = action({
       // квота исчерпана → guard не зовём (preGuard-кризис выше от неё не зависит)
       const g = pg.text.trim() && await ctx.runMutation(internal.chat.takeClosedGuard, { studentId }) ? await guardStep(ctx, gc, pg.text, closedBreaker).catch(() => null) : null;
       // guard не сработал или квота вышла: сигнал preGuard не теряем, он уходит в очередь проверки
-      if (!g?.ok && pg.suppressed) await ctx.runMutation(internal.conductor.flagRisk, { studentId, category: pg.suppressed.category, severity: 1, notifyParent: false });
+      if (!g?.ok && pg.suppressed && await ctx.runMutation(internal.chat.claimClosedFlag, { studentId })) await ctx.runMutation(internal.conductor.flagRisk, { studentId, category: pg.suppressed.category, severity: 1, notifyParent: false });
       if (g?.ok) {
         const { category, severity } = g.value;
         const directed = (category === "GROOMING" || category === "PII") && !pg.suppressed && addressedToCharacter(pg.text, c.lang, last6);

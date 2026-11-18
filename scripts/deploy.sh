@@ -24,6 +24,8 @@ case "${1:-}" in
     for name in ANTHROPIC_API_KEY BOT_SECRET TELEGRAM_BOT_TOKEN TELEGRAM_BOT_USERNAME PUBLIC_APP_URL DEMO_MODE DEMO_ALLOW_ANON; do
       [ -z "${!name:-}" ] || printf '%s=%s\n' "$name" "${!name}" >> "$values"
     done
+    # пустое значение явно выключает вход без ссылки, старое значение на деплое не остаётся
+    [ -n "${DEMO_ALLOW_ANON:-}" ] || echo 'DEMO_ALLOW_ANON=0' >> "$values"
     npx convex deploy
     npx convex env set --from-file "$values" --force
     ;;
