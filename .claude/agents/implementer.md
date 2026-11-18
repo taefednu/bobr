@@ -14,6 +14,11 @@ Read before writing: `CLAUDE.md`, the relevant part of `docs/BOBR_SPEC.md`, `kno
 skill the task names (`bobr-fractions`, `bobr-llm-call`, `bobr-safety`, `bobr-i18n`, `bobr-design`…). Convex
 code — `convex/_generated/ai/guidelines.md` first. Do not invent Convex or Anthropic SDK APIs.
 
+Any visible UI (screen, component, motion, character), even if the task names no skill: call the Skill tool with
+`bobr-design` before the first edit, then the skills its table gives for the situation (new screen: `frontend-design`
+→ `impeccable`), and list the loaded skills in your report. Reason: on 18.11 15 of 17 front briefs named no design
+skill, nobody loaded one, and the screens came out correct but lifeless.
+
 Rules that bite here:
 - Code decides, LLM speaks. Fractions are strings + fraction.js, never float.
 - Mutations change state; only actions call Claude; actions write via `ctx.runMutation`.
