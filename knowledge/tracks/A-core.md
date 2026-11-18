@@ -5,7 +5,7 @@
 ## Зона
 - Только эта сессия меняет `convex/schema.ts`, `lib/types.ts`, `lib/config.ts` и выполняет `SCHEMA_REQUESTS.md`
   (заявки пишут front, teach и Нуриддин).
-- Этап 3 (бэкенд): цель → диагностика (6 проб `DEMO_PROBES`) → план (`buildPlan`) → данные махалли (`houseState`)
+- Этап 3 (бэкенд): цель → диагностика (адаптивная; 6 проб `DEMO_PROBES` — только `DEMO_MODE=script`) → план (`buildPlan`) → данные махалли (`houseState`)
   — новые `convex/{goal,diagnose,plan,mahalla}.ts`, `lib/planner/**`, `lib/houses/**`.
 - Ядро урока и безопасность: `convex/{turn,conductor,lesson*,llmCache}.ts`, `lib/{fractions,safety,llm,text}/**`.
 - API для Telegram: `convex/{parents,students,linkCode,outbox,parent,parentLogin,botAuth,demo}.ts`, `docs/specs/API_FOR_BOT.md`.
