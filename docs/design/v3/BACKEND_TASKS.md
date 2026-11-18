@@ -1,0 +1,19 @@
+# Незакрытые задачи вне дизайна
+
+Делает та же сессия субагентами, параллельно экранам v3. Один агент на строку, зоны не пересекаются. `convex/schema.ts`, `lib/types.ts`,
+`lib/config.ts` правит только оркестратор: агент присылает точное изменение. Каждая задача: тест, который краснеет без правки, потом
+`npm run verify`, коммит оркестратора.
+
+| # | Задача | Агент | Зона | Готово, когда | Когда |
+|---|---|---|---|---|---|
+| 1 | **Фамилия в маске ПДн.** «Аня Тестова» сейчас даёт «[NAME] Тестова», фамилия уходит в БД и LLM. Владелец разрешил правку `lib/safety/pii.ts` | `implementer`, скилл `bobr-safety` | `lib/safety/pii.ts`, `tests/pii.test.ts` | ru и uz: имя с фамилией маскируются целиком; обычные слова после «меня зовут» и школьные фразы не ломаются; red-team без регрессий | сразу |
+| 2 | **Только токен у ребёнка (B9).** Убрать `studentId` из `turn`, `lesson:view`, `conductor:leaveCrisis`, `teach:*`, `whoArgs`, ответа `session:me`; `startDemoLesson` выдаёт сессию; экран урока и `scripts/turn-smoke.sh` перевести на токен | `implementer` | эти функции, `lib/ui/session.ts`, `app/(child)/lesson`, смоук | поиск `studentId` в детском клиенте пуст; смоук зелёный; вызов со `studentId` не проходит | после основы v3 |
+| 3 | **Заявки Нуриддина** из `SCHEMA_REQUESTS.md` (строки B/C-parent): поиск родителя с детьми по `telegramUserId`, идемпотентный `students.create`, `consentAt`, подтверждённое каскадное удаление, серверная готовность outbox (тихие часы 21–08, один несрочный пуш в день, срочные первыми), производители `daily_summary` и `forgotten`, поля `parent.dashboard`. Обновить `docs/specs/API_FOR_BOT.md`, в таблице заявок ответить по каждой строке | `implementer`, по 1 агенту на блок: идентичность и удаление / outbox и сводки / dashboard | `convex/{parents,students,outbox,parent,crons}.ts`, `lib/telegram`, тесты | тесты на идемпотентность, удаление всех связанных строк, лимиты и кризис без задержки; ABUSE_HOME родителю по-прежнему не уходит | сразу |
+| 4 | **Ложные срабатывания безопасности.** `olgim keladi` («хочу взять») даёт кризис; outputCheck считает «умер от скуки», «kulgidan oʻlgim keladi» заявлением о жизни персонажа. Правка промптов guard/outputCheck разрешена только в этих случаях | `implementer`, скилл `bobr-safety` | `lib/llm/prompts/{guard,outputCheck}.ts`, тесты промптов | примеры проходят; критические атаки 30/30 | после 1 |
+| 5 | **Ревью.** Агент `reviewer` по диффу: чат (`convex/chat.ts`, `lib/chat`), «Научи Bobr», мерж кода Нуриддина (`taskProgress`, `lessonSessions`). Находки чинит `implementer` | `reviewer` → `implementer` | чтение | нет открытых находок | сразу |
+| 6 | **Полный red-team** агентом `safety-redteam`: урок, чат, «Научи Bobr», на финальном коде. Критические 30/30, ложные кризисы 0/6 | `safety-redteam` | чтение | отчёт, провалы исправлены | после 1, 4 и экрана чата |
+| 7 | **Очередь ревьюера (B11).** Authenticated-список открытых `reviewQueue` по `by_status` и закрытие флага, строки `withheldPush` первыми | `implementer` | новый `convex/review.ts`, тесты | без секрета недоступно; закрытие меняет статус. **Кому уходит внешний сигнал, решает владелец**: сигнал не делать, спросить в отчёте | после 3 |
+| 8 | **`teachScene`:** реплика и поза сцены «Научи Bobr» через `useQuery`, чтобы переживать перезагрузку. Типы вывести из ответа `teach:*`, задача без `answer` | `implementer` + оркестратор на схему | `convex/teach.ts`, `components/teach` | перезагрузка сохраняет реплику и номер круга | после экранов |
+| 9 | **Живая фраза Bobr на цели** через `goalDialog` (Haiku): схема `GoalDialog`, postChecks, outputCheck, кнопки и intent из кода, запасной текст из i18n | `implementer`, скилл `bobr-llm-call` | новый action, экран цели | сбой модели не мешает выбрать цель | последним, можно срезать |
+
+База знаний: после каждой строки обновить `BLOCKERS.md`, `SCHEMA_REQUESTS.md`, `knowledge/structure.md` (там ещё нет `convex/chat.ts`, `lib/chat/**`, `components/teach`).
