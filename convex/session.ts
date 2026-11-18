@@ -5,7 +5,7 @@ import { SESSION_DAYS } from "../lib/config";
 import { randomString } from "../lib/telegram/secure";
 import { env } from "./botAuth";
 import type { Doc, Id } from "./_generated/dataModel";
-import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { internalQuery, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 
 const TOKEN_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const lang = v.union(v.literal("uz"), v.literal("ru"));
@@ -24,6 +24,21 @@ export async function childOf(ctx: QueryCtx, token: string): Promise<Doc<"studen
   if (!child) throw new Error("unauthorized");
   return child;
 }
+
+/** Переходный вход урока: token (как надо) или studentId (старый экран урока, IDOR — BLOCKERS B9).
+ *  TODO(B9): когда front перейдёт на token, убрать studentId из args turn / lesson:view / leaveCrisis и эту ветку. */
+export const whoArgs = { token: v.optional(v.string()), studentId: v.optional(v.id("students")) };
+export async function studentIdOf(ctx: QueryCtx, who: { token?: string; studentId?: Id<"students"> }): Promise<Id<"students"> | null> {
+  if (who.token !== undefined) return (await childOrNull(ctx, who.token))?._id ?? null;
+  return who.studentId ?? null;
+}
+
+/** Для action (turn): тот же разбор через runQuery. */
+export const resolve = internalQuery({
+  args: whoArgs,
+  returns: v.union(v.null(), v.id("students")),
+  handler: (ctx, who) => studentIdOf(ctx, who),
+});
 
 export async function createChildSession(ctx: MutationCtx, studentId: Id<"students">): Promise<string> {
   const token = randomString(TOKEN_ALPHABET, 48);

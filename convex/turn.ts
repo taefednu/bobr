@@ -12,9 +12,10 @@ import { crisisRouting, preGuard } from "../lib/safety";
 import { GuardResult, OutputCheck, UstozTurn } from "../lib/types";
 import type { UstozTurn as UstozTurnT } from "../lib/types";
 import { internal } from "./_generated/api";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { action, type ActionCtx } from "./_generated/server";
 import { operandFractions, publicTask } from "./lessonView";
+import { whoArgs } from "./session";
 
 // ponytail: breaker живёт в изоляте — не глобальный; при нескольких изолятах порог 3/30 с считается на каждом.
 const breaker = createBreaker();
@@ -129,14 +130,16 @@ type Status = "crisis" | "replied" | "fallback" | "rejected";
 
 export const turn = action({
   args: {
-    studentId: v.id("students"),
+    ...whoArgs,
     input: v.object({ type: v.union(v.literal("answer"), v.literal("text"), v.literal("hint")), value: v.string() }),
   },
   returns: v.object({
     status: v.union(v.literal("crisis"), v.literal("replied"), v.literal("fallback"), v.literal("rejected")),
     diag: v.optional(v.any()), // только тайминги, причины и токены — без текста ребёнка
   }),
-  handler: async (ctx, { studentId, input }): Promise<{ status: Status; diag?: Diag }> => {
+  handler: async (ctx, { input, ...who }): Promise<{ status: Status; diag?: Diag }> => {
+    const studentId: Id<"students"> | null = await ctx.runQuery(internal.session.resolve, who);
+    if (!studentId) return { status: "rejected" };
     const t0 = Date.now();
     const d: Diag = { totalMs: 0 };
     const done = <R extends { status: Status }>(r: R) => ({ ...r, diag: { ...d, totalMs: Date.now() - t0 } });

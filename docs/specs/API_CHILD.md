@@ -19,7 +19,14 @@
 | `plan:view` | query | `{token}` | `null \| {testDate\|null, gaps, order, days}` |
 | `plan:accept` | mutation | `{token}` | `null`; `PLAN → HOME` |
 | `mahalla:view` | query | `{token}` | `null \| {lang, state, houses, next}` |
-| `mahalla:startLesson` | mutation | `{token, topic}` | `null`; `HOME → LESSON_SOLVE`, дальше — `lesson:view`/`turn:turn` по `studentId` из `session:me` |
+| `mahalla:startLesson` | mutation | `{token, topic}` | `null`; `HOME → LESSON_SOLVE` |
+| `lesson:view` | query | `{token}` | проекция урока (как раньше) |
+| `turn:turn` | action | `{token, input}` | `{status}` |
+| `conductor:leaveCrisis` | mutation | `{token}` | `null` |
+
+Урок: `lesson:view`, `turn:turn`, `conductor:leaveCrisis` принимают `token` **вместо** `studentId`. Старый `studentId` пока
+работает, чтобы не сломать текущий экран урока; он будет удалён (BLOCKERS B9) — новые вызовы пиши на `token`.
+`conductor:startDemoLesson` работает только при `DEMO_ALLOW_ANON=1`.
 
 ## Формы
 

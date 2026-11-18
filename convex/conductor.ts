@@ -10,6 +10,8 @@ import { GUARD_CATEGORIES, type GuardCategory, type TopicId } from "../lib/types
 import { internalMutation, internalQuery, mutation } from "./_generated/server";
 import { operandFractions } from "./lessonView";
 import { enqueueCrisis } from "./outbox";
+import { env } from "./botAuth";
+import { studentIdOf, whoArgs } from "./session";
 
 const lang = v.union(v.literal("uz"), v.literal("ru"));
 // дублирует Component из lib/types.ts
@@ -35,6 +37,8 @@ export const startDemoLesson = mutation({
   args: { lang },
   returns: v.id("students"),
   handler: async (ctx, { lang }) => {
+    // тот же замок, что у session:startDemo: без флага демо анонимно учеников не создаём (BLOCKERS B9)
+    if (env("DEMO_ALLOW_ANON") !== "1") throw new Error("unauthorized");
     const probe = DEMO_PROBES.find((p) => p.topic === "N9");
     if (!probe) throw new Error("DEMO_PROBES: нет пробы N9");
     const { seed: _seed, ...task } = probe;
@@ -184,11 +188,12 @@ export const maskChildTurn = internalMutation({
 
 /** Выход из CRISIS-оверлея: урок продолжается с сохранённого стейта; болталка остаётся закрытой (chatBlockedUntil). */
 export const leaveCrisis = mutation({
-  args: { studentId: v.id("students") },
+  args: whoArgs,
   returns: v.null(),
-  handler: async (ctx, { studentId }) => {
-    const s = await ctx.db.get("students", studentId);
-    if (s?.state !== "CRISIS") return null;
+  handler: async (ctx, who) => {
+    const studentId = await studentIdOf(ctx, who);
+    const s = studentId && (await ctx.db.get("students", studentId));
+    if (!studentId || !s || s.state !== "CRISIS") return null;
     await ctx.db.patch("students", studentId, { state: s.stateBeforeCrisis ?? "LESSON_SOLVE", stateBeforeCrisis: undefined });
     return null;
   },
