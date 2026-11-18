@@ -2,7 +2,7 @@
 // Писатели — обычные функции (enqueue*), чтобы вызывать их внутри чужих мутаций без под-транзакций.
 import { v } from "convex/values";
 import { graph } from "../lib/content";
-import { crisisPushSuppressed, parentNotifyDecision } from "../lib/safety/crisis";
+import { crisisDedupeKey, crisisPushSuppressed, crisisRouting, parentNotifyDecision } from "../lib/safety/crisis";
 import { crisisText, taughtBobrText } from "../lib/telegram/texts";
 import type { GuardCategory, TopicId } from "../lib/types";
 import type { Id } from "./_generated/dataModel";
@@ -14,28 +14,40 @@ type Kind = "taught_bobr" | "crisis";
 /** Кладёт сообщение каждому родителю ребёнка, у которого есть чат. */
 async function enqueue(
   ctx: MutationCtx, studentId: Id<"students">, kind: Kind, text: (p: { lang: "uz" | "ru" }) => string,
-  skip?: (parentId: Id<"parents">) => boolean,
+  crisis?: { category: GuardCategory; urgent: boolean },
 ) {
   const links = await ctx.db.query("parentLinks").withIndex("by_student", (q) => q.eq("studentId", studentId)).take(10);
+  const now = Date.now();
   for (const l of links) {
     const p = await ctx.db.get("parents", l.parentId);
-    if (!p?.telegramChatId || skip?.(p._id)) continue;
-    await ctx.db.insert("outbox", { parentId: p._id, chatId: p.telegramChatId, kind, text: text(p), createdAt: Date.now() });
+    if (!p?.telegramChatId) continue;
+    let extra = {};
+    if (crisis) {
+      const dedupeKey = crisisDedupeKey(studentId, crisis.category);
+      const unsent = await ctx.db.query("outbox")
+        .withIndex("by_parent_and_dedupe_and_sent", (q) => q.eq("parentId", p._id).eq("dedupeKey", dedupeKey).eq("sentAt", undefined)).take(20);
+      if (crisisPushSuppressed(unsent, dedupeKey, crisis.urgent, now)) continue;
+      extra = { studentId, category: crisis.category, urgent: crisis.urgent, dedupeKey };
+    }
+    await ctx.db.insert("outbox", { parentId: p._id, chatId: p.telegramChatId, kind, text: text(p), createdAt: now, ...extra });
   }
 }
 
 /** Из conductor.setCrisis. categories — все категории сообщения; priorAbuse — у ребёнка уже есть ABUSE_HOME на ревью.
- *  ABUSE_HOME (сейчас или раньше) → родителю ничего. Не чаще раза в час и не поверх неотправленного. Без цитат ребёнка. */
+ *  ABUSE_HOME (сейчас или раньше) → родителю ничего, а в reviewQueue ложится строка withheldPush. Лимита по частоте
+ *  нет (спека); защита только от точного дубля неотправленного. Без цитат ребёнка. */
 export async function enqueueCrisis(ctx: MutationCtx, studentId: Id<"students">, categories: GuardCategory[], priorAbuse: boolean) {
   const d = parentNotifyDecision({ categories, priorAbuse });
-  if (!d.notify) return;
-  // Два индексных диапазона: неотправленные и отправленные за последний час (созданное за час отправлено не раньше).
-  // ponytail: take(200) на диапазон; при >200 чужих строк в очереди флуд-защита слепнет.
-  const now = Date.now();
-  const unsent = await ctx.db.query("outbox").withIndex("by_sent_and_created", (q) => q.eq("sentAt", undefined)).take(200);
-  const recent = await ctx.db.query("outbox").withIndex("by_sent_and_created", (q) => q.gt("sentAt", now - 3_600_000)).take(200);
-  const rows = [...unsent, ...recent];
-  await enqueue(ctx, studentId, "crisis", (p) => crisisText(p.lang, d.urgent), (pid) => crisisPushSuppressed(rows, pid, now));
+  const routed = categories.filter((c) => crisisRouting(c)?.notifyParent);
+  if (!d.notify) {
+    // Пуш был бы отправлен, но родитель может быть источником: человек из reviewQueue должен увидеть это первым.
+    for (const c of routed) {
+      await ctx.db.insert("reviewQueue", { studentId, category: c, severity: 4, status: "open", notifyParent: false, withheldPush: true });
+    }
+    return;
+  }
+  const category = routed.find((c) => crisisRouting(c)?.urgent) ?? routed[0];
+  await enqueue(ctx, studentId, "crisis", (p) => crisisText(p.lang, d.urgent), { category, urgent: d.urgent });
 }
 
 export async function enqueueTaughtBobr(ctx: MutationCtx, studentId: Id<"students">, topic: TopicId) {

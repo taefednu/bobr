@@ -124,10 +124,11 @@ export default defineSchema({
     severity: v.number(),
     status: v.union(v.literal("open"), v.literal("reviewed"), v.literal("dismissed")),
     notifyParent: v.boolean(), // false для ABUSE_HOME
+    withheldPush: v.optional(v.boolean()), // пуш родителю про SELF_HARM/GROOMING НЕ отправлен из-за ABUSE_HOME: ревьюеру смотреть первым
     // TODO(spec): хранить ли маскированный фрагмент для ревью — спека молчит; без цитат (SELF_HARM).
   })
     .index("by_status", ["status"])
-    .index("by_student", ["studentId"]),
+    .index("by_student_and_category", ["studentId", "category"]),
 
   parents: defineTable({
     lang,
@@ -165,7 +166,14 @@ export default defineSchema({
     text: v.string(),
     createdAt: v.number(),
     sentAt: v.optional(v.number()),
-  }).index("by_sent_and_created", ["sentAt", "createdAt"]),
+    // только crisis-строки: точная защита от дубля (crisisDedupeKey)
+    studentId: v.optional(v.id("students")),
+    category: v.optional(guardCategory),
+    urgent: v.optional(v.boolean()),
+    dedupeKey: v.optional(v.string()),
+  })
+    .index("by_sent_and_created", ["sentAt", "createdAt"])
+    .index("by_parent_and_dedupe_and_sent", ["parentId", "dedupeKey", "sentAt"]),
 
   // Сессии Mini App (из parentLogin). 7 дней.
   parentSessions: defineTable({ parentId: v.id("parents"), token: v.string(), expiresAt: v.number() })

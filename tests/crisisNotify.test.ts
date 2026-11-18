@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { abuseRowCounts, crisisPushSuppressed, parentNotifyDecision } from "../lib/safety/crisis";
+import { ABUSE_LOOKUP_BOUND, abuseRowCounts, crisisPushSuppressed, parentNotifyDecision, priorAbuseFrom } from "../lib/safety/crisis";
 import { preGuard } from "../lib/safety/preGuard";
 
 const DAY = 86_400_000;
@@ -35,26 +35,42 @@ describe("parentNotifyDecision", () => {
 
 describe("abuseRowCounts", () => {
   const now = 200 * DAY;
+  const row = (o: Partial<{ category: string; status: string; severity: number; _creationTime: number }>) =>
+    ({ category: "ABUSE_HOME", status: "open", severity: 3, _creationTime: 0, ...o });
   it("открытая — да, закрытая свежая (<90 дн) — да, закрытая старая — нет, другая категория — нет", () => {
-    expect(abuseRowCounts({ category: "ABUSE_HOME", status: "open", _creationTime: 0 }, now)).toBe(true);
-    expect(abuseRowCounts({ category: "ABUSE_HOME", status: "dismissed", _creationTime: now - 89 * DAY }, now)).toBe(true);
-    expect(abuseRowCounts({ category: "ABUSE_HOME", status: "reviewed", _creationTime: now - 91 * DAY }, now)).toBe(false);
-    expect(abuseRowCounts({ category: "SELF_HARM", status: "open", _creationTime: now }, now)).toBe(false);
+    expect(abuseRowCounts(row({}), now)).toBe(true);
+    expect(abuseRowCounts(row({ status: "dismissed", _creationTime: now - 89 * DAY }), now)).toBe(true);
+    expect(abuseRowCounts(row({ status: "reviewed", _creationTime: now - 91 * DAY }), now)).toBe(false);
+    expect(abuseRowCounts(row({ category: "SELF_HARM", _creationTime: now }), now)).toBe(false);
+  });
+  it("severity-1 (слабый флаг flagRisk) не считается, severity-2 — да", () => {
+    expect(abuseRowCounts(row({ severity: 1 }), now)).toBe(false);
+    expect(abuseRowCounts(row({ severity: 2 }), now)).toBe(true);
+  });
+  it("priorAbuseFrom: пусто — нет; лимит достигнут без ответа — fail closed", () => {
+    expect(priorAbuseFrom([], now)).toBe(false);
+    const weak = Array.from({ length: ABUSE_LOOKUP_BOUND }, () => row({ severity: 1 }));
+    expect(priorAbuseFrom(weak.slice(1), now)).toBe(false);
+    expect(priorAbuseFrom(weak, now)).toBe(true);
   });
 });
 
-describe("crisisPushSuppressed", () => {
+describe("crisisPushSuppressed: только точный дубль неотправленного", () => {
   const now = 10 * DAY;
-  it("неотправленный → пропуск", () => {
-    expect(crisisPushSuppressed([{ parentId: "p", kind: "crisis", createdAt: 0 }], "p", now)).toBe(true);
+  const K = "crisis:s:SELF_HARM";
+  const row = (o: object) => ({ dedupeKey: K, urgent: true, createdAt: now - 1000, ...o });
+  it("неотправленный с тем же ключом → пропуск", () => {
+    expect(crisisPushSuppressed([row({})], K, true, now)).toBe(true);
   });
-  it("отправленный 59 мин назад → пропуск, 61 мин → нет", () => {
-    const row = (age: number) => [{ parentId: "p", kind: "crisis", createdAt: now - age, sentAt: now - age + 1 }];
-    expect(crisisPushSuppressed(row(59 * 60_000), "p", now)).toBe(true);
-    expect(crisisPushSuppressed(row(61 * 60_000), "p", now)).toBe(false);
+  it("отправленный (даже секунду назад) не гасит: лимита раз в час нет", () => {
+    expect(crisisPushSuppressed([row({ sentAt: now - 500 })], K, true, now)).toBe(false);
   });
-  it("другой родитель и другой kind не мешают", () => {
-    expect(crisisPushSuppressed([{ parentId: "q", kind: "crisis", createdAt: now }], "p", now)).toBe(false);
-    expect(crisisPushSuppressed([{ parentId: "p", kind: "taught_bobr", createdAt: now }], "p", now)).toBe(false);
+  it("неотправленный старше 10 мин не гасит", () => {
+    expect(crisisPushSuppressed([row({ createdAt: now - 11 * 60_000 })], K, true, now)).toBe(false);
+  });
+  it("другой ключ не мешает; неурочная строка не гасит срочную", () => {
+    expect(crisisPushSuppressed([row({ dedupeKey: "crisis:s:GROOMING" })], K, true, now)).toBe(false);
+    expect(crisisPushSuppressed([row({ urgent: false })], K, true, now)).toBe(false);
+    expect(crisisPushSuppressed([row({ urgent: true })], K, false, now)).toBe(true);
   });
 });

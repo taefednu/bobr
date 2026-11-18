@@ -41,7 +41,6 @@ export function crisisRouting(category: GuardCategory): CrisisRouting | null {
 
 const DAY_MS = 86_400_000;
 export const ABUSE_MEMORY_DAYS = 90;
-export const CRISIS_PUSH_GAP_MS = 60 * 60_000;
 
 /** ABUSE_HOME среди категорий этого сообщения или в истории ребёнка → родителю НЕ писать вообще (в т.ч. про
  *  SELF_HARM): источником может быть родитель. Только человек из reviewQueue решает, что делать дальше. */
@@ -51,13 +50,30 @@ export function parentNotifyDecision(p: { categories: GuardCategory[]; priorAbus
   return { notify: routes.length > 0, urgent: routes.some((r) => r?.urgent) };
 }
 
-/** Строка reviewQueue про ABUSE_HOME «помнится»: открыта или создана в последние 90 дней. */
-export const abuseRowCounts = (r: { category: string; status: string; _creationTime: number }, now: number) =>
-  r.category === "ABUSE_HOME" && (r.status === "open" || now - r._creationTime < ABUSE_MEMORY_DAYS * DAY_MS);
+/** Строка reviewQueue про ABUSE_HOME «помнится»: открыта или создана в последние 90 дней, и severity ≥ 2 — то есть
+ *  её создал кризис (setCrisis / guard на уровне CRISIS), а не severity-1 флаг flagRisk про слабый сигнал: иначе
+ *  один низкоуверенный флаг навсегда глушил бы пуши про SELF_HARM. */
+export const abuseRowCounts = (r: { category: string; status: string; severity: number; _creationTime: number }, now: number) =>
+  r.category === "ABUSE_HOME" && r.severity >= 2 && (r.status === "open" || now - r._creationTime < ABUSE_MEMORY_DAYS * DAY_MS);
 
-/** Флуд: у родителя уже есть неотправленный crisis-пуш или он создан в последний час. */
+export const ABUSE_LOOKUP_BOUND = 100;
+
+/** rows — ABUSE_HOME-строки ребёнка, от новых к старым, прочитанные с лимитом ABUSE_LOOKUP_BOUND. Упёрлись в лимит без
+ *  ответа → считаем, что насилие было (fail closed): лучше не отправить пуш, чем отправить родителю-источнику. */
+export function priorAbuseFrom(rows: { category: string; status: string; severity: number; _creationTime: number }[], now: number): boolean {
+  if (rows.some((r) => abuseRowCounts(r, now))) return true;
+  return rows.length >= ABUSE_LOOKUP_BOUND;
+}
+
+/** Стухшая неотправленная строка (бот лежит) уже не защищает от повторного пуша. */
+export const CRISIS_DEDUPE_STALE_MS = 10 * 60_000;
+
+export const crisisDedupeKey = (studentId: string, category: string) => `crisis:${studentId}:${category}`;
+
+/** Только точный дубль: у родителя уже есть НЕОТПРАВЛЕННАЯ (и не старше 10 мин) crisis-строка с тем же dedupeKey.
+ *  Лимита «раз в час» нет — спека: SELF_HARM/GROOMING шлются сразу. Неурочная строка срочную не гасит. */
 export function crisisPushSuppressed(
-  rows: { parentId: string; kind: string; createdAt: number; sentAt?: number }[], parentId: string, now: number,
+  rows: { dedupeKey?: string; urgent?: boolean; createdAt: number; sentAt?: number }[], dedupeKey: string, urgent: boolean, now: number,
 ): boolean {
-  return rows.some((r) => r.parentId === parentId && r.kind === "crisis" && (r.sentAt === undefined || now - r.createdAt < CRISIS_PUSH_GAP_MS));
+  return rows.some((r) => r.dedupeKey === dedupeKey && r.sentAt === undefined && now - r.createdAt < CRISIS_DEDUPE_STALE_MS && (r.urgent === true || !urgent));
 }

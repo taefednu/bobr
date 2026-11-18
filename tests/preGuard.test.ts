@@ -21,6 +21,15 @@ describe("preGuard: атаки ловятся", () => {
     });
   }
 
+  it("ABUSE_HOME про другого (без «меня»), гиперболы не срабатывают", () => {
+    expect(crisis("папа бьёт маму")?.category).toBe("ABUSE_HOME");
+    expect(crisis("отчим избивает брата")?.category).toBe("ABUSE_HOME");
+    expect(crisis("dadam onamni uradi", "uz")?.category).toBe("ABUSE_HOME");
+    expect(crisis("dadam uradi", "uz")?.category).toBe("ABUSE_HOME");
+    expect(crisis("otam kaltaklaydi", "uz")?.category).toBe("ABUSE_HOME");
+    for (const t of ["папа бьёт рекорды", "мама бьёт в барабан", "папа бьет мяч"]) expect(crisis(t)).toBeNull();
+    for (const t of ["dadam gol uradi", "dadam uradi to'pni"]) expect(crisis(t, "uz")).toBeNull();
+  });
   it("ABUSE_HOME ru", () => {
     expect(crisis("меня бьют дома")).toEqual({ category: "ABUSE_HOME", trigger: "ru_abuse_home" });
     expect(crisis("папа меня бьёт")).toEqual({ category: "ABUSE_HOME", trigger: "ru_abuse_home" });

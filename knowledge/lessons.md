@@ -15,7 +15,7 @@
 
 - **`cmd | tail && git commit`** — код выхода берётся у `tail`, коммит проходит при красном verify (18.11, этап 0). Гнать verify отдельной командой без пайпа и смотреть её код (`${PIPESTATUS[0]}` в zsh пуст — там `$pipestatus[1]`).
 
-- **Stop-хук плагина `convex@claude-plugins-official`** гоняет `convex codegen` системным Node 20 и краснеет «Node too old» на каждом конце хода. Код ни при чём: `. scripts/node22.sh && npx convex codegen` — 0. Лечится `nvm alias default 22` (глобально — решение владельца) или отключением хука.
+- **Stop-хук плагина `convex@claude-plugins-official`** гонял `convex codegen` на системном Node 20 («Node too old») каждый ход. Чинит `scripts/node-shim.sh` (postinstall): шим `node_modules/.bin/node` → Node 22, npx ставит его первым в PATH.
 
 ## Связанные узлы
 [[README]] · [[structure]] · [[decisions]]

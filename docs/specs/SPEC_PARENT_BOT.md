@@ -1,6 +1,6 @@
 # ТЗ: родительский Telegram-бот @BobrAgentBot
 
-Трек C (Руслан). Связи с остальной системой — `docs/specs/SPEC_SYSTEM.md`.
+Треки B (бот) и C (Mini App) — Нуриддин. Связи с остальной системой — `docs/specs/SPEC_SYSTEM.md`.
 
 ## 0. Принципы
 

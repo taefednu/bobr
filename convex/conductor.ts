@@ -5,7 +5,7 @@ import { v } from "convex/values";
 import { CHAT, LESSON } from "../lib/config";
 import { checkAnswer, DEMO_PROBES, generateTask, type TaskKind } from "../lib/fractions";
 import { houseState } from "../lib/houses";
-import { abuseRowCounts, crisisRouting, parentNotifyDecision } from "../lib/safety/crisis";
+import { ABUSE_LOOKUP_BOUND, crisisRouting, priorAbuseFrom, parentNotifyDecision } from "../lib/safety/crisis";
 import { GUARD_CATEGORIES, type GuardCategory, type TopicId } from "../lib/types";
 import { internalMutation, internalQuery, mutation } from "./_generated/server";
 import { operandFractions } from "./lessonView";
@@ -243,8 +243,9 @@ export const setCrisis = internalMutation({
     const cats = [...new Set([cat, ...(also ?? []).filter(valid)])] as GuardCategory[];
     const now = Date.now();
     // История читается ДО вставки строк этого кризиса.
-    const past = await ctx.db.query("reviewQueue").withIndex("by_student", (q) => q.eq("studentId", studentId)).take(200);
-    const priorAbuse = past.some((r) => abuseRowCounts(r, now));
+    const past = await ctx.db.query("reviewQueue").withIndex("by_student_and_category", (q) => q.eq("studentId", studentId).eq("category", "ABUSE_HOME"))
+      .order("desc").take(ABUSE_LOOKUP_BOUND);
+    const priorAbuse = priorAbuseFrom(past, now);
     const notify = parentNotifyDecision({ categories: cats, priorAbuse }).notify;
     await ctx.db.patch("students", studentId, {
       state: "CRISIS",
