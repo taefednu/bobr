@@ -21,7 +21,7 @@
 - Компоненты: жёсткая схема `{type, fractions}`, проверка кодом, фолбэк из задачи; Лепёшка/Полоска/Прямая рисуются (серо).
 - API для бота и Mini App, `scripts/demo-reset.sh`, `docs/specs/API_FOR_BOT.md`; кризис: ABUSE_HOME блокирует пуш родителю.
 - ТЗ `docs/specs/SPEC_{SYSTEM,PARENT_BOT,BOBR}.md` в `main`; противоречия — [[decisions]] (строка «Противоречия ТЗ»).
-- Дизайн v1: `docs/design/v1/` (ждёт ок).
+- Дизайн v1: `docs/design/v1/` — **ок владельца 18.11**.
 
 ### Сломано / открыто
 - Противоречия ТЗ (8 пунктов) ждут владельца — [[decisions]]. Самое срочное для core: привязка по ТЗ (`claimLinkCode` → сессия child) вместо «второго родителя».
@@ -35,7 +35,7 @@ Bobr, трек A, сессия core: папка /home/taef/projects/bobr, вет
 knowledge/tracks/A-core.md → «Сейчас» в knowledge/sprint.md. Convex: `npm run dev:convex` (ключ в env; один
 бэкенд на все сессии). Ты единственный правишь convex/schema.ts, lib/types.ts, lib/config.ts — в начале и каждый
 час разбирай SCHEMA_REQUESTS.md (front и teach пишут туда). Цель до 13:30 — бэкенд демо-шагов 1–4: GOAL
-(goalDialog Haiku, кнопки — по решению владельца из decisions.md) → DIAGNOSE (DEMO_PROBES, 6 проб, вердикт кода)
+(goalDialog Haiku; цели по решению владельца: test_soon / improve / just_practice — «Скоро контрольная / Подтянуть дроби / Просто заниматься»; переведи GOAL_INTENTS, schema и parents.setGoal, обнови API_FOR_BOT.md) → DIAGNOSE (DEMO_PROBES, 6 проб, вердикт кода)
 → PLAN (buildPlan, сохранить в plans) → данные махалли (houseState) — queries/mutations для экранов front.
 Затем вход ребёнка по ТЗ SPEC_SYSTEM §3–4: linkCodes 6 цифр → claimLinkCode → sessions(kind=child) → токен во
 все детские функции (закрывает B9). Мерж в 12:00 и 13:30: `git merge front teach` → npm run verify →
@@ -65,7 +65,7 @@ knowledge/tracks/A-teach.md → docs/specs/SPEC_BOBR.md (§1 характер, �
 функциями в lib/judge/ и lib/bobr/ с vitest (каждый тест краснеет без кода). Зона: convex/teach.ts, lib/judge/**,
 lib/bobr/**, lib/llm/prompts/bobr*.ts, lib/llm/prompts/judge*.ts. Схема (bobrState, topicStatus) — заявкой в
 ../bobr/SCHEMA_REQUESTS.md. Цель к 15:00 — бэкенд сцены: Bobr приходит с ошибкой ребёнка (attempt = дистрактор
-M9 от кода) → объяснение → copyCheck (порог — по решению владельца, decisions.md) → judge Sonnet (схема Judge,
+M9 от кода) → объяснение → copyCheck (порог 0.6, lib/config.ts) → judge Sonnet (схема Judge,
 цитата — подстрока, проверяет код; чек-листов нет — заглушка по спеке + TODO) → PASS: новая задача, Bobr решает
 (ответ кода), taught_bobr, level+1, enqueueTaughtBobr | PARTIAL: наивный вопрос, ≤3 круга, микро-демо | FAIL:
 «правило ребёнка» считает код. BobrTurn (Haiku) → postChecks + outputCheck. Интеграция с экраном — вечером.
