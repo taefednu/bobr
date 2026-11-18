@@ -32,13 +32,10 @@ function wordNumberExtra(text: string, allowed: Set<string>): boolean {
 
 export function postChecksUstoz(out: UstozTurn, ctx: UstozCtx): UstozPostResult {
   if (out.revealsAnswer) return { ok: false, reason: "reveals_answer" };
-  // Значение params — часто список («2,3», «1/2,1/3», «1; 1»): делим на элементы, иначе «2,3» читается
-  // как десятичная 2.3 и честная реплика уходит в запасной путь (живой прогон 18.11).
-  const values = (out.component ? out.component.params : []).flatMap((p) => p.value.split(/\s*[,;]\s*/)).filter(Boolean);
+  // Компонент: fractions — готовые строки "a/b"; ответ в них ловит тот же детектор, что и в реплике.
+  const values = out.component?.fractions ?? [];
   const texts = [out.reply, ...values];
-  // params {num:"5", den:"6"} — ответ 5/6 лежит в паре значений, а не в одном
-  const pairs = values.flatMap((a, i) => values.flatMap((b, j) => (i === j ? [] : [`${a}/${b}`])));
-  for (const t of [...texts, ...pairs]) if (detectLeak(t, ctx.answer, ctx.numbersShown).leaked) return { ok: false, reason: "leak" };
+  for (const t of texts) if (detectLeak(t, ctx.answer, ctx.numbersShown).leaked) return { ok: false, reason: "leak" };
 
   const allowed = [...ctx.numbersShown, ...ctx.childNumbers];
   const allowedTokens = new Set(allowed.flatMap((n) => n.match(/\d+(?:[.,]\d+)?/g) ?? []).map((n) => n.replace(",", ".")));

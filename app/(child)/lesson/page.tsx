@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useT, type Key } from "@/lib/i18n";
-import { paramsToRecord } from "@/lib/types";
 import { AiBadge, Character } from "@/components/skeleton/Shell";
 
 const STORE = "bobr:lessonStudent";
@@ -33,6 +32,52 @@ function Pie({ value }: { value: string }) {
         )}
       </svg>
       <figcaption className="text-sm text-ink-muted">{value}</figcaption>
+    </figure>
+  );
+}
+
+/** Серая полоска: n клеток, k закрашены. */
+function Strip({ value }: { value: string }) {
+  const m = /^(\d+)\/(\d+)$/.exec(value);
+  const k = m ? Number(m[1]) : 0;
+  const n = m ? Number(m[2]) : 0;
+  if (!m || n < 1 || n > 24 || k > n) return null;
+  const w = 200 / n;
+  return (
+    <figure className="flex flex-col items-center gap-1">
+      <svg viewBox="0 0 200 24" width="200" height="24" role="img" aria-label={value} stroke="var(--color-ink)" strokeWidth="1.5">
+        {Array.from({ length: n }, (_, i) => (
+          <rect key={i} x={i * w} y="1" width={w} height="22" className={i < k ? "fill-clay-100" : "fill-paper"} />
+        ))}
+      </svg>
+      <figcaption className="text-sm text-ink-muted">{value}</figcaption>
+    </figure>
+  );
+}
+
+/** Числовая прямая 0…max (max — целое ≥ 1): деления по знаменателю первой дроби, точка на каждую дробь. */
+function Line({ values }: { values: string[] }) {
+  const fr = values.flatMap((v) => {
+    const m = /^(\d+)\/(\d+)$/.exec(v);
+    return m && Number(m[2]) >= 1 && Number(m[2]) <= 24 ? [{ v, k: Number(m[1]), n: Number(m[2]) }] : [];
+  });
+  if (!fr.length) return null;
+  const max = Math.max(1, ...fr.map(({ k, n }) => Math.ceil(k / n)));
+  const den = fr[0].n;
+  const x = (k: number, n: number) => 10 + (k / n / max) * 180;
+  return (
+    <figure className="flex flex-col items-center gap-1">
+      <svg viewBox="0 0 200 44" width="240" height="53" role="img" aria-label={values.join(", ")} stroke="var(--color-ink)" strokeWidth="1.5">
+        <line x1="10" y1="22" x2="190" y2="22" />
+        {Array.from({ length: den * max + 1 }, (_, i) => (
+          <line key={i} x1={x(i, den)} y1={i % den === 0 ? 14 : 18} x2={x(i, den)} y2={i % den === 0 ? 30 : 26} />
+        ))}
+        {fr.map(({ v, k, n }) => <circle key={v} cx={x(k, n)} cy="22" r="5" className="fill-clay-100" />)}
+        {Array.from({ length: max + 1 }, (_, i) => (
+          <text key={i} x={x(i, 1)} y="42" textAnchor="middle" fontSize="10" stroke="none" className="fill-ink">{i}</text>
+        ))}
+      </svg>
+      <figcaption className="text-sm text-ink-muted">{fr.map(({ v }) => v).join(", ")}</figcaption>
     </figure>
   );
 }
@@ -85,7 +130,7 @@ export default function Page() {
   const taskKey = view?.task ? (`lesson.task.${view.task.kind}.${view.task.topic}` as Key) : null;
   const verdict = view?.lastVerdict ? (`lesson.verdict.${view.lastVerdict.split(":")[0]}` as Key) : null;
   const comp = view?.reply?.component;
-  const pies = comp?.type === "pie" ? Object.entries(paramsToRecord(comp.params)).sort(([a], [b]) => a.localeCompare(b)) : [];
+  const fractions = comp?.params.map((p) => p.value) ?? [];
 
   return (
     <>
@@ -105,9 +150,9 @@ export default function Page() {
           {busy && <p role="status" className="text-base text-ink-muted">{t("lesson.thinking")}</p>}
           {failed && <p role="alert" className="text-base text-ink">{t("lesson.error")}</p>}
           {!busy && view.reply?.text && <p className="border border-ink-muted bg-clay-100 p-3 text-base text-ink">{view.reply.text}</p>}
-          {!busy && pies.length > 0 && (
+          {!busy && comp && fractions.length > 0 && (
             <div className="flex flex-wrap gap-4 border border-ink-muted bg-paper p-3">
-              {pies.map(([k, value]) => <Pie key={k} value={value} />)}
+              {comp.type === "line" ? <Line values={fractions} /> : fractions.map((value, i) => (comp.type === "pie" ? <Pie key={i} value={value} /> : <Strip key={i} value={value} />))}
             </div>
           )}
           {!busy && view.reply?.hintButton && view.hintLevel < 4 && view.state !== "TOPIC_DONE" && (

@@ -5,7 +5,7 @@ import { v } from "convex/values";
 import { MODELS, resolveDemoMode, TIMEOUTS_MS } from "../lib/config";
 import {
   cacheKey, callStructured, createBreaker, createClient, GUARD_PREFIX, guardCacheKey, guardTail, OUTPUT_CHECK_PREFIX,
-  outputCheckTail, postChecksUstoz, USTOZ_PREFIX, ustozTail, type LlmCache, type LlmClient, type LlmMeta,
+  normalizeComponent, outputCheckTail, postUstoz, toStored, USTOZ_PREFIX, ustozTail, type LlmCache, type LlmClient, type LlmMeta,
 } from "../lib/llm";
 import { checkAnswer, type TaskKind } from "../lib/fractions";
 import { crisisRouting, preGuard } from "../lib/safety";
@@ -47,7 +47,7 @@ type Turn = {
 
 // Диагностика хода (без текста ребёнка и реплик): какой шаг сколько занял, где сломалось, попал ли кэш промпта.
 type StepDiag = { ok: boolean; why?: string; ms: number; cacheRead?: number; cacheWrite?: number; input?: number };
-type Diag = { totalMs: number; guard?: StepDiag; ustoz?: StepDiag; outputCheck?: StepDiag; path?: string; ustozRetry?: boolean };
+type Diag = { totalMs: number; guard?: StepDiag; ustoz?: StepDiag; outputCheck?: StepDiag; component?: "model" | "code"; askedType?: "pie" | "strip" | "line"; path?: string; ustozRetry?: boolean };
 const sd = (r: { ok: boolean; meta: LlmMeta } & ({ reason: string } | object), why?: string): StepDiag => ({
   ...r.meta, ok: r.ok && !why, why: why ?? ("reason" in r ? r.reason : undefined),
 });
@@ -87,9 +87,12 @@ async function ustozOnce(
     return null;
   }
   const childNumbers = childInput.match(/\d+(?:[.,]\d+)?(?:\/\d+)?/g) ?? [];
-  const post = postChecksUstoz(r.value, {
+  const { result: post, from } = postUstoz(r.value, {
     answer: c.task.answer, numbersShown: c.task.numbersShown, childNumbers, recent: c.recent,
+    operands: operandFractions(c.task.params), childFractions: childNumbers.filter((n) => n.includes("/")),
   });
+  d.component = from;
+  d.askedType = r.value.component?.type; // тип, который просила модель: запасной компонент сохранит его
   d.ustoz = sd(r, post.ok ? undefined : `post:${post.reason}`);
   if (!post.ok && post.reason === "repeat") return "repeat";
   return post.ok ? post.value : null;
@@ -172,14 +175,17 @@ export const turn = action({
 
     const respond = async (u: Awaited<ReturnType<typeof ustozStep>>): Promise<{ status: Status }> => {
       if (u?.reply && (await outputOk(ctx, d, cc, u.reply))) {
-        await ctx.runMutation(internal.conductor.recordReply, { studentId, turnNo, reply: u.reply, component: u.component, hintButton });
+        // после верного ответа задача уже новая: картинки нет; иначе компонент уже нормализован кодом (не null, если есть операнды)
+        await ctx.runMutation(internal.conductor.recordReply, {
+          studentId, turnNo, reply: u.reply, hintButton, component: solvedNow ? null : u.component && toStored(u.component),
+        });
         return { status: "replied" };
       }
       // Запасной путь: компонент по операндам (из кода); после верного ответа компонента нет.
-      const ops = solvedNow ? [] : operandFractions(c.task.params);
+      d.component = "code";
       await ctx.runMutation(internal.conductor.recordReply, {
         studentId, turnNo, reply: null, hintButton,
-        component: ops.length ? { type: "pie", params: ops.map((value, i) => ({ key: `f${i + 1}`, value })) } : null,
+        component: solvedNow ? null : toStored(normalizeComponent(d.askedType ? { type: d.askedType, fractions: [] } : null, { operands: operandFractions(c.task.params), childFractions: [], answer: c.task.answer }).component),
       });
       return { status: "fallback" };
     };

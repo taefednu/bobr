@@ -38,16 +38,14 @@ export type TurnEvent =
   | { type: "topicLevel"; topic: TopicId; level: TopicLevel }
   | { type: "house"; topic: TopicId; state: HouseState };
 
-// ── Компонент: {type, params}; params — строки (дроби строкой) ──
-// TODO(spec): точные params для pie/strip/line спека не описывает.
-// params — массив пар, не z.record: structured outputs принимают только additionalProperties:false,
-// открытый словарь даёт 400 на первом живом вызове. В словарь превращает код (paramsToRecord).
+// ── Компонент: тип + дроби строкой; ключей-«на выбор» нет (живой прогон 18.11: модель выдумывала a,b,c,d, parts…) ──
+// Все три типа имеют одну форму, поэтому один объект вместо union: pie — круг на каждую дробь, strip — полоска,
+// line — точки на числовой прямой. Допустимые дроби проверяет код (lib/llm/component.ts), не схема.
+export const COMPONENT_TYPES = ["pie", "strip", "line"] as const;
 export const Component = z.object({
-  type: ci(["pie", "strip", "line"]),
-  params: z.array(z.object({ key: z.string(), value: z.string() })),
+  type: ci(COMPONENT_TYPES),
+  fractions: z.array(z.string()),
 });
-export const paramsToRecord = (p: { key: string; value: string }[]): Record<string, string> =>
-  Object.fromEntries(p.map(({ key, value }) => [key, value]));
 
 // ── Zod-схемы из спеки ──
 // TODO(spec): значения intent у Ustoz не перечислены — z.string().
