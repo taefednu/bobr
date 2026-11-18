@@ -40,5 +40,19 @@
   "chat.send": "Yuborish",
   "parent.title": "Ota-onalar uchun",
   "parent.summary": "Bu yerda oʻquv xulosasi boʻladi.",
-  "parent.note": "Ota-onalar xulosani koʻradi, bolaning yozishmasini emas."
+  "parent.note": "Ota-onalar xulosani koʻradi, bolaning yozishmasini emas.",
+  "lesson.start": "Demo darsni boshlash",
+  "lesson.task.word.N9": "{a}/{b} va {c}/{d} ni qoʻsh. Qanday kasr chiqadi?",
+  "lesson.thinking": "Ustoz oʻylayapti…",
+  "lesson.ask": "Ustozdan soʻrash",
+  "lesson.askPlaceholder": "Ustozga yoz…",
+  "lesson.hint": "Maslahat",
+  "lesson.hintRequest": "Maslahat ber",
+  "lesson.verdict.ok": "Toʻgʻri!",
+  "lesson.verdict.almost": "Deyarli: qisqaroq yozsa boʻladi.",
+  "lesson.verdict.misconception": "Unchalik emas. Birga koʻramiz.",
+  "lesson.verdict.wrong": "Hozircha notoʻgʻri. Yana urinib koʻr.",
+  "lesson.verdict.unparsed": "Yozuvni tushunmadim. Kasr yoz, masalan 1/2.",
+  "lesson.crisis.call": "Qoʻngʻiroq qil:",
+  "lesson.error": "Chiqmadi. Yana urinib koʻr."
 }

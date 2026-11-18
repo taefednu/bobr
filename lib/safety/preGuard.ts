@@ -27,8 +27,9 @@ const TR: Record<string, string> = {
   н: "n", о: "o", п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f", х: "h", ц: "ts", ч: "ch", ш: "sh",
   щ: "shch", ъ: "", ы: "i", ь: "", э: "e", ю: "yu", я: "ya", ў: "o'", қ: "q", ғ: "g'", ҳ: "h",
 };
+// Латинская x → h: «xochu umeret» (ru латиницей) и uz «x» (= х) сходятся с кириллическим «х».
 const canon = (s: string) =>
-  s.toLowerCase().replace(/ё/g, "е").replace(/[а-яўқғҳ]/g, (c) => TR[c] ?? c);
+  s.toLowerCase().replace(/ё/g, "е").replace(/[а-яўқғҳ]/g, (c) => TR[c] ?? c).replace(/x/g, "h");
 
 // «у-м-е-р-е-т-ь», «o.l.d.i.m»: одиночные буквы через один разделитель → склеить. Пробелы между буквами
 // не склеиваем (односимвольные слова «я», «в» дали бы ложные склейки) — это уже работа LLM-guard.
@@ -84,7 +85,7 @@ const TRIGGERS: Trigger[] = [
   mk(
     "ru_abuse_home",
     "ABUSE_HOME",
-    "меня\\s+бьют\\s+дома|дома\\s+меня\\s+бьют|(?:папа|мама|отец|отчим|мачеха)\\s+меня\\s+(?:бьет|бил|била|избивает)|меня\\s+(?:бьет|избивает)\\s+(?:папа|мама|отец|отчим|мачеха)",
+    "меня\\s+бьют\\s+дома|дома\\s+меня\\s+бьют|(?:папа|мама|отец|отчим|мачеха)\\s+меня\\s+(?:бьет|бил|била|избивает)|меня\\s+(?:бьет|избивает)\\s+(?:папа|мама|отец|отчим|мачеха)|(?:папа|мама|отец|отчим|мачеха)\\s+(?:бьет|бил|била|избивает)\\s+меня",
   ),
   // --- uz-Latn --- не вычитано носителем
   // «oʻlgim» с апострофом обязателен: «olgim keladi» = «хочу взять».
@@ -94,7 +95,7 @@ const TRIGGERS: Trigger[] = [
   mk(
     "uz_abuse_home",
     "ABUSE_HOME",
-    "uyda\\s+meni\\s+ur(?:ishadi|adi|adilar)|meni\\s+uyda\\s+ur(?:ishadi|adi|adilar)|(?:dadam|onam|otam)\\s+meni\\s+ur(?:adi|ishadi)",
+    "uyda\\s+meni\\s+ur(?:ishadi|adi|adilar)|meni\\s+uyda\\s+ur(?:ishadi|adi|adilar)|(?:dadam|onam|otam)\\s+meni\\s+(?:ur(?:adi|ishadi)|kaltakl(?:aydi|ashadi))", // kaltakla- не вычитано носителем
   ),
 ];
 

@@ -38,6 +38,31 @@ export default defineSchema({
     chatDay: v.optional(v.string()), // "YYYY-MM-DD" локального дня для лимита 30 мин/день
     chatMsToday: v.optional(v.number()),
     riskCount: v.number(), // счётчик рисков сессии для guard
+    // Урок (этап 2). Задача целиком — ТОЛЬКО на сервере: answer/distractors наружу не отдаём (convex/lessonView.ts).
+    // Все дроби — строки. Поля optional: старые строки без урока остаются валидными.
+    currentTask: v.optional(v.object({
+      id: v.string(),
+      topic: v.string(),
+      kind: v.string(), // TaskKind из lib/fractions/task.ts
+      params: v.record(v.string(), v.string()),
+      answer: v.string(),
+      distractors: v.array(v.object({ value: v.string(), misconception: v.optional(v.string()) })),
+      requireReduced: v.boolean(),
+      numbersShown: v.array(v.string()),
+    })),
+    turnNo: v.optional(v.number()), // растёт на каждый ход; реплика Ustoz пишется только при совпадении
+    hintLevel: v.optional(v.number()), // 0..4, считает код
+    lastVerdict: v.optional(v.string()), // "ok" | "almost" | "misconception:M9" | "wrong" | "unparsed"
+    lastReply: v.optional(v.object({
+      turnNo: v.number(),
+      reply: v.union(v.string(), v.null()),
+      // дублирует Component из lib/types.ts: менять в обоих местах
+      component: v.union(v.null(), v.object({
+        type: v.union(v.literal("pie"), v.literal("strip"), v.literal("line")),
+        params: v.array(v.object({ key: v.string(), value: v.string() })),
+      })),
+      hintButton: v.boolean(),
+    })),
   }).index("by_parent", ["parentId"]),
 
   // Нет строки = unknown (дом empty).

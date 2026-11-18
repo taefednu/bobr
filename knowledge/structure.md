@@ -8,9 +8,12 @@ vitest 5, Playwright 1.64.0 (закреплён под скачанный бра
 
 | Путь | Что | Статус |
 |---|---|---|
-| `convex/schema.ts` | 10 таблиц спеки с индексами (дроби — string) | готово |
-| `convex/turn.ts` | action хода (LLM только здесь) | заглушка |
-| `convex/conductor.ts` | mutations машины состояний | заглушка |
+| `convex/schema.ts` | 10 таблиц спеки с индексами (дроби — string); у `students` поля урока: `currentTask`, `turnNo`, `hintLevel`, `lastVerdict`, `lastReply` | готово |
+| `convex/turn.ts` | action `turn`: preGuard → вердикт кода → Ustoz (∥ guardIn для текста) → postChecks → outputCheck → `recordReply`; без ключа — replay → запасной путь | готово, LLM не гонялся |
+| `convex/conductor.ts` | mutations: `startDemoLesson`, `turnContext`, `submitAnswer` (вердикт, серия, topicStatus, дома), `recordText`, `recordReply` (сверка turnNo), `setCrisis` | урок готов |
+| `convex/lesson.ts`, `convex/lessonView.ts` | query `view` — публичная проекция задачи (без answer/distractors) | готово |
+| `convex/llmCache.ts` | internal `get`/`put` — адаптер REPLAY | готово |
+| `components/ConvexClientProvider.tsx` | `ConvexReactClient` в `app/layout.tsx` | готово |
 | `convex/crons.ts` | «дом гаснет», сводка родителю | пустой cronJobs |
 | `lib/fractions/` | `task.ts` (контракт задачи), `parseAnswer.ts`, `generator.ts` (+`DEMO_PROBES`), `numberCheck.ts`, `leakDetector.ts` | готово |
 | `lib/safety/` | `preGuard.ts` (лимит, нормализация, транслит, base64, ПДн, триггеры от 1-го лица), `pii.ts`, `crisis.ts` (текст — заглушка), `copyCheck.ts`, `repeatGuard.ts` | готово, триггеры не вычитаны |

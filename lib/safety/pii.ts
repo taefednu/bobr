@@ -53,6 +53,8 @@ const RULES: { kind: PiiKind; tag: string; re: RegExp }[] = [
         String.raw`${NUM}\d+(?:\s*-\s*(?:(?:я|ая|ой|й|ую)\s*)?|\s*(?:я|ая|ой|й|ую)\s+)${SCHOOL_RU}${NR}`, // 12-я школа; «3 школы» — не адрес
         String.raw`${NL}maktab\s*(?:raqami\s*)?${NO}\s*\d+${NR}`, // maktab 12
         String.raw`${NUM}\d+\s*-?\s*(?:sonli\s+)?${SCHOOL_UZ}${NR}`, // 12-maktab, 12-sonli maktabda
+        String.raw`${NUM}\d+\s*-?\s*(?:сонли\s+)?(?:мактаб|лицей|гимназия)(?:да|га|дан|им|имиз)?${NR}`, // uz кириллицей
+        String.raw`${NL}мактаб\s*(?:рақами\s*)?${NO}\s*\d+${NR}`,
       ].join("|"),
       "giu",
     ),
@@ -63,10 +65,12 @@ const RULES: { kind: PiiKind; tag: string; re: RegExp }[] = [
     re: new RegExp(
       [
         // ул. Навои, д. 5, кв. 3 / улица Навои 5
-        String.raw`${NL}(?:ул|улица|пр-т|просп(?:ект)?|пер|переулок|бульвар|б-р)\.?\s+[\p{L}\p{N}'-]+(?:\s+[\p{L}'-]+(?=\s*,?\s*\d))?(?:[\s,]*(?:д|дом|кв|квартира)\.?\s*${NO}\s*\d+\p{L}?|\s+\d+\p{L}?)*`,
+        String.raw`${NL}(?:ул|улиц(?:а|е|у|ы)|пр-т|просп(?:ект)?|пер|переулок|бульвар|б-р)\.?\s+[\p{L}\p{N}'-]+(?:\s+[\p{L}'-]+(?=\s*,?\s*\d))?(?:[\s,]*(?:д|дом|кв|квартира)\.?\s*${NO}\s*\d+\p{L}?|\s+\d+\p{L}?)*`,
         String.raw`${NL}(?:дом|д|кв|квартира)\.?\s*${NO}\s*\d+\p{L}?${NR}`,
         // Navoiy ko'chasi 5 / ko'cha 7
-        String.raw`${NL}(?:[\p{L}']+\s+)?ko'?cha(?:si)?${NR}(?:\s*,?\s*\d+[\p{L}-]*)?`,
+        String.raw`${NL}(?:[\p{L}']+\s+)?ko'?cha(?:si(?:da|ga|dan)?)?${NR}(?:\s*,?\s*\d+[\p{L}-]*)?`,
+        String.raw`${NL}(?:[\p{L}']+\s+)?кўча(?:си(?:да|га|дан)?)?${NR}(?:\s*,?\s*\d+[\p{L}-]*)?`, // uz кириллицей
+        String.raw`${NUM}\d+\s*-\s*(?:уй|хонадон)${NR}`,
         String.raw`${NL}(?:uy|xonadon|xona)\s*(?:raqami\s*)?${NO}\s*\d+\p{L}?${NR}`,
         String.raw`${NUM}\d+\s*-\s*(?:uy|xonadon)${NR}`, // 12-uy
       ].join("|"),
@@ -77,7 +81,7 @@ const RULES: { kind: PiiKind; tag: string; re: RegExp }[] = [
 
 // Имя — только после явного «меня зовут X»: интро остаётся, имя заменяется.
 const NAME_RE = new RegExp(
-  String.raw`${NL}(меня\s+зовут|меня\s+звать|мо[её]\s+имя|(?:mening\s+)?ismim)\s*[:,-]?\s*[\p{L}'-]+`,
+  String.raw`${NL}(меня\s+зовут|меня\s+звать|мо[её]\s+имя|(?:mening\s+)?ismim|(?:менинг\s+)?исмим)\s*[:,-]?\s*[\p{L}'-]+`,
   "giu",
 );
 

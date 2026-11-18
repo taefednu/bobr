@@ -39,5 +39,19 @@
   "chat.send": "Отправить",
   "parent.title": "Родителям",
   "parent.summary": "Здесь будет сводка по учёбе.",
-  "parent.note": "Родитель видит сводку, а не переписку ребёнка."
+  "parent.note": "Родитель видит сводку, а не переписку ребёнка.",
+  "lesson.start": "Начать демо-урок",
+  "lesson.task.word.N9": "Сложи {a}/{b} и {c}/{d}. Какая дробь получится?",
+  "lesson.thinking": "Ustoz думает…",
+  "lesson.ask": "Спросить Ustoz",
+  "lesson.askPlaceholder": "Напиши Ustoz…",
+  "lesson.hint": "Подсказка",
+  "lesson.hintRequest": "Дай подсказку",
+  "lesson.verdict.ok": "Верно!",
+  "lesson.verdict.almost": "Почти: можно записать короче.",
+  "lesson.verdict.misconception": "Не совсем. Давай разберёмся.",
+  "lesson.verdict.wrong": "Пока неверно. Попробуй ещё.",
+  "lesson.verdict.unparsed": "Не понял запись. Напиши дробь, например 1/2.",
+  "lesson.crisis.call": "Позвони:",
+  "lesson.error": "Не получилось. Попробуй ещё раз."
 }

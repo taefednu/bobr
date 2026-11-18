@@ -31,6 +31,12 @@ describe("maskPii: каждый вид замаскирован, значени�
     ["name", "меня зовут Алишер", ["Алишер"], "[NAME]"],
     ["name", "mening ismim Sardor", ["Sardor"], "[NAME]"],
     ["name", "ismim Dilnoza", ["Dilnoza"], "[NAME]"],
+    ["name", "менинг исмим Бобур", ["Бобур"], "[NAME]"], // uz кириллицей
+    ["school", "12-мактабда ўқийман", ["12-мактаб"], "[SCHOOL]"],
+    ["address", "Навоий кўчасида яшайман", ["Навоий"], "[ADDRESS]"],
+    ["address", "я живу на улице Навои дом 5 кв 3", ["Навои", "кв 3"], "[ADDRESS]"],
+    ["address", "на улице Навои 5", ["Навои"], "[ADDRESS]"],
+    ["address", "Navoiy koʻchasida turaman", ["Navoiy"], "[ADDRESS]"],
   ];
   for (const [kind, input, values, tag] of cases) {
     it(`${kind}: ${input}`, () => {

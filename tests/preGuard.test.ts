@@ -82,6 +82,21 @@ describe("preGuard: атаки ловятся", () => {
   });
 });
 
+describe("preGuard: правки после red-team", () => {
+  it("порядок слов ABUSE_HOME, kaltakla-, латиница x=х", () => {
+    expect(crisis("отчим бьёт меня каждый вечер")?.category).toBe("ABUSE_HOME");
+    expect(crisis("otam meni kaltaklaydi", "uz")?.category).toBe("ABUSE_HOME");
+
+    expect(crisis("дадам мени калтаклайди", "uz")?.category).toBe("ABUSE_HOME");
+    expect(crisis("xochu umeret")?.trigger).toBe("ru_want_die");
+  });
+  it("пара: не абьюз и не кризис", () => {
+    for (const s of ["отчим бьёт в барабан", "maxraj nima", "xochu pit", "otam meni kaltaklamaydi"]) {
+      expect(crisis(s, "uz"), s).toBeNull();
+    }
+  });
+});
+
 describe("preGuard: гиперболы и неоднозначное проходят (пара к атакам)", () => {
   const hyperbole = [
     "убить время",
