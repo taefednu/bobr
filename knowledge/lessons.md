@@ -17,5 +17,8 @@
 
 - **Stop-хук плагина `convex@claude-plugins-official`** запускает `node_modules/.bin/convex` напрямую на системном Node 20 («Node too old»). Шим `node` в `.bin` не помогает (там не `npx`); `scripts/node-shim.sh` (postinstall) заменяет сам `.bin/convex` обёрткой на Node из `.nvmrc`.
 
+- **`codex exec` из фоновой команды** висит на «Reading additional input from stdin»: всегда `</dev/null`.
+- **`pkill -f` и `pgrep -f` по шаблону** ловят собственную оболочку, если шаблон есть в команде: убивай по PID.
+
 ## Связанные узлы
 [[README]] · [[structure]] · [[decisions]]
