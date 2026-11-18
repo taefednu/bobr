@@ -52,7 +52,6 @@ export const dashboard = query({
       goal: v.union(v.string(), v.null()), testDate: v.union(v.string(), v.null()),
     }),
     children: v.array(v.object({
-      studentId: v.id("students"),
       displayName: v.union(v.string(), v.null()),
       mahalla: v.array(v.object({ topic: v.string(), title: v.string(), state: v.string() })),
       topics: v.array(v.object({ topic: v.string(), title: v.string(), level: v.string() })),
@@ -96,7 +95,6 @@ export const dashboard = query({
       const fresh = rows.filter((r) => week(r.solvedSelfAt) || week(r.taughtAt));
       const lastTurn = await ctx.db.query("turns").withIndex("by_student_and_ts", (q) => q.eq("studentId", s._id)).order("desc").first();
       children.push({
-        studentId: s._id,
         displayName: s.displayName ?? null,
         mahalla: graph.topics.map((t) => ({ topic: t.id, title: t.title[lang], state: houseState(byTopic.get(t.id), now) })),
         topics: rows.map((r) => ({ topic: r.topic, title: title(r.topic as TopicId, lang), level: r.level })),

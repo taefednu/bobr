@@ -5,7 +5,7 @@ import { v } from "convex/values";
 import { CHAT, LESSON } from "../lib/config";
 import { checkAnswer, DEMO_PROBES, generateTask, type TaskKind } from "../lib/fractions";
 import { houseState } from "../lib/houses";
-import { crisisRouting } from "../lib/safety/crisis";
+import { abuseRowCounts, crisisRouting, parentNotifyDecision } from "../lib/safety/crisis";
 import { GUARD_CATEGORIES, type GuardCategory, type TopicId } from "../lib/types";
 import { internalMutation, internalQuery, mutation } from "./_generated/server";
 import { operandFractions } from "./lessonView";
@@ -232,25 +232,34 @@ export const recordReply = internalMutation({
 
 /** CRISIS — оверлей: стейт урока сохранён, болталка закрыта на 24 ч, флаг в reviewQueue. Цитат нет. */
 export const setCrisis = internalMutation({
-  args: { studentId: v.id("students"), category: v.string() },
+  // also — другие категории того же сообщения (preGuard). ABUSE_HOME среди них или в истории → родителю ничего.
+  args: { studentId: v.id("students"), category: v.string(), also: v.optional(v.array(v.string())) },
   returns: v.null(),
-  handler: async (ctx, { studentId, category }) => {
+  handler: async (ctx, { studentId, category, also }) => {
     const s = await ctx.db.get("students", studentId);
     if (!s) return null;
-    const cat = (GUARD_CATEGORIES as readonly string[]).includes(category) ? (category as GuardCategory) : "SELF_HARM";
-    const route = crisisRouting(cat);
+    const valid = (c: string) => (GUARD_CATEGORIES as readonly string[]).includes(c);
+    const cat = valid(category) ? (category as GuardCategory) : "SELF_HARM";
+    const cats = [...new Set([cat, ...(also ?? []).filter(valid)])] as GuardCategory[];
     const now = Date.now();
+    // История читается ДО вставки строк этого кризиса.
+    const past = await ctx.db.query("reviewQueue").withIndex("by_student", (q) => q.eq("studentId", studentId)).take(200);
+    const priorAbuse = past.some((r) => abuseRowCounts(r, now));
+    const notify = parentNotifyDecision({ categories: cats, priorAbuse }).notify;
     await ctx.db.patch("students", studentId, {
       state: "CRISIS",
       stateBeforeCrisis: s.state === "CRISIS" ? s.stateBeforeCrisis : s.state,
       chatBlockedUntil: now + CHAT.crisisBlockHours * 3_600_000,
       riskCount: s.riskCount + 1,
     });
-    // Каждый кризис — флаг на ревью; notifyParent — по таблице спеки (ABUSE_HOME → false).
-    await ctx.db.insert("reviewQueue", {
-      studentId, category: cat, severity: route?.urgent ? 4 : 3, status: "open", notifyParent: route?.notifyParent ?? false,
-    });
-    await enqueueCrisis(ctx, studentId, cat); // родителю без цитат; ABUSE_HOME — ничего
+    // Каждая категория — своя строка на ревью; notifyParent — решение кода (ABUSE_HOME рядом → false у всех).
+    for (const c of cats) {
+      const route = crisisRouting(c);
+      await ctx.db.insert("reviewQueue", {
+        studentId, category: c, severity: route?.urgent ? 4 : 3, status: "open", notifyParent: notify && (route?.notifyParent ?? false),
+      });
+    }
+    await enqueueCrisis(ctx, studentId, cats, priorAbuse); // родителю без цитат
     return null;
   },
 });

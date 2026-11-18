@@ -115,7 +115,7 @@ const data = useQuery(api.parent.dashboard, sessionToken ? { sessionToken } : "s
 Только сводка. Названия тем на языке родителя (из `content/graph.json`).
 ```
 { parent: {firstName, lang, goal, testDate},                 // null, если не задано
-  children: [{ studentId, displayName,
+  children: [{ displayName,      // без studentId: он открывает ребёнку turn/lesson (child-auth нет, B9); ребёнок — по индексу в массиве
     mahalla: [{topic, title, state}]    // все N1..N10; state: empty|scaffold|built|alive|dimmed (houseState от topicStatus)
     topics:  [{topic, title, level}]    // только темы со статусом: gap|solved_self|taught_bobr
     plan:    {order: [topic], days: [{date, items: [{topic, kind: "new"|"review"|"mixed_check"}]}]}

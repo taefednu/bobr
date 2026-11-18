@@ -2,7 +2,7 @@
 // Писатели — обычные функции (enqueue*), чтобы вызывать их внутри чужих мутаций без под-транзакций.
 import { v } from "convex/values";
 import { graph } from "../lib/content";
-import { crisisRouting } from "../lib/safety/crisis";
+import { crisisPushSuppressed, parentNotifyDecision } from "../lib/safety/crisis";
 import { crisisText, taughtBobrText } from "../lib/telegram/texts";
 import type { GuardCategory, TopicId } from "../lib/types";
 import type { Id } from "./_generated/dataModel";
@@ -12,20 +12,30 @@ import { assertBot } from "./botAuth";
 type Kind = "taught_bobr" | "crisis";
 
 /** Кладёт сообщение каждому родителю ребёнка, у которого есть чат. */
-async function enqueue(ctx: MutationCtx, studentId: Id<"students">, kind: Kind, text: (p: { lang: "uz" | "ru" }) => string) {
+async function enqueue(
+  ctx: MutationCtx, studentId: Id<"students">, kind: Kind, text: (p: { lang: "uz" | "ru" }) => string,
+  skip?: (parentId: Id<"parents">) => boolean,
+) {
   const links = await ctx.db.query("parentLinks").withIndex("by_student", (q) => q.eq("studentId", studentId)).take(10);
   for (const l of links) {
     const p = await ctx.db.get("parents", l.parentId);
-    if (!p?.telegramChatId) continue;
+    if (!p?.telegramChatId || skip?.(p._id)) continue;
     await ctx.db.insert("outbox", { parentId: p._id, chatId: p.telegramChatId, kind, text: text(p), createdAt: Date.now() });
   }
 }
 
-/** Из conductor.setCrisis. ABUSE_HOME и не-кризисные категории — родителю ничего. Без цитат ребёнка. */
-export async function enqueueCrisis(ctx: MutationCtx, studentId: Id<"students">, category: GuardCategory) {
-  const route = crisisRouting(category);
-  if (!route?.notifyParent) return;
-  await enqueue(ctx, studentId, "crisis", (p) => crisisText(p.lang, route.urgent));
+/** Из conductor.setCrisis. categories — все категории сообщения; priorAbuse — у ребёнка уже есть ABUSE_HOME на ревью.
+ *  ABUSE_HOME (сейчас или раньше) → родителю ничего. Не чаще раза в час и не поверх неотправленного. Без цитат ребёнка. */
+export async function enqueueCrisis(ctx: MutationCtx, studentId: Id<"students">, categories: GuardCategory[], priorAbuse: boolean) {
+  const d = parentNotifyDecision({ categories, priorAbuse });
+  if (!d.notify) return;
+  // Два индексных диапазона: неотправленные и отправленные за последний час (созданное за час отправлено не раньше).
+  // ponytail: take(200) на диапазон; при >200 чужих строк в очереди флуд-защита слепнет.
+  const now = Date.now();
+  const unsent = await ctx.db.query("outbox").withIndex("by_sent_and_created", (q) => q.eq("sentAt", undefined)).take(200);
+  const recent = await ctx.db.query("outbox").withIndex("by_sent_and_created", (q) => q.gt("sentAt", now - 3_600_000)).take(200);
+  const rows = [...unsent, ...recent];
+  await enqueue(ctx, studentId, "crisis", (p) => crisisText(p.lang, d.urgent), (pid) => crisisPushSuppressed(rows, pid, now));
 }
 
 export async function enqueueTaughtBobr(ctx: MutationCtx, studentId: Id<"students">, topic: TopicId) {

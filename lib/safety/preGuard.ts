@@ -12,8 +12,9 @@ export type PreGuardResult = {
   tooLong: boolean;
   /** виды замаскированного (не значения) */
   masked: PiiKind[];
-  /** trigger — id триггера, не текст ребёнка */
-  crisis: null | { category: GuardCategory; trigger: string };
+  /** trigger — id триггера, не текст ребёнка. category — для экрана ребёнка (SELF_HARM первым);
+   *  also — ДРУГИЕ категории, совпавшие в этом же сообщении (ABUSE_HOME рядом с SELF_HARM запрещает пуш родителю). */
+  crisis: null | { category: GuardCategory; trigger: string; also?: GuardCategory[] };
   /** мягкий триггер совпал, но его погасил маркер гиперболы: без LLM-guard это слепая зона — вызывающий пишет флаг */
   suppressed?: { category: GuardCategory; trigger: string };
 };
@@ -119,11 +120,12 @@ const markerHolds = (clause: string): boolean =>
     return false;
   });
 
-function findTrigger(v: string): { t: Trigger | null; suppressed: Trigger | null } {
+function findTriggers(v: string): { hits: Trigger[]; suppressed: Trigger | null } {
   let suppressed: Trigger | null = null;
+  const hits: Trigger[] = [];
   const clauses = v.split(/[.!?;\n]+/);
   for (const t of TRIGGERS) {
-    for (const clause of clauses) {
+    hit: for (const clause of clauses) {
       for (const m of clause.matchAll(t.re)) {
         const before = clause.slice(0, m.index);
         const after = clause.slice(m.index + m[0].length);
@@ -134,11 +136,12 @@ function findTrigger(v: string): { t: Trigger | null; suppressed: Trigger | null
           suppressed ??= t;
           continue;
         }
-        return { t, suppressed };
+        hits.push(t);
+        break hit;
       }
     }
   }
-  return { t: null, suppressed };
+  return { hits, suppressed };
 }
 
 export function preGuard(raw: string, lang: "uz" | "ru"): PreGuardResult {
@@ -155,10 +158,17 @@ export function preGuard(raw: string, lang: "uz" | "ru"): PreGuardResult {
     return [canon(lower), canon(collapseSplit(lower))];
   });
   let suppressed: Trigger | null = null;
+  const hits = new Set<Trigger>();
   for (const v of variants) {
-    const r = findTrigger(v);
-    if (r.t) return { text, tooLong, masked: kinds, crisis: { category: r.t.category, trigger: r.t.id } };
+    const r = findTriggers(v);
+    r.hits.forEach((t) => hits.add(t));
     suppressed ??= r.suppressed;
+  }
+  if (hits.size) {
+    // TRIGGERS идёт SELF_HARM первым: первый по порядку списка — основной (экран ребёнка).
+    const [main, ...rest] = TRIGGERS.filter((t) => hits.has(t));
+    const also = [...new Set(rest.map((t) => t.category))].filter((c) => c !== main.category);
+    return { text, tooLong, masked: kinds, crisis: { category: main.category, trigger: main.id, ...(also.length && { also }) } };
   }
   return {
     text, tooLong, masked: kinds, crisis: null,

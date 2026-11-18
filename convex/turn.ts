@@ -152,7 +152,7 @@ export const turn = action({
     // 1. preGuard (код): маска ПДн, нормализация, триггеры. Дальше везде — только pg.text.
     const pg = preGuard(input.value, c.lang);
     if (pg.crisis) {
-      await ctx.runMutation(internal.conductor.setCrisis, { studentId, category: pg.crisis.category });
+      await ctx.runMutation(internal.conductor.setCrisis, { studentId, category: pg.crisis.category, also: pg.crisis.also });
       return { status: "crisis" };
     }
 
