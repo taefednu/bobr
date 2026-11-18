@@ -25,12 +25,13 @@ export async function childOf(ctx: QueryCtx, token: string): Promise<Doc<"studen
   return child;
 }
 
-/** Переходный вход урока: token (как надо) или studentId (старый экран урока, IDOR — BLOCKERS B9).
+/** Переходный вход урока: token (как надо) или studentId (старый экран урока, IDOR — BLOCKERS B9; только при DEMO_ALLOW_ANON=1).
  *  TODO(B9): когда front перейдёт на token, убрать studentId из args turn / lesson:view / leaveCrisis и эту ветку. */
 export const whoArgs = { token: v.optional(v.string()), studentId: v.optional(v.id("students")) };
 export async function studentIdOf(ctx: QueryCtx, who: { token?: string; studentId?: Id<"students"> }): Promise<Id<"students"> | null> {
   if (who.token !== undefined) return (await childOrNull(ctx, who.token))?._id ?? null;
-  return who.studentId ?? null;
+  // старый вход по studentId жив только на демо-стенде (DEMO_ALLOW_ANON=1); без флага — закрыт
+  return env("DEMO_ALLOW_ANON") === "1" ? (who.studentId ?? null) : null;
 }
 
 /** Для action (turn): тот же разбор через runQuery. */

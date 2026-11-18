@@ -56,8 +56,15 @@ export const startLesson = mutation({
     const child = await childOf(ctx, token);
     const id = graph.topics.find((t) => t.id === topic)?.id as TopicId | undefined; // topic с клиента — только из графа
     const plan = await ctx.db.query("plans").withIndex("by_student", (q) => q.eq("studentId", child._id)).order("desc").first();
-    if (child.state !== "HOME" || !id || !GENERATED.has(id) || !plan?.order?.includes(id)) throw new Error("cannot start");
+    // Из махалли можно начать тему и после урока (дирижёр сам в HOME не возвращает); из CRISIS и до плана — нельзя.
+    const from = child.state === "HOME" || child.state === "LESSON_SOLVE" || child.state === "TOPIC_DONE";
+    if (!from || !id || !GENERATED.has(id) || !plan?.order?.includes(id)) throw new Error("cannot start");
     const { seed: _seed, ...task } = generateTask(id, "word", SEED);
+    // Новая сессия темы: выдана 1 задача (эта), серия с нуля. Иначе submitAnswer при счётчике 0 (после диагностики)
+    // выдаёт ту же задачу ещё раз, а при старом счётчике 8 сразу закрывает тему.
+    const row = await ctx.db.query("topicStatus")
+      .withIndex("by_student_and_topic", (q) => q.eq("studentId", child._id).eq("topic", id)).unique();
+    if (row) await ctx.db.patch("topicStatus", row._id, { tasksThisSession: 1, streak: 0 });
     await ctx.db.patch("students", child._id, {
       currentTopic: id, currentTask: task, state: "LESSON_SOLVE", hintLevel: 0, wrongOnTask: 0,
       lastReply: undefined, lastVerdict: undefined,
