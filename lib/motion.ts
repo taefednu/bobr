@@ -11,7 +11,7 @@
  */
 import { useMemo, useSyncExternalStore } from "react";
 
-export type MotionName = "press" | "appear" | "exit" | "panel" | "move" | "count" | "pop" | "punch";
+export type MotionName = "press" | "appear" | "exit" | "panel" | "move" | "count" | "pop" | "punch" | "pageIn";
 
 export type Bezier = readonly [number, number, number, number];
 
@@ -45,6 +45,7 @@ export const TRANSITIONS: Record<MotionName, FramerTransition> = {
   count: tween(700, EASE.out), // числа: без проскока
   pop: spring(400, 17), // персонаж, награда, кусок лепёшки
   punch: spring(700, 18, 0.6), // поле ответа, физический предмет; не цифры
+  pageIn: tween(180, EASE.out), // вход экрана: только opacity (transform на предке сломает fixed)
 };
 
 /** Цели: выступ кнопки в покое и насколько она проседает при нажатии (выступ = ledgePx − y, DESIGN.md §4),
@@ -64,6 +65,34 @@ export const IDLE = {
   blinkMs: 120,
   blinkEveryS: [2, 4] as const,
 } as const;
+
+/** Жизнь в покое (E6). `IDLE` не трогаем: им пользуются старые места. Фигура стоит на земле: подъём 2 px,
+ *  дыхание сжимает/растягивает от низа, лапы не отрываются; под ней пятно. Разные ритмы: Bobr тяжёлый и
+ *  неторопливый, Ustoz лёгкий и быстрый, поэтому не идут в такт. Фаза случайная на каждый экземпляр. */
+export const IDLE_LIFE = {
+  bobr: { liftPx: 2, breatheY: 1.025, breatheX: 0.985, swayDeg: 1.2, periodS: IDLE.floatPeriodS, swayPeriodS: 3.7 },
+  ustoz: { liftPx: 3, breatheY: 1.015, breatheX: 0.992, swayDeg: 2.4, periodS: 1.7, swayPeriodS: 2.6 },
+  /** Раз в столько секунд (случайно) живой персонаж сам играет POSE_ACT.think.act. */
+  gestureEveryS: [7, 12] as const,
+} as const;
+
+/** Реплика «печатается» по словам (E4): слово целиком, дробь «1/2» не появится наполовину.
+ *  Шаг между словами сжимается так, чтобы вся реплика уложилась в `maxS`. */
+export const TYPING = { wordMs: 70, maxS: 1.6, wordFadeS: 0.12 } as const;
+
+/** Сколько секунд печатается реплика (с задержкой облачка): по ней персонаж «говорит». */
+export function typingSeconds(text: string): number {
+  const n = text.split(/\s+/).filter(Boolean).length;
+  if (n === 0) return 0;
+  return BUBBLE_DELAY_S + (n - 1) * (Math.min(TYPING.wordMs, (TYPING.maxS * 1000) / n) / 1000) + TYPING.wordFadeS;
+}
+
+/** Пока печатается реплика, тело персонажа «говорит»: лёгкий пульс от пола. */
+export const TALK = { scaleY: [1, 1.03, 1], scaleX: [1, 0.985, 1], periodS: 0.32 } as const;
+
+/** Облачко реплики появляется после персонажа; точки ожидания не мигают на быстрой мутации. */
+export const BUBBLE_DELAY_S = 0.08;
+export const THINKING_DOTS_DELAY_S = 0.12;
 
 /** Поза Bobr на одном PNG: наклон-стойка (`rest`) и разовое действие при смене реплики (`act`, ключи).
  *  Только персонаж: сжатие и подскок. Пока нет PNG под каждую позу, поза читается движением. */

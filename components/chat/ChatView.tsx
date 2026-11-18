@@ -53,20 +53,20 @@ export function ChatView({ who, onWho, data, optimistic, pending, notice, crisis
   return (
     <>
       <div
-        className="relative flex flex-col gap-3 md:left-1/2 md:w-[min(72rem,calc(100vw-2rem))] md:-translate-x-1/2 md:grid md:grid-cols-[19rem_minmax(0,1fr)] md:gap-6"
-        // шапка (имя, плашка ИИ, отступы) ≈ 8.5rem, нижний навбар и его отступ; поле ввода прижато к низу рамки
-        style={{ height: "calc(100dvh - 9.5rem - var(--bottom-nav-h) - 1.5rem - env(safe-area-inset-bottom))", minHeight: 420 }}
+        className="flex flex-col gap-3 lg:grid lg:grid-cols-[19rem_minmax(0,1fr)] lg:gap-6"
+        // верхняя полоса оболочки (--top-bar-h), отступы main и нижний таб-бар (на lg его нет: --bottom-nav-h = 0); поле ввода прижато к низу рамки
+        style={{ height: "calc(100dvh - var(--top-bar-h) - 1.25rem - var(--bottom-nav-h) - 1.5rem - env(safe-area-inset-bottom))", minHeight: 420 }}
       >
-        <aside className="grid grid-cols-[auto_minmax(0,1fr)] items-end gap-x-3 gap-y-2 md:flex md:min-h-0 md:flex-col md:items-stretch md:gap-4">
-          <div className="col-start-2 row-start-2 md:order-1"><Switch who={who} onWho={onWho} /></div>
+        <aside className="grid grid-cols-[auto_minmax(0,1fr)] items-end gap-x-3 gap-y-2 lg:flex lg:min-h-0 lg:flex-col lg:items-stretch lg:gap-4">
+          <div className="col-start-2 row-start-2 lg:order-1"><Switch who={who} onWho={onWho} /></div>
           <div
-            className="contents md:order-2 md:flex md:min-h-0 md:flex-1 md:flex-col md:items-center md:justify-end md:rounded-xl md:bg-[var(--stage)] md:px-4 md:pb-5 md:pt-6 md:shadow-rest md:[border:var(--stroke-ink)_solid_var(--color-ink)]"
+            className="contents lg:order-2 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:items-center lg:justify-end lg:rounded-xl lg:bg-[var(--stage)] lg:px-4 lg:pb-5 lg:pt-6 lg:shadow-rest lg:[border:var(--stroke-ink)_solid_var(--color-ink)]"
             style={{ ["--stage" as string]: who === "bobr" ? "var(--color-bubble-bobr)" : "var(--color-bubble-ustoz)" }}
           >
             <div className="col-start-1 row-span-2 row-start-1">
               <Stage who={who} pose={data?.pose ?? null} turn={replies} thinking={pending} />
             </div>
-            <div className="col-start-2 row-start-1 min-w-0 md:text-center">
+            <div className="col-start-2 row-start-1 min-w-0 lg:text-center">
               <p className="font-display text-title font-bold leading-tight">{name}</p>
               <p className="text-label text-ink-muted" aria-live="polite">
                 {pending ? t("chat.typing").replace("{name}", name) : t(`chat.role.${who}`)}

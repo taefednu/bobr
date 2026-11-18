@@ -32,7 +32,7 @@ export default function Page() {
     }
   }
 
-  if (!view) return <CharacterSays who="bobr"><p role="status" className="text-ink-muted">{t("lesson.thinking")}</p></CharacterSays>;
+  if (!view) return <CharacterSays who="bobr" thinking />;
   return (
     <>
       <MahallaView view={view as View} onStart={(topic) => void onStart(topic)} />

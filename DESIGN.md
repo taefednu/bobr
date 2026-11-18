@@ -187,7 +187,8 @@ by reading the font cmaps. Unbounded lacks Uzbek Cyrillic `ғ`, which Bobr does 
 | title | Unbounded | 22 px | 600 |
 | numeral (fractions, answer input) | Unbounded | 36 px, tabular | 700 |
 | body | Onest | 17 px / 1.5 | 450 |
-| label, buttons, AI badge | Onest | 15 px | 600 (`--text-label--font-weight`) |
+| label, AI badge | Onest | 15 px | 600 (`--text-label--font-weight`) |
+| button | primary Unbounded, secondary Onest | 17 px / 1.2 | 600 (`--text-button*`) |
 
 ### Named Rules
 - **Body never under 16 px.** The readers are 11.
@@ -238,7 +239,7 @@ shadow and the position separately: they drift and the ledge pokes out under the
 Motion values come only from `lib/motion.ts` (`useMotion()`); rules are in skill `bobr-animation`.
 
 ### Buttons
-Pill, 52 px tall (≥ 44 px target), `--stroke-ink` outline, ink ledge, `--shadow-clay` + `--shadow-drop`.
+Pill, 56 px tall (≥ 44 px target), `--stroke-ink` outline, ink ledge, `--shadow-clay-primary` (primary; blik 0.32 plus a bottom roll, not a white hairline) or `--shadow-clay` (secondary) + `--shadow-drop`. A tall button with a stacked fraction is `rounded-xl`, not a pill.
 Press: the cap sinks `pressDepthPx` with `TRANSITIONS.press` (fast down, a small springy bounce back up).
 Layout never moves: the button reserves the ledge in its own box (bottom margin = `ledgePx`), so the row
 does not jump. Hover lift only under `(hover: hover)`. Focus: `--focus-ring` (3 px lazuli), drawn as a
@@ -261,7 +262,8 @@ Fast and physical, then still. Every child action gets a response inside 100 ms:
 - Nothing loops on UI. Nothing counts up with overshoot (numbers use `count`).
 
 ### Navigation
-No nav bar inside a lesson. The mahalla map is home; one back affordance top-left.
+No nav bar inside a lesson. The mahalla map is home; one back affordance top-left of the top bar.
+App shell (`ChildShell`): top bar is one row (back, AI badge, UZ/RU segment; the active language is ink-filled), screen titles are display-size and scroll with the content. Phone: raised paper tab bar (Mahalla / My path / Chat), custom inline-SVG icons, the active tab is a lazuli pill on an ink ledge. From `lg` the tab bar becomes a left rail (`SideRail`) and `SplitScreen` lays a screen in two columns. Background is `--bg-stage` (warm light top-left).
 
 ### Domain components
 - **Pie (Лепёшка):** a round non bread in 2.5D (slight top-down tilt), ink rim, a ring of tiny stamped

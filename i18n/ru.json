@@ -11,6 +11,8 @@
   "ai.badge": "Bobr — ИИ и может ошибаться",
   "lang.label": "Язык",
   "lang.uz": "Узбекский",
+  "lang.short.uz": "Oʻz",
+  "lang.short.ru": "Рус",
   "lang.ru": "Русский",
   "skeleton.note": "Временный серый каркас: дизайн позже.",
   "char.idle": "ждёт",

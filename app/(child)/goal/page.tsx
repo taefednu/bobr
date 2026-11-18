@@ -18,7 +18,7 @@ export default function Page() {
   const [failed, setFailed] = useState(false);
   const busy = useRef(false);
 
-  if (!ready) return <CharacterSays who="bobr"><p role="status" className="text-ink-muted">{t("lesson.thinking")}</p></CharacterSays>;
+  if (!ready) return <CharacterSays who="bobr" thinking />;
 
   async function save() {
     if (!token || !intent || busy.current) return;

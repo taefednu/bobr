@@ -3,7 +3,6 @@
 import { Fragment } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { BackLink } from "@/components/child/BackLink";
 import { Card } from "@/components/child/Card";
 import { Character } from "@/components/child/Character";
 import { CharacterSays } from "@/components/child/CharacterSays";
@@ -81,7 +80,6 @@ export function LessonView(p: LessonViewProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <BackLink href="/mahalla" />
       <h1 className="sr-only">{t("lesson.title")}</h1>
 
       {bubble || done ? (

@@ -45,11 +45,11 @@ export default function Home() {
   return (
     <ChildShell>
       <div className="flex flex-col gap-6 sm:pt-[8vh]">
-        <CharacterSays who="bobr">
-          <p role={failed ? "alert" : "status"} className={failed ? undefined : "text-ink-muted"}>
-            {failed ? t("lesson.error") : t("lesson.thinking")}
-          </p>
-        </CharacterSays>
+        {failed ? (
+          <CharacterSays who="bobr"><p role="alert">{t("lesson.error")}</p></CharacterSays>
+        ) : (
+          <CharacterSays who="bobr" thinking />
+        )}
         {failed && (
           <div>
             <PressButton onClick={() => void begin()}>{t("entry.retry")}</PressButton>

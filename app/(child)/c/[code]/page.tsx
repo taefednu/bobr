@@ -30,9 +30,11 @@ export default function Page() {
 
   return (
     <div className="flex flex-col gap-6 sm:pt-[8vh]">
-      <CharacterSays who="bobr">
-        {failed ? <p role="alert">{t("entry.badCode")}</p> : <p role="status" className="text-ink-muted">{t("lesson.thinking")}</p>}
-      </CharacterSays>
+      {failed ? (
+        <CharacterSays who="bobr"><p role="alert">{t("entry.badCode")}</p></CharacterSays>
+      ) : (
+        <CharacterSays who="bobr" thinking />
+      )}
       {failed && <Link href="/" className="font-bold underline">{t("entry.home")}</Link>}
     </div>
   );

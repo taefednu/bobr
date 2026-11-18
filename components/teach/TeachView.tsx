@@ -2,7 +2,6 @@
 // Экран «Научи Bobr»: чистое отображение. Convex, токен и переходы живут в app/(child)/teach/page.tsx.
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { BackLink } from "@/components/child/BackLink";
 import { Fraction } from "@/components/child/Fraction";
 import { NumberLine } from "@/components/fractions/NumberLine";
 import { Pie } from "@/components/fractions/Pie";
@@ -95,8 +94,7 @@ export function TeachView(p: TeachViewProps) {
   const tokens = reply?.attempt && reply.expression ? slateTokens(reply.expression, reply.attempt) : null;
 
   return (
-    <div className="flex flex-col gap-4 lg:relative lg:left-1/2 lg:w-[min(72rem,calc(100vw-4rem))] lg:-translate-x-1/2">
-      <BackLink href="/lesson" />
+    <div className="flex flex-col gap-4">
       <h1 className="sr-only">{t("teach.title")}</h1>
 
       <div className="grid gap-5 lg:grid-cols-2 lg:items-stretch lg:gap-10">

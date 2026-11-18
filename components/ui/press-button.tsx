@@ -40,25 +40,26 @@ export function PressButton({ variant = "primary", disabled, demoState, onClick,
   const y = useMotionValue(pinned);
   const boxShadow = useTransform(
     y,
-    (v) => `0 ${ledgePx - v}px 0 var(--color-ink), var(--shadow-clay)`,
+    (v) => `0 ${ledgePx - v}px 0 var(--color-ink), ${variant === "primary" ? "var(--shadow-clay-primary)" : "var(--shadow-clay)"}`,
   );
   // Мягкая тень под выступом тает по мере нажатия.
   const dropOpacity = useTransform(y, [hover.lift, pressDepthPx], [1, 0.3]);
 
   const live = !disabled && !demoState;
+  const round = tall ? "rounded-xl" : "rounded-full"; // высокая кнопка с дробью не должна превращаться в «сосиску»
   const deepFill = variant === "primary" && demoState === "hover" ? "bg-lazuli-deep" : "";
   return (
     <span className={`group relative ${fullWidth ? "flex w-full" : "inline-flex w-fit shrink-0"}`} style={{ marginBottom: ledgePx }}>
       {/* Кольцо фокуса: в неподвижной обёртке, не на кнопке — иначе оно ездит вместе с нажатием. */}
       <span
         aria-hidden
-        className={`pointer-events-none absolute rounded-full group-has-[:focus-visible]:opacity-100 ${demoState === "focus" ? "opacity-100" : "opacity-0"}`}
+        className={`pointer-events-none absolute ${round} group-has-[:focus-visible]:opacity-100 ${demoState === "focus" ? "opacity-100" : "opacity-0"}`}
         style={{ inset: `calc(${RING_GAP} * -1)`, bottom: `calc(${RING_GAP} * -1 - ${ledgePx}px)`, border: "var(--focus-ring)" }}
       />
       {!disabled && (
         <motion.span
           aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-full"
+          className={`pointer-events-none absolute inset-0 ${round}`}
           style={{ boxShadow: "var(--shadow-drop)", top: ledgePx, opacity: dropOpacity }}
         />
       )}
@@ -66,7 +67,7 @@ export function PressButton({ variant = "primary", disabled, demoState, onClick,
         type={type}
         disabled={disabled}
         onClick={onClick}
-        className={`relative ${tall ? "h-[84px]" : "h-[52px]"} ${fullWidth ? "w-full" : "whitespace-nowrap"} rounded-full px-7 text-label font-semibold ${
+        className={`relative ${tall ? "h-[84px]" : "h-14"} ${fullWidth ? "w-full" : "whitespace-nowrap"} ${round} px-7 text-button ${variant === "primary" ? "font-display" : ""} ${
           disabled ? "bg-clay-100 text-ink-muted" : `${FILL[variant]} ${deepFill} cursor-pointer`
         }`}
         style={{
