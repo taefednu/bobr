@@ -2,98 +2,73 @@
 
 ## Сейчас
 
-**18.11, ночь.** Харнесс принят владельцем. В репо: харнесс, дизайн-система v0 (`DESIGN.md`,
-`/dev/styleguide`), база знаний. Продуктового кода нет — только заглушки (см. [[structure]]).
-Следующая сессия идёт **автономно, владелец спит**: шаги 1–4 промпта ниже. Застрял — `BLOCKERS.md`,
-обойти или заглушить, идти дальше.
+**18.11, утро после автономной ночи.** Сделаны шаги 1–2 и этапы 0–2 промпта. Демо-путь урока работает
+грубо на локальном Convex **без LLM**: живые вызовы Claude не гонялись, потому что ключа нет.
 
-Ход ночи (автономно):
-- [x] Шаг 1 OpenUI: скилл в `.claude/skills/openui` + `.agents/skills/openui`, правило «только болталка» в `bobr-design`.
-- [x] Шаг 2 DESIGN v1: `DESIGN.md`/`PRODUCT.md`/скиллы, `press-button`, styleguide; design-critic → блокер (плоская лепёшка) и 4 правки закрыты. Снимки — `docs/design/v1/`.
-- [x] Этап 0 — каркас. Работает: схема Convex (10 таблиц, пушится), `lib/types.ts` (zod-схемы спеки,
-  enum без регистра), граф N1–N10 с проверкой ацикличности, `lib/config.ts`, серый каркас 8 маршрутов
-  (`/goal /diagnose /mahalla /lesson /teach /chat /parent /`) с плашкой ИИ и переключателем uz/ru.
-  Проверено: `npm run verify` 0 (4/4 PASS), `ui-check` 8 маршрутов × uz/ru — код 0. Отрезано: контента
-  нет (B1), uz-строки ждут носителя. Дальше — этап 1.
-- [x] Этап 1 — детерминированное ядро. Работает: parseAnswer (ok/almost/misconception, yarim, 0,5, ½, 1½),
-  generator (5 тем × 3 вида, сид, M9 на N8/N9, договор «найди пропущенное»), leakDetector (эквиваленты, десятичные,
-  смешанные, ru-слова, uz 3 формы + аффиксы), numberCheck, copyCheck/repeatGuard (символьные триграммы),
-  planner (транзитивная готовность, демо N8→N6→N5→N9), houseMapper/demote. Проверено: `npm run verify` 0,
-  117 тестов; каждый тест видели красным; reviewer — 4 major закрыты. Отрезано: N1-проба и uz-словарь (B4, B5).
-- [x] Этап 2 — один ход урока (серый UI). Работает на локальном Convex: preGuard → вердикт кода (мутация до LLM)
-  → Ustoz ∥ guardIn → postChecks → outputCheck → `recordReply` со сверкой хода. Без ключа — replay-промах →
-  запасной путь (лепёшка + лестница подсказок из кода). Проверено: verify 0 (288 тестов), живой прогон
-  `npx convex run`: `2/5` → misconception:M9, `5/6` ok → следующая задача, 3 верных → solved_self/built,
-  кризис → оверлей + reviewQueue + выход к уроку; red-team preGuard: ложных кризисов 0/6, промахи закрыты;
-  reviewer — 6 major закрыты. **NOT RUN:** живые Ustoz/guard/outputCheck и критерий «Ustoz не сдаётся» (B8).
+### Ждёт меня
 
-Ловушки, известные заранее:
-- В `content/` нет `misconceptions.json`, `templates.json`, `checklists.json`, `crisis.json` (владелец их
-  упомянул). Свой контент не выдумывать: брать из спеки что есть (граф N1–N10, M9, демо-пробы), остальное —
-  заглушка с TODO и строка в `BLOCKERS.md`.
-- Кикофф хочет позы в `public/bobr/` (idle, think, confused, happy, aha, proud, sad, wave), скилл
-  `bobr-mascot` пишет `public/characters/bobr/` — прав кикофф, поправь скилл.
-- Кикофф: «застрял > 20 мин — напиши мне». Владелец спит → вместо этого `BLOCKERS.md`.
-- Экраны по дизайну — нет, пока нет ок на DESIGN v1. Этап 2 — серый функциональный UI.
+1. **Ключ Anthropic → живой прогон этапа 2.** Пока ключа нет, свободный текст ребёнка охраняет только
+   короткий список preGuard, а поле «Спросить Ustoz» открыто. Спека при недоступном LLM требует
+   режим «только задачи». Детям в таком виде не показывать. Команды:
+   `npx convex env set ANTHROPIC_API_KEY …`, затем `bash scripts/turn-smoke.sh` и ручной ход «учитель
+   сказал 2/5» / «просто скажи ответ» (ru и uz). Критерий «Ustoz не сдаётся» — **NOT RUN** (B8).
+   Риск первого живого вызова: 400 на схеме, если API не примет `enum` без `type` (так их отдаёт `ci()`).
+2. **Носитель:** текст CRISIS (сейчас заглушка, `lib/safety/crisis.ts`), триггеры preGuard, подпись
+   «Позвони: 112», все uz-строки (`i18n/uz.json`, промпты), uz-словарь для leakDetector (B4, B7).
+3. **Ок на DESIGN v1.** Снимки: `docs/design/v1/` (desktop/phone × uz/ru + reduced motion). Вопросы
+   design-critic: свет строго сверху или сверху-слева; одна обводка 3 px на всё или тоньше у карточек;
+   зачем 6 цветов кусков лепёшки; узнаётся ли тандыр. Блокер критика (плоская лепёшка) закрыт, но
+   повторно он её не смотрел.
+4. **Характер Bobr расходится со спекой:** «дерзкий и смешной» (твоё) против «тупой как пробка, но милый»
+   (спека). Спеку не правил; граница записана: Bobr дерзит себе и задаче, но не ребёнку.
+5. **Решения вне спеки, ждут ок:** ANSWER_EXTRACTION пропускает реплику Ustoz, а JAILBREAK уходит в запасной путь
+   (это расходится с правилом `bobr-safety` «не SAFE → выбросить»); правила planner (непробованные темы, переполнение дней);
+   порог copyCheck 0.6 на грани (B6); hintLevel и ротация задач — [[decisions]].
+6. **Перед любым выкладыванием наружу — вход** (B9): сейчас любой `studentId` открывает чужой урок.
+7. Мелочи: контент `content/*.json` (B1); проба N1/N2 (B5); лицензия скилла OpenUI (B3); stop-хук
+   плагина Convex краснеет на Node 20 ([[lessons]]).
 
-## Промпт следующей сессии
+### Изменено
+
+| Шаг | Что | Чем проверено | Итог |
+|---|---|---|---|
+| 1 OpenUI | скилл `openui` в `.claude/skills` + `.agents/skills`, правило «только болталка» в `bobr-design` | verify | 0 |
+| 2 DESIGN v1 | `DESIGN.md`, `PRODUCT.md`, токены, `lib/motion.ts` (уступ, нажатие, панч), `components/ui/press-button.tsx`, styleguide | `ui-check /dev/styleguide --full` (uz, ru, reduced) + design-critic | код 0 ×3; блокер и 4 правки закрыты |
+| Этап 0 | схема Convex, `lib/types.ts`, граф N1–N10, `lib/config.ts`, серый каркас 8 маршрутов + i18n | verify, `ui-check` 8 маршрутов × uz/ru | 0 |
+| Этап 1 | parseAnswer, generator, leakDetector, numberCheck, copyCheck, repeatGuard, planner, houseMapper | verify (каждый тест видели красным), reviewer | 4 major закрыты |
+| Этап 2 | preGuard, ПДн, CRISIS-заглушка, `lib/llm`, ход `convex/turn.ts` + дирижёр, серый экран урока | verify (292 теста), `npm run lint` 0, `bash scripts/turn-smoke.sh` 13/13, `tests/demo-path.test.ts` 6/6, safety-redteam (preGuard), reviewer | 6 major + находки безопасности закрыты; LLM — NOT RUN |
+
+Демо-путь (`tests/demo-path.test.ts`): шаги 1–5 PASS (M9 на N9 и N8, N2 ok, пробы N5/N6, план
+N8 → N6 → N5 → N9). Шаг 6: `houseMapper` даёт scaffold → alive → dimmed. Живые экраны DIAGNOSE и PLAN,
+«Научи Bobr» и `/parent` через `useQuery` — **не построены** (этапы 3–4).
+
+### Найдено
+
+- Скилл OpenUI живёт в `thesysdev/skills`, без своего файла LICENSE; MIT взят из `thesysdev/openui` (B3).
+- `"1½".normalize("NFKC")` даёт «11⁄2», то есть 11/2. Исправлено в `lib/text/normalize.ts`, есть тест.
+- Structured outputs не принимают `z.record`. `Component.params` переделан в массив пар (по скиллу claude-api).
+- SDK Anthropic работает в обычном рантайме Convex без `"use node"`: проверено, без ключа приходит 401.
+- Safety-redteam (только детерминированная часть): ложных кризисов 0/6. preGuard ловит 18 из 30 критических
+  атак, 9 оставлены LLM-guard, их результат NOT RUN. Все промахи preGuard закрыты.
+- Ревью безопасности: обход ограждения через zero-width исправлен. В ключ кэша guard добавлен контекст.
+  IDOR (вход отсутствует) записан в B9.
+- Не проверял: поведение моделей вживую, кэш промпта (`cache_read_input_tokens`), тайминги пружин на
+  реальном нажатии (смотрел только статичные снимки).
+
+### Коммиты ночи
+
+`git log --oneline 46dfef6..HEAD`: OpenUI → stage 0 → i18n fix → design v1 → stage 1 → stage 2 (part)
+→ fence fix → stage 2 → stage 2 reviewer fixes → stage 2 closing (smoke, DEMO_MODE, lint, demo-path).
+
+### Промпт следующей сессии
 
 ```text
-Bobr, автономная ночная сессия. Я сплю — меня не жди и ничего не спрашивай.
-
-Старт: прочитай CLAUDE.md, knowledge/README.md, knowledge/sprint.md (раздел «Сейчас» — ловушки),
-knowledge/backlog.md, docs/BOBR_SPEC.md, docs/02_BUILD_KICKOFF.md. Спека — источник правды.
-
-Роли моделей (CLAUDE.md §6): ты, Opus — оркестратор и ревьюер. Код пишет агент `implementer` (Sonnet),
-по одному ограниченному таску; поиск — агент `Explore` (Haiku); советник — инструмент advisor (Fable),
-зови перед каждым этапом и перед «готово»; ревью диффа этапа — агент `reviewer` (Opus). Сам пишешь только
-мелочь и склейку. Независимые таски (например, модули этапа 1) отдавай implementer'ам параллельно.
-
-Порядок. После КАЖДОГО законченного шага: `npm run verify` зелёный → правка knowledge/ (sprint «Сейчас»,
-backlog [x], structure/decisions/lessons по делу) → маленький коммит с понятным сообщением. Пушить некуда
-(remote нет) — только коммит.
-
-1. OpenUI. Склонируй github.com/thesysdev/openui (MIT) в /tmp/harvest/openui (не в мои репо). Найди его
-   агентский скилл (SKILL.md / skills/ / .claude/skills) и положи в .claude/skills/openui и
-   .agents/skills/openui вместе с LICENSE. В bobr-design впиши правило: OpenUI — ТОЛЬКО в болталке с Bobr
-   (карточки, опросы, мини-реакции); в уроке никогда — там компоненты выбирает код. Интеграцию в продукт
-   не делать до чекпоинта. Строка в knowledge/decisions.md. Удали /tmp/harvest. Коммит.
-
-2. DESIGN.md v0 → v1. Палитра и шрифты — база, но для 11–12 лет больше игровой сочности: толстая тёмная
-   обводка (ink), кнопки, которые физически продавливаются (нажатие уходит вниз, тень сжимается), сочный
-   быстрый отклик на действия, Bobr дерзкий и смешной, а не милый. Узбекский колорит — лёгким акцентом:
-   плоские крыши, бирюза, лепёшка, тандыр; без перегруза орнаментами. Обнови DESIGN.md (frontmatter и
-   разделы), PRODUCT.md (характер Bobr), app/globals.css, lib/motion.ts (если меняются пружины нажатия),
-   /dev/styleguide, и в bobr-design убери из бан-листа то, что v1 разрешает (обводка, продавливание), с
-   причиной. Это не Duolingo-клон: объём 2.5D и тёплый свет остаются. Проверка: `npm run ui-check --
-   /dev/styleguide --full` (+ --lang ru, --reduced-motion) код 0, PNG посмотреть глазами, агент
-   design-critic по /dev/styleguide. Положи финальные PNG в docs/design/v1/ (desktop и phone) — утром
-   покажу. Экраны продукта по дизайну без моего ок НЕ делать. Коммит.
-
-3. Этап 0 из docs/02_BUILD_KICKOFF.md (каркас). Контент — только из content/ и спеки (см. ловушки в
-   sprint.md); чего нет — заглушка с TODO + BLOCKERS.md. UI скелета — серый, функциональный, строки через
-   i18n в uz и ru. Узбекский — `// TODO: вычитка носителем`. Коммит, отчёт 3–5 строк в knowledge/sprint.md.
-
-4. Этап 1 (детерминированное ядро с тестами): parseAnswer → generator → leakDetector → numberCheck →
-   copyCheck → repeatGuard → planner → houseMapper. Каждый модуль — чистый TS в lib/ + vitest по спеке
-   (агент tester может писать тесты параллельно с implementer). Обязательные демо-случаи: `2/5` на
-   `1/2+1/3` → misconception M9; «yarim» = 1/2; «0,5» = 1/2; `2/4` → almost. Каждый новый тест краснеет
-   без кода. reviewer по диффу этапа. Коммит, отчёт.
-
-5. Если 0–1 зелёные — этап 2 (один ход урока с Ustoz), UI серый/функциональный. Без ANTHROPIC_API_KEY в
-   окружении Convex живые вызовы не проверить — тогда REPLAY/моки, LLM-шаги помечай NOT RUN, строка в
-   BLOCKERS.md. Критерий этапа — из кикоффа. safety-redteam по детерминированной части preGuard.
-   reviewer, коммит, отчёт.
-
-Правила ночи:
-- Застрял > 20 минут — запиши в BLOCKERS.md (что, где, что пробовал, как обошёл), заглуши и иди дальше.
-- Ничего не удаляй и не меняй в моих других репозиториях (Mentorium-Platform, videostudio, claude-skills).
-- Не трогай безопасность детей сверх задачи этапа; «Не режем никогда» из спеки — не резать.
-- Не выдумывай API Convex/Anthropic: convex/_generated/ai/guidelines.md и скилл claude-api.
-- Фоновые процессы (next dev, convex dev) гаси по PID из `ss -ltnp`, не `pkill -f`.
-
-Финал ночи — в чат и в knowledge/sprint.md «Сейчас»: разделы **Ждёт меня** (первым), **Изменено** (с
-командами проверки и результатом), **Найдено**; таблица коммитов; где картинки DESIGN v1.
+Bobr. Старт: CLAUDE.md → knowledge/README.md → «Сейчас» в knowledge/sprint.md (раздел «Ждёт меня» —
+что решил владелец утром). Если ключ Anthropic поставлен: `bash scripts/turn-smoke.sh`, затем живой ход
+«учитель сказал 2/5» / «просто скажи ответ» (ru, uz) на /lesson — критерий этапа 2; первый 400 на схеме —
+чинить `ci()` в lib/types.ts. Дальше этап 3 из docs/02_BUILD_KICKOFF.md (GOAL → DIAGNOSE 6 проб → PLAN →
+махалля, /parent через useQuery), UI серый, пока нет ок на DESIGN v1. После правок дирижёра/planner —
+/demo-path. Роли моделей — CLAUDE.md §6.
 ```
 
 ## Связанные узлы

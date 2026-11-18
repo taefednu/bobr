@@ -78,7 +78,6 @@ export default defineSchema({
     taughtAt: v.optional(v.number()), // ≥ 7 дней → dimmed
     lastReviewedAt: v.optional(v.number()),
   })
-    .index("by_student", ["studentId"])
     .index("by_student_and_topic", ["studentId", "topic"]),
 
   plans: defineTable({
@@ -98,7 +97,6 @@ export default defineSchema({
     topic: topicId,
     state: houseState,
   })
-    .index("by_student", ["studentId"])
     .index("by_student_and_topic", ["studentId", "topic"]),
 
   // Только маскированный текст (ПДн заменены до записи), хранится 30 дней.

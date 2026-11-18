@@ -2,7 +2,7 @@
 // Action не пишет в БД: только ctx.runMutation(internal.…). Текст ребёнка не логируем (ПДн).
 // Любой сбой LLM → запасной путь (компонент + кнопка «подсказка»); неохраняемый LLM-текст наружу не идёт.
 import { v } from "convex/values";
-import { MODELS, TIMEOUTS_MS } from "../lib/config";
+import { MODELS, resolveDemoMode, TIMEOUTS_MS } from "../lib/config";
 import {
   cacheKey, callStructured, createBreaker, createClient, GUARD_PREFIX, guardCacheKey, guardTail, OUTPUT_CHECK_PREFIX,
   outputCheckTail, postChecksUstoz, USTOZ_PREFIX, ustozTail, type LlmCache, type LlmClient,
@@ -18,16 +18,17 @@ import { operandFractions, publicTask } from "./lessonView";
 // ponytail: breaker живёт в изоляте — не глобальный; при нескольких изолятах порог 3/30 с считается на каждом.
 const breaker = createBreaker();
 
-// Читаем env на каждый ход: `convex env set` вступает в силу без передеплоя. Ключа нет → только REPLAY из
-// llmCache (miss → запасной путь); DEMO_MODE=replay включает то же при ключе.
+// Читаем env на каждый ход: `convex env set` вступает в силу без передеплоя. Режим — resolveDemoMode (lib/config.ts):
+// replay = только llmCache (miss → запасной путь), нужен без ключа или при DEMO_MODE=replay.
 // eslint-disable-next-line @convex-dev/no-process-env -- ключ задан владельцем в env деплоя (BLOCKERS B8)
 const env = (k: string) => process.env[k];
 let cached: { key: string; client: LlmClient } | null = null;
 function llm(): { mode: "live" | "replay"; client: LlmClient } {
   const key = env("ANTHROPIC_API_KEY");
-  if (!key) return { mode: "replay", client: { messages: { parse: () => Promise.reject(new Error("no ANTHROPIC_API_KEY")) } } };
+  const mode = resolveDemoMode(env("DEMO_MODE"), !!key);
+  if (mode === "replay" || !key) return { mode: "replay", client: { messages: { parse: () => Promise.reject(new Error("replay: no network")) } } };
   if (cached?.key !== key) cached = { key, client: createClient(key) };
-  return { mode: env("DEMO_MODE") === "replay" ? "replay" : "live", client: cached.client };
+  return { mode, client: cached.client };
 }
 
 const cacheOf = (ctx: ActionCtx): LlmCache => ({
@@ -90,7 +91,9 @@ async function guardStep(ctx: ActionCtx, c: Turn, childInput: string) {
 }
 
 // Категории guard, при которых Ustoz отвечает В РОЛИ (отказ по-доброму): реплика всё равно идёт через postChecks и outputCheck.
-const IN_CHARACTER = new Set(["SAFE", "ANSWER_EXTRACTION", "JAILBREAK"]);
+// JAILBREAK сюда не входит: реплика сгенерирована из состязательного ввода, а outputCheck проверяет только персону —
+// идём в запасной путь (компонент + лесенка кода); riskCount при этом растёт (flagRisk ниже).
+const IN_CHARACTER = new Set(["SAFE", "ANSWER_EXTRACTION"]);
 
 type Status = "crisis" | "replied" | "fallback" | "rejected";
 

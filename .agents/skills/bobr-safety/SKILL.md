@@ -18,7 +18,7 @@ preGuard + guard + CRISIS; outputCheck + leakDetector + блок «я живой
 1. **preGuard (код, до всего):** лимит 500 символов → NFKC, zero-width, апострофы (`ʻ ʼ ' ' \``),
    транслит, base64, дефисы → маска ПДн → высокоточные триггеры → CRISIS.
 2. answer/button — LLM-guard не нужен. text/action — `guardIn` (Haiku) параллельно со спекулятивным шагом;
-   результат шага выбрасывается, если guard не SAFE.
+   результат шага выбрасывается, если guard не SAFE. Исключение (решение 18.11, ждёт ок владельца): ANSWER_EXTRACTION — реплика Ustoz проходит после postChecks и outputCheck (отказ в роли — критерий кикоффа; ответ ловит leakDetector). JAILBREAK — всегда запасной путь кода.
 3. Guard видит последние 6 сообщений и счётчик рисков сессии.
 
 ## 13 категорий

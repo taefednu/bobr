@@ -10,6 +10,7 @@
 
 import type * as conductor from "../conductor.js";
 import type * as crons from "../crons.js";
+import type * as debug from "../debug.js";
 import type * as lesson from "../lesson.js";
 import type * as lessonView from "../lessonView.js";
 import type * as llmCache from "../llmCache.js";
@@ -24,6 +25,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   conductor: typeof conductor;
   crons: typeof crons;
+  debug: typeof debug;
   lesson: typeof lesson;
   lessonView: typeof lessonView;
   llmCache: typeof llmCache;

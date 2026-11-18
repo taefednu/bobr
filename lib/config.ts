@@ -46,5 +46,7 @@ export const CRISIS = {
   unverifiedNumbers: [] as readonly string[],
 } as const;
 
-export const DEMO_MODE = process.env.DEMO_MODE === "1";
+/** DEMO_MODE (env Convex): `replay` — ответы только из llmCache, даже при ключе (офлайн-демо). Иначе live; без ключа live невозможен → replay. */
+export const resolveDemoMode = (mode: string | undefined, hasKey: boolean): "live" | "replay" =>
+  !hasKey || mode === "replay" ? "replay" : "live";
 export const DEMO_PROBE_ORDER = ["N9", "N8", "N2", "N5", "N6", "N1"] as const;

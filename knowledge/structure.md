@@ -22,7 +22,7 @@ vitest 5, Playwright 1.64.0 (закреплён под скачанный бра
 | `lib/content/index.ts` | загрузка и проверка `content/graph.json` (пререквизиты, ацикличность) | готово |
 | `lib/planner/planner.ts`, `lib/houses/houseMapper.ts` | план (правила вне спеки — в шапке файла), дома + demote | готово |
 | `lib/types.ts` | состояния, уровни, дома, вход хода, zod-схемы спеки (enum без регистра через `ci`) | готово |
-| `lib/config.ts` | модели, таймауты, лимиты, пороги, номера кризиса, DEMO_MODE | готово |
+| `lib/config.ts` | модели, таймауты, лимиты, пороги, номера кризиса, `resolveDemoMode` (env `DEMO_MODE` = live\|replay; без ключа — replay) | готово |
 | `lib/motion.ts` | все пружины и тайминги, `useMotion()` | готово |
 | `lib/utils.ts` | `cn()` | готово |
 | `app/(child)/{goal,diagnose,mahalla,lesson,teach,chat}`, `app/parent`, `app/page.tsx` | экраны, серый каркас без логики (до ок на DESIGN v1) | каркас |
@@ -35,6 +35,8 @@ vitest 5, Playwright 1.64.0 (закреплён под скачанный бра
 | `i18n/uz.json`, `i18n/ru.json` | строки UI каркаса (ключи совпадают; uz — `_todo` вычитка) | каркас |
 | `tests/` | vitest (`content.test.ts` — граф, схемы) | начат |
 | `scripts/verify.sh` | tsc ×2 + vitest + convex --once | готово |
+| `scripts/turn-smoke.sh` | 13 шагов хода урока через `npx convex run` на локальном бэкенде (сам поднимает и гасит convex dev) | готово |
+| `convex/debug.ts` | `internalQuery` `snapshot` для смоука (задача, серия, уровень, дом) — клиенту недоступна | готово |
 | `scripts/ui-check.mjs` | снимки и проверки вёрстки | готово |
 | `scripts/node22.sh` | Node 22 из `.nvmrc` | готово |
 
