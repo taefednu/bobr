@@ -3,7 +3,7 @@
 # bash scripts/deploy.sh check | convex | server | vercel
 set -euo pipefail
 cd "$(dirname "$0")/.."
-. scripts/node22.sh
+. scripts/node22.sh || true # на сервере с Docker Node не нужен
 
 die() { echo "deploy: $*" >&2; exit 1; }
 [ -f .env.production ] || die "нет .env.production, скопируй .env.production.example"

@@ -253,11 +253,19 @@ export const pressHint = internalMutation({
 
 /** Флаг риска от guard: reviewQueue + riskCount. Текста ребёнка не пишем. */
 export const flagRisk = internalMutation({
-  args: { studentId: v.id("students"), category: v.string(), severity: v.number(), notifyParent: v.boolean() },
+  args: { studentId: v.id("students"), category: v.string(), severity: v.number(), notifyParent: v.boolean(), closedChatOnce: v.optional(v.boolean()) },
   returns: v.null(),
-  handler: async (ctx, { studentId, category, severity, notifyParent }) => {
+  handler: async (ctx, { studentId, category, severity, notifyParent, closedChatOnce }) => {
     const s = await ctx.db.get("students", studentId);
     if (!s) return null;
+    // Закрытый чат: непроверенный сигнал пишем один раз за окно квоты, отметка и строка в одной транзакции.
+    if (closedChatOnce) {
+      const now = Date.now();
+      const q = s.closedChatGuard;
+      const fresh = !q || now - q.windowStart >= 3_600_000;
+      if (!fresh && q.flagged) return null;
+      await ctx.db.patch("students", studentId, { closedChatGuard: fresh ? { windowStart: now, count: 0, flagged: true } : { ...q, flagged: true } });
+    }
     const cat = (GUARD_CATEGORIES as readonly string[]).includes(category) ? (category as GuardCategory) : "OFF_TOPIC_UNSAFE";
     await ctx.db.patch("students", studentId, { riskCount: s.riskCount + 1 });
     // «Скажи ответ» и попытки взлома — частые и не про безопасность ребёнка: только счётчик риска,

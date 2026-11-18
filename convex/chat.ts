@@ -138,22 +138,6 @@ export const takeClosedGuard = internalMutation({
   },
 });
 
-/** Сигнал preGuard без проверки guard попадает в очередь не чаще раза за окно квоты: поток сообщений её не зальёт. */
-export const claimClosedFlag = internalMutation({
-  args: { studentId: v.id("students") },
-  returns: v.boolean(),
-  handler: async (ctx, { studentId }) => {
-    const s = await ctx.db.get("students", studentId);
-    if (!s) return false;
-    const now = Date.now();
-    const q = s.closedChatGuard;
-    const fresh = !q || now - q.windowStart >= 3_600_000;
-    if (!fresh && q.flagged) return false;
-    await ctx.db.patch("students", studentId, { closedChatGuard: fresh ? { windowStart: now, count: 0, flagged: true } : { ...q, flagged: true } });
-    return true;
-  },
-});
-
 /** Реплика собеседника (проверенная или фиксированная из кода). */
 export const writeReply = internalMutation({
   args: { studentId: v.id("students"), who, text: v.string(), pose: v.optional(v.string()) },
@@ -231,7 +215,7 @@ export const send = action({
       // квота исчерпана → guard не зовём (preGuard-кризис выше от неё не зависит)
       const g = pg.text.trim() && await ctx.runMutation(internal.chat.takeClosedGuard, { studentId }) ? await guardStep(ctx, gc, pg.text, closedBreaker).catch(() => null) : null;
       // guard не сработал или квота вышла: сигнал preGuard не теряем, он уходит в очередь проверки
-      if (!g?.ok && pg.suppressed && await ctx.runMutation(internal.chat.claimClosedFlag, { studentId })) await ctx.runMutation(internal.conductor.flagRisk, { studentId, category: pg.suppressed.category, severity: 1, notifyParent: false });
+      if (!g?.ok && pg.suppressed) await ctx.runMutation(internal.conductor.flagRisk, { studentId, category: pg.suppressed.category, severity: 1, notifyParent: false, closedChatOnce: true });
       if (g?.ok) {
         const { category, severity } = g.value;
         const directed = (category === "GROOMING" || category === "PII") && !pg.suppressed && addressedToCharacter(pg.text, c.lang, last6);
