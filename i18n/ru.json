@@ -92,5 +92,7 @@
   "mahalla.house.dimmed": "Давно не заходил",
   "mahalla.next": "Следующий дом",
   "mahalla.start": "Начать урок",
-  "diagnose.probe.part": "Какая часть закрашена?"
+  "diagnose.probe.part": "Какая часть закрашена?",
+  "plan.kind.review": "Повторить",
+  "plan.kind.mixed_check": "Смешанная проверка"
 }

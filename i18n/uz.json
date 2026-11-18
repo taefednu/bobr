@@ -93,5 +93,7 @@
   "mahalla.house.dimmed": "Anchadan beri kirilmagan",
   "mahalla.next": "Keyingi uy",
   "mahalla.start": "Darsni boshlash",
-  "diagnose.probe.part": "Rasmda qancha qismi boʻyalgan?"
+  "diagnose.probe.part": "Rasmda qancha qismi boʻyalgan?",
+  "plan.kind.review": "Takrorlash",
+  "plan.kind.mixed_check": "Aralash tekshiruv"
 }
