@@ -18,14 +18,17 @@ export type BobrPostResult = { ok: true; value: BobrLine } | { ok: false; reason
 const cut = (text: string, part: string) => (part ? text.split(part).join(" ") : text);
 // «1 / 5 + 2/5» и «1/5+2/5» — одна запись: иначе выражение не вырежется и его числа сойдут за ответ по частям
 const compact = (s: string) => s.replace(/\s*([/+=])\s*/g, "$1").replace(/\s*,\s*/g, ", ");
-const digits = (s: string) => s.match(/\d+/g) ?? [];
+const digits = (s: string): string[] => s.match(/\d+/g) ?? [];
 
 /** Реплика без выражения и attempt: что осталось, не должно содержать ответ, ни целиком, ни по частям (3 и 5 при 3/5). */
 function leaksAnswer(reply: string, answer: string, ctx: BobrPostCtx): boolean {
   // Bobr пишет LCM как НОК / EKUK (промпт), так что и эти формы — это выражение, а не утечка
   const exprs = [ctx.expression, ctx.expression.replace("LCM", "НОК"), ctx.expression.replace("LCM", "EKUK")];
   const rest = [...exprs, ctx.attempt ?? ""].map(compact).reduce(cut, compact(reply));
-  if (detectLeak(rest, answer, ctx.childNumbers).leaked) return true;
+  // Операнды, названные все и порознь («НОК чисел 12 и 6»), — не ответ, даже если один из них равен ему; лишнее вхождение ловится.
+  const operands = digits(ctx.expression);
+  const named = operands.length > 0 && operands.every((n) => digits(rest).includes(n));
+  if (detectLeak(rest, answer, [...ctx.childNumbers, ...(named ? operands : [])]).leaked) return true;
   const fr = /^(\d+)\/(\d+)$/.exec(answer);
   if (!fr) return false;
   const seen = new Set(digits(rest));

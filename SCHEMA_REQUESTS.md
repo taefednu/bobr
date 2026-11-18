@@ -27,5 +27,7 @@
 
 | Дата | Кто нашёл | Где | Что | Статус |
 |---|---|---|---|---|
+| 18.11 | A-teach | `convex/mahalla.ts:44,60` | **Важно к интеграции.** Из начатой сцены нельзя перейти к другой теме: `canStart: true`, но `startLesson` падает с `cannot start`. Добавить в `from` состояния `TEACH_BOBR`, `BOBR_QUESTION`, `BOBR_ATTEMPT`, `JUDGING`; ход в полёте отбросит `applyVerdict` | открыт |
+| 18.11 | A-teach | `lib/llm/postChecks.ts:16` | «один/одна/одно» считаются числом 1 и гасят обычные реплики («Ещё один вопрос…»). Убрать из `WORDS`, как уже сделано для `bir`; «одна вторая» ловит `detectLeak` | открыт |
 | 18.11 | A-teach | `lib/fractions/leakDetector.ts` | Не ловит «beshdan uch», «oltidan besh», «тройка», «шестёрка»: ответ словами проходит в реплике Bobr и Ustoz | открыт |
 | 18.11 | A-teach | `convex/turn.ts` | Реплика Ustoz считается параллельно guard и пишется в `llmCache` до его вердикта: эхо имени или школы из текста ребёнка может там остаться (по чтению кода, не воспроизведено). В `teach` судья пишет кэш только после SAFE (`lib/bobr/deferredCache.ts`) | открыт |
