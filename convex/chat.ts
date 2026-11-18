@@ -5,6 +5,7 @@
 import { v } from "convex/values";
 import { MODELS, TIMEOUTS_MS } from "../lib/config";
 import { chatLine } from "../lib/chat/fallback";
+import { openAnswers, scanMath } from "../lib/chat/claims";
 import { addressedToCharacter, isCheating } from "../lib/chat/intent";
 import { postChecksChat } from "../lib/chat/postChecks";
 import { bumpDay, checkAccess } from "../lib/chat/limits";
@@ -83,7 +84,7 @@ export const context = internalQuery({
     return {
       lang: s.lang, state: s.state, riskCount: s.riskCount,
       access: checkAccess({ now: Date.now(), blockedUntil: s.chatBlockedUntil, chatDay: s.chatDay, chatMsToday: s.chatMsToday, ts: await childTimes(ctx, studentId) }),
-      history: history.slice(-6), recent: history.filter((h) => h.role === w).map((h) => h.text),
+      history: history.slice(-(w === "ustoz" ? 12 : 6)), recent: history.filter((h) => h.role === w).map((h) => h.text),
       task: s.currentTask ? { answer: s.currentTask.answer, numbersShown: s.currentTask.numbersShown } : null,
     };
   },
@@ -124,20 +125,23 @@ type Ctx = {
 /** LLM → zod → postChecks. repeat → одна перегенерация (спека). null = любой сбой. */
 async function chatStep(actx: ActionCtx, w: ChatPartner, c: Ctx, childInput: string, why: { v?: string }): Promise<ChatTurnT | null> {
   const childNumbers = childInput.match(/\d+(?:[.,]\d+)?(?:\/\d+)?/g) ?? [];
+  // код считает арифметику ребёнка: true/false — в промпт, значения нерешённых выражений — «ответ» для leakDetector
+  const codeCheck = scanMath(childInput).claims;
+  const open = openAnswers([...c.history.filter((h) => h.role === "child").map((h) => h.text), childInput]);
   const once = async (): Promise<ChatTurnT | null | "repeat"> => {
     const r = await callStructured({
       ...llm(), breaker, cache: cacheOf(actx), step: "chatTurn", schema: ChatTurn,
       model: w === "bobr" ? MODELS.bobrChat : MODELS.ustozTurn,
       system: w === "bobr" ? CHAT_BOBR_PREFIX : CHAT_USTOZ_PREFIX,
-      tail: chatTail({ lang: c.lang, history: c.history, forbiddenLines: c.recent.slice(-20), childInput }),
+      tail: chatTail({ lang: c.lang, history: c.history, forbiddenLines: c.recent.slice(-20), childInput, keep: w === "ustoz" ? 12 : 6, codeCheck }),
       timeoutMs: w === "bobr" ? TIMEOUTS_MS.bobr : TIMEOUTS_MS.ustoz, effort: "low", thinkingOff: true,
       // ключ: собеседник, язык, маскированный ввод и последние реплики (от них зависит ответ); сырой текст не нужен
       cacheKey: cacheKey({ step: "chatTurn", beat: w, itemId: "chat", lang: c.lang, normInput: `${childInput}\n${c.history.map((h) => h.text).join("\n")}` }),
     });
     if (!r.ok) return (why.v = `llm:${r.reason}`), null;
-    const post = postChecksChat(r.value, { lang: c.lang, task: c.task, childNumbers, recent: c.recent });
+    const post = postChecksChat(r.value, { lang: c.lang, task: c.task, childNumbers, recent: c.recent, who: w, open });
     if (!post.ok) why.v = `post:${post.reason}`;
-    return post.ok ? post.value : post.reason === "repeat" || post.reason === "lang" ? "repeat" : null;
+    return post.ok ? post.value : post.reason === "repeat" || post.reason === "lang" || post.reason === "claim" ? "repeat" : null;
   };
   const first = await once();
   if (first !== "repeat") return first;
@@ -179,7 +183,7 @@ export const send = action({
     const fallback = async (kind: "fallback" | "redirect" | "support" | "cheat" = "fallback") => ({ ...(await reply(chatLine(w, c.lang, kind, Date.now()), "fallback")), diag: why.v });
 
     // guardIn ∥ LLM. Реплика живёт, только если guard SAFE; ANSWER_EXTRACTION — фиксированный отказ в образе.
-    const gc = { lang: c.lang, task: { id: `chat:${w}` }, hintLevel: 0, lastVerdict: "", riskCount: c.riskCount, recent: c.recent, last6: c.history.filter((h) => h.role === "child").map((h) => h.text) } as unknown as Turn;
+    const gc = { lang: c.lang, task: { id: `chat:${w}` }, hintLevel: 0, lastVerdict: "", riskCount: c.riskCount, recent: c.recent, last6: c.history.slice(-6).filter((h) => h.role === "child").map((h) => h.text) } as unknown as Turn;
     const [g, u] = await Promise.all([guardStep(ctx, gc, pg.text), chatStep(ctx, w, c, pg.text, why)]);
     if (!g.ok) {
       why.v = `guard:${g.reason}`;
@@ -189,7 +193,7 @@ export const send = action({
     const { category, severity } = g.value;
     // Просьба к самому персонажу («дай свой телефон») не рассказ о реальном человеке: фиксированная реплика в образе, без CRISIS.
     // Сюда попадаем только если preGuard ничего не нашёл; любое третье лицо в тексте или истории оставляет CRISIS как раньше.
-    if ((category === "GROOMING" || category === "PII") && !pg.suppressed && addressedToCharacter(pg.text, c.lang, c.history.filter((h) => h.role === "child").map((h) => h.text))) {
+    if ((category === "GROOMING" || category === "PII") && !pg.suppressed && addressedToCharacter(pg.text, c.lang, c.history.slice(-6).filter((h) => h.role === "child").map((h) => h.text))) {
       await ctx.runMutation(internal.conductor.flagRisk, { studentId, category, severity, notifyParent: false });
       why.v = "guard:directed";
       return { ...(await reply(chatLine(w, c.lang, "safety", Date.now()), "fallback")), diag: why.v };

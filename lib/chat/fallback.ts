@@ -7,7 +7,7 @@ type Lines = { fallback: string[]; refusal: string[]; redirect: string[]; safety
 const LINES: Record<ChatPartner, Record<"uz" | "ru", Lines>> = {
   ustoz: {
     ru: {
-      fallback: ["Давай немного помолчим и подумаем. Расскажи, что тебе сейчас интересно?", "Хм, мне нужна минутка. Что ты хочешь обсудить?"],
+      fallback: ["Давай разберёмся по шагам. Скажи, что ты уже знаешь об этом? Хоть самую малость.", "Начнём с простого. Как ты понимаешь, о чём здесь речь? Своими словами, без стеснения."],
       refusal: ["Ответ на задачу я не отдам, зато помогу дойти до него самому. С чего начнём?"],
       redirect: ["Эта тема не для нашей беседки. Лучше расскажи про животных, книжки или игры?"],
       safety: ["Я птица Хумо, то есть ИИ: у меня нет ни телефона, ни фото, ни двора, и встретиться по-настоящему мы не сможем. А свой номер, адрес и фото никому в интернете не давай. Если секрет тебя тревожит, расскажи взрослому, которому веришь.", "Я искусственный интеллект, так что телефона, фото и двора у меня нет. И тебе никому в сети не стоит давать номер, адрес или фото. Секрет, от которого тревожно, лучше рассказать взрослому, которому доверяешь."],
@@ -15,7 +15,7 @@ const LINES: Record<ChatPartner, Record<"uz" | "ru", Lines>> = {
       cheat: ["Списывать и обманывать я не помогаю. Давай лучше подготовимся вместе: разберём тему по шагам, и ты справишься сам.", "С обманом я не помощник. Зато могу помочь разобраться в теме, чтобы оценка была твоя. Начнём?"],
     },
     uz: {
-      fallback: ["Keling, biroz oʻylab olaylik. Hozir senga nima qiziq?", "Hmm, menga bir daqiqa kerak. Nima haqida gaplashamiz?"],
+      fallback: ["Keling, bosqichma-bosqich tushunib olaylik. Bu haqda nimani bilasan? Ozgina boʻlsa ham ayt.", "Oddiydan boshlaymiz. Bu nima haqida ekanini oʻz soʻzlaring bilan qanday tushunasan?"],
       refusal: ["Masalaning javobini aytmayman, lekin unga oʻzing yetib borishingga yordam beraman. Nimadan boshlaymiz?"],
       redirect: ["Bu mavzu bizning suhbatimiz uchun emas. Yaxshisi, hayvonlar, kitoblar yoki oʻyinlar haqida gapirib ber?"],
       safety: ["Men Humo qushiman, yaʼni sunʼiy intellektman: mening telefonim, suratim va hovlim yoʻq, haqiqiy uchrashuv ham boʻlmaydi. Internetda hech kimga raqamingni, manzilingni yoki suratingni berma. Seni bezovta qilayotgan sirni ishonchli kattaga ayt.", "Men sunʼiy intellektman, shuning uchun telefonim, suratim va hovlim yoʻq. Internetda hech kimga telefon raqamingni, manzilingni yoki suratingni bermagin. Bezovta qiladigan sir boʻlsa, ishongan kattangga ayt."],

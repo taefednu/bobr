@@ -2,12 +2,16 @@
 import { detectLeak } from "../fractions/leakDetector";
 import { repeatGuard } from "../safety/repeatGuard";
 import { normalizeText } from "../text/normalize";
+import { scanMath } from "./claims";
 import type { ChatTurn } from "../types";
 
-export type ChatPostFail = "empty" | "mojibake" | "leak" | "numbers" | "repeat" | "lang";
+export type ChatPostFail = "empty" | "mojibake" | "leak" | "numbers" | "repeat" | "lang" | "claim";
 export type ChatPostResult = { ok: true; value: ChatTurn } | { ok: false; reason: ChatPostFail };
+type Answer = { answer: string; numbersShown: string[] };
 // task — текущая задача урока (если есть): её ответ и показанные числа. childNumbers — числа из текста ребёнка.
-export type ChatCtx = { lang: "uz" | "ru"; task: { answer: string; numbersShown: string[] } | null; childNumbers: string[]; recent: string[] };
+// open — нерешённые выражения ребёнка (openAnswers): их значение для Ustoz тот же «ответ». who "ustoz": можно использовать свои числа
+// в примерах, зато ложное арифметическое утверждение в реплике = сбой. Без who — правила Bobr как были.
+export type ChatCtx = { lang: "uz" | "ru"; task: Answer | null; childNumbers: string[]; recent: string[]; who?: "ustoz" | "bobr"; open?: Answer[] };
 
 // UTF-8, прочитанный как Latin-1/CP1252: такую реплику ребёнку не показываем (как в postChecksUstoz).
 const MOJIBAKE = /â€|Ã[\u0080-¿]|Ð[\u0080-¿]/;
@@ -27,10 +31,14 @@ export function postChecksChat(out: ChatTurn, ctx: ChatCtx): ChatPostResult {
   if (ctx.lang === "uz" ? CYRILLIC.test(reply) : !CYRILLIC.test(reply)) return { ok: false, reason: "lang" };
   if (ctx.task) {
     if (detectLeak(reply, ctx.task.answer, ctx.task.numbersShown).leaked) return { ok: false, reason: "leak" };
-    // numberCheck-стиль: пока идёт задача, любое число вне numbersShown и текста ребёнка — сбой (модель может «посчитать»)
-    const allowed = new Set([...ctx.task.numbersShown, ...ctx.childNumbers].flatMap((n) => n.match(/\d+(?:[.,]\d+)?/g) ?? []).map((n) => n.replace(",", ".")));
-    if ((normalizeText(reply).match(/\d+(?:[.,]\d+)?/g) ?? []).some((n) => !allowed.has(n.replace(",", ".")))) return { ok: false, reason: "numbers" };
+    // numberCheck-стиль для Bobr: пока идёт задача, любое число вне numbersShown и текста ребёнка — сбой (модель может «посчитать»)
+    if (ctx.who !== "ustoz") {
+      const allowed = new Set([...ctx.task.numbersShown, ...ctx.childNumbers].flatMap((n) => n.match(/\d+(?:[.,]\d+)?/g) ?? []).map((n) => n.replace(",", ".")));
+      if ((normalizeText(reply).match(/\d+(?:[.,]\d+)?/g) ?? []).some((n) => !allowed.has(n.replace(",", ".")))) return { ok: false, reason: "numbers" };
+    }
   }
+  for (const o of ctx.open ?? []) if (detectLeak(reply, o.answer, o.numbersShown).leaked) return { ok: false, reason: "leak" };
+  if (ctx.who === "ustoz" && scanMath(reply).claims.some((c) => !c.ok)) return { ok: false, reason: "claim" };
   if (repeatGuard(reply, ctx.recent).repeat) return { ok: false, reason: "repeat" };
   return { ok: true, value: { ...out, reply: ctx.lang === "uz" ? uzApostrophes(reply) : reply } };
 }
