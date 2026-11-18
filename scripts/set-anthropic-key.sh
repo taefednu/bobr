@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Ставит ANTHROPIC_API_KEY в окружение локального Convex (actions читают ключ оттуда, не из .env.local).
+# Ключ вводится скрытно и не попадает в историю шелла. Нужен запущенный `npm run dev:convex`.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+. scripts/node22.sh
+if ! (exec 3<>/dev/tcp/127.0.0.1/3210) 2>/dev/null; then
+  echo "Convex не запущен: сначала в другом терминале  npm run dev:convex" >&2; exit 1
+fi
+read -rsp "Вставь ключ Anthropic (sk-ant-…) и нажми Enter: " key; echo
+key="$(printf '%s' "$key" | tr -d '[:space:]')"
+case "$key" in sk-ant-*) ;; *) echo "Это не похоже на ключ Anthropic (должен начинаться с sk-ant-)" >&2; exit 1;; esac
+npx convex env set ANTHROPIC_API_KEY "$key" </dev/null
+npx convex env list </dev/null
