@@ -16,6 +16,7 @@ import type * as debug from "../debug.js";
 import type * as demo from "../demo.js";
 import type * as diagnose from "../diagnose.js";
 import type * as goal from "../goal.js";
+import type * as goalDialog from "../goalDialog.js";
 import type * as home from "../home.js";
 import type * as house from "../house.js";
 import type * as lesson from "../lesson.js";
@@ -36,6 +37,7 @@ import type * as socraticState from "../socraticState.js";
 import type * as socraticTelemetry from "../socraticTelemetry.js";
 import type * as students from "../students.js";
 import type * as teach from "../teach.js";
+import type * as teachView from "../teachView.js";
 import type * as turn from "../turn.js";
 
 import type {
@@ -53,6 +55,7 @@ declare const fullApi: ApiFromModules<{
   demo: typeof demo;
   diagnose: typeof diagnose;
   goal: typeof goal;
+  goalDialog: typeof goalDialog;
   home: typeof home;
   house: typeof house;
   lesson: typeof lesson;
@@ -73,6 +76,7 @@ declare const fullApi: ApiFromModules<{
   socraticTelemetry: typeof socraticTelemetry;
   students: typeof students;
   teach: typeof teach;
+  teachView: typeof teachView;
   turn: typeof turn;
 }>;
 

@@ -3,7 +3,8 @@ import type { FunctionReturnType } from "convex/server";
 import type { api } from "@/convex/_generated/api";
 import type { Key } from "@/lib/i18n";
 
-export type TeachReply = FunctionReturnType<typeof api.teach.explain>;
+// Сцена приходит с сервера (useQuery): реплика, поза, круг и попытка переживают перезагрузку. answer в ней нет.
+export type TeachReply = NonNullable<FunctionReturnType<typeof api.teach.scene>>;
 
 const LINE_KEYS = [
   "teach.copyCheck", "teach.line.entry", "teach.line.question", "teach.line.wrong_rule", "teach.line.solved", "teach.line.give_up",

@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { TeachView } from "@/components/teach/TeachView";
-import type { TeachReply } from "@/components/teach/model";
 import { useGuard } from "@/lib/ui/session";
 
 // Состояния, где сцену можно войти заново (start с solved_self). Всё прочее — обратно в урок.
@@ -18,15 +17,16 @@ export default function Page() {
   const explain = useAction(api.teach.explain);
   const leaveCrisis = useMutation(api.conductor.leaveCrisis);
   const view = useQuery(api.lesson.view, token ? { token } : "skip");
+  const scene = useQuery(api.teach.scene, token ? { token } : "skip"); // undefined — грузится, null — сцены нет
+  const reply = scene ?? null;
 
-  const [reply, setReply] = useState<TeachReply | null>(null);
   const [phase, setPhase] = useState<"starting" | "ready" | "sending">("starting");
-  const [turn, setTurn] = useState(0);
   const [text, setText] = useState("");
   const [retry, setRetry] = useState(false);
   const [entryFailed, setEntryFailed] = useState(false);
   const entering = useRef(false);
 
+  const shownPhase = token && view !== undefined && scene !== undefined ? (reply && phase === "starting" ? "ready" : phase) : "starting";
   const topic = view?.task?.topic ?? null;
   const canEnter = !!view && !view.crisis && view.canTeach && !!topic;
 
@@ -37,10 +37,7 @@ export default function Page() {
     setPhase("starting");
     try {
       const r = await start({ token, topic });
-      if (r.status === "replied") {
-        setReply(r);
-        setTurn((n) => n + 1);
-      } else if (r.status !== "crisis") router.replace("/lesson"); // сцену не войти: урок покажет, что делать
+      if (r.status !== "replied" && r.status !== "crisis") router.replace("/lesson"); // сцену не войти: урок покажет, что делать
     } catch {
       setEntryFailed(true);
     } finally {
@@ -51,31 +48,23 @@ export default function Page() {
 
   // Первый заход и перезагрузка посреди сцены: сцену можно начать заново, иначе — в урок.
   useEffect(() => {
-    if (!token || !view || reply || entering.current || entryFailed || view.crisis) return;
+    if (!token || !view || scene === undefined || reply || entering.current || entryFailed || view.crisis) return;
     if (canEnter) void enter();
     else if (!SCENE.includes(view.state) || !view.canTeach) router.replace("/lesson");
     // eslint-disable-next-line react-hooks/exhaustive-deps -- enter читает те же token/topic
-  }, [token, view, reply, canEnter, entryFailed, router]);
+  }, [token, view, scene, reply, canEnter, entryFailed, router]);
 
   async function send() {
     const value = text.trim();
-    if (!token || !value || phase !== "ready") return;
+    if (!token || !value || shownPhase !== "ready") return;
     setPhase("sending"); // Bobr начинает думать сразу, до ответа сервера
     setRetry(false);
     try {
       const r = await explain({ token, value });
-      if (r.status === "replied") {
-        setReply(r);
-        setTurn((n) => n + 1);
-        setText("");
-      } else if (r.status === "copied") {
-        setReply(r); // «своими словами»: текст остаётся, чтобы переписать
-        setTurn((n) => n + 1);
-      } else if (r.status === "retry") {
-        setReply(r);
-        setTurn((n) => n + 1);
-        setRetry(true);
-      } else if (r.status !== "crisis") setRetry(true); // rejected / stale: текст остаётся, Bobr ждёт
+      // реплика и поза придут через useQuery; здесь только поле ввода
+      if (r.status === "replied") setText("");
+      else if (r.status === "retry") setRetry(true); // copied: «своими словами», текст остаётся, чтобы переписать
+      else if (r.status !== "copied" && r.status !== "crisis") setRetry(true); // rejected / stale: текст остаётся, Bobr ждёт
     } catch {
       setRetry(true);
     } finally {
@@ -86,8 +75,8 @@ export default function Page() {
   return (
     <TeachView
       reply={reply}
-      phase={token && view !== undefined ? phase : "starting"}
-      turn={turn}
+      phase={shownPhase}
+      turn={reply?.turnNo ?? 0}
       text={text}
       onText={setText}
       onSend={() => void send()}
@@ -95,6 +84,7 @@ export default function Page() {
       entryFailed={entryFailed}
       onRetryEntry={() => void enter()}
       onToMahalla={() => router.push("/home")}
+      onBack={() => router.push("/lesson")}
       crisis={view?.crisis ?? null}
       onLeaveCrisis={() => token && void leaveCrisis({ token })}
     />

@@ -10,7 +10,9 @@ vitest 5, Playwright 1.64.0 (закреплён под скачанный бра
 |---|---|---|
 | `convex/schema.ts` | `students` хранит приватную текущую задачу, `lessonSessions` и `taskProgress` хранят идентификаторы урока и счётчики, `attemptRequests` устраняет повторы, `escalationEvents` хранит историю без переписки | готово |
 | `convex/turn.ts` | action `turn`: preGuard → вердикт кода → Ustoz (∥ guardIn для текста) → postChecks → outputCheck → `recordReply`; без ключа — replay → запасной путь | готово, LLM не гонялся |
-| `convex/teach.ts` | сцена «Научи Bobr»: actions `start`, `explain`; preGuard → copyCheck ∥ guardIn ∥ судья → `applyVerdict` (атомарно `taught_bobr`, дом, outbox) → реплика Bobr → postChecks → outputCheck | бэкенд готов, экран вечером |
+| `convex/teach.ts` | сцена «Научи Bobr»: actions `start`, `explain`; preGuard → copyCheck ∥ guardIn ∥ судья → `applyVerdict` (атомарно `taught_bobr`, дом, outbox) → реплика Bobr → postChecks → outputCheck | бэкенд готов |
+| `convex/teachView.ts`, `teach:scene` | сцена живёт на сервере: `students.teachScene` (реплика, поза, beat, turnNo), попытка пересчитывается кодом (`sceneAttempt` в `lib/bobr/attempts.ts`); query отдаёт её без `answer`, судья оценивает ту же попытку | `tests/teachScene.test.ts` |
+| `components/teach/*`, `app/(child)/teach/page.tsx` | экран «Научи Bobr» в языке v3: реплика и круг из `useQuery(teach:scene)`, переживают перезагрузку; шапка, ИИ-строка и «назад» рисует сам экран | снимки `docs/design/v3/teach-scene-*.png` |
 | `lib/judge/`, `lib/bobr/` | судья: чек-листы (заглушка до B1), проверка цитат и вердикт кодом; Bobr: шаги сцены, попытки от кода, postChecks реплики | готово |
 | `convex/conductor.ts` | `submitAttempt` атомарно фиксирует вердикт, лестницу, самостоятельную серию и телеметрию. `submitAnswer` / `pressHint` завершают старую задачу, `recordReply` сверяет номер хода | урок готов |
 | `convex/socraticState.ts`, `convex/socraticTelemetry.ts`, `lib/socratic/` | приватный эталон, проекция помощи для родителя, структурированный выбор вычитанного шаблона | каталог ru/uz ждёт вычитки |
@@ -18,6 +20,7 @@ vitest 5, Playwright 1.64.0 (закреплён под скачанный бра
 | `convex/session.ts` | детская сессия: `childOf`/`childOrNull` (токен → ребёнок), `whoArgs` = `{token}`, `startDemo` (только `DEMO_ALLOW_ANON=1`), `acceptConsent`, `me` (без `studentId`) | готово |
 | `convex/{goal,diagnose,plan,mahalla}.ts` | этап 3 по `docs/specs/API_CHILD.md`: цель, адаптивная диагностика (проба в `currentTask`, варианты в `students.diagnosis`), план (`rebuildPlan` → `plans`), махалля + `startLesson` | готово |
 | `lib/planner/{diagnose,goal}.ts` | `nextProbeTopic` (адаптивный обход графа / script), `probeFor`; `normalizeGoal` | готово |
+| `convex/goalDialog.ts`, `lib/chat/goalLine.ts`, `lib/llm/prompts/goalDialog.ts`, `components/goal/GoalView.tsx` | живая фраза Bobr на /goal (`goalDialog.line`, Haiku): GoalDialog → goalLine (reply only, без цифр, язык, repeat) → outputCheck; любой сбой → `{reply:null}` и `goal.ask` из i18n. Кнопки и intent — код (GOAL_INTENTS), экран не ждёт action. Экран в v3, назад на /start | готово |
 | `convex/llmCache.ts` | internal `get`/`put` — адаптер REPLAY | готово |
 | `convex/{parents,students,linkCode,outbox,parent,parentLogin,botAuth,demo}.ts` | API для бота и Mini App (`docs/specs/API_FOR_BOT.md`): бот — с `BOT_SECRET`, Mini App — `sessionToken` после проверки `initData`; outbox — пуши «научил Bobr» и кризис | готово, живьём с Python не проверено |
 | `lib/telegram/` | `initData.ts` (HMAC Telegram на Web Crypto), `secure.ts`, `texts.ts` (ru/uz тексты пушей) | готово |

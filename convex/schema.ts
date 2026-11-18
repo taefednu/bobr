@@ -70,6 +70,14 @@ export default defineSchema({
     taskInstanceId: v.optional(v.id("taskProgress")),
     interestTheme: v.optional(v.union(v.literal("Nonvoyxona"), v.literal("Football"), v.literal("Minecraft"))),
     lastVerdict: v.optional(v.string()), // "ok" | "almost" | "misconception:M9" | "wrong" | "unparsed"
+    // «Научи Bobr»: что ребёнок видит сейчас. turnNo — ход, породивший попытку. Ответа и задачи тут нет: попытку считает код.
+    teachScene: v.optional(v.object({
+      turnNo: v.number(),
+      beat: v.union(v.literal("entry"), v.literal("question"), v.literal("wrong_rule"), v.literal("solved"), v.literal("give_up")),
+      reply: v.union(v.string(), v.null()),
+      lineKey: v.union(v.string(), v.null()),
+      pose: v.string(),
+    })),
     lastReply: v.optional(v.object({
       turnNo: v.number(),
       reply: v.union(v.string(), v.null()),

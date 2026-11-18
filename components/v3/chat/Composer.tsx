@@ -5,11 +5,16 @@ import { COUNT_FROM, MAX_LEN } from "@/components/chat/model";
 import { V3RoundButton, IconSend } from "@/components/v3";
 import { useT } from "@/lib/i18n";
 
-export function V3Composer({ placeholder, pending, onSend, defaultText = "" }: { placeholder: string; pending: boolean; onSend: (text: string) => void; defaultText?: string }) {
+type Controlled = { value: string; onValue: (v: string) => void };
+
+/** Без `controlled` поле своё и очищается после отправки (чат). С `controlled` текст у родителя и после отправки остаётся (родитель решает, когда очистить: «Научи Bobr» держит текст до принятого ответа). */
+export function V3Composer({ placeholder, pending, onSend, defaultText = "", controlled, disabled }: { placeholder: string; pending: boolean; onSend: (text: string) => void; defaultText?: string; controlled?: Controlled; disabled?: boolean }) {
   const { t } = useT();
-  const [text, setText] = useState(defaultText);
+  const [own, setOwn] = useState(defaultText);
+  const text = controlled ? controlled.value : own;
+  const setText = controlled ? controlled.onValue : setOwn;
   const box = useRef<HTMLTextAreaElement>(null);
-  const canSend = text.trim().length > 0 && !pending;
+  const canSend = text.trim().length > 0 && !pending && !disabled;
 
   // поле растёт до четырёх строк (высота textarea, не макет страницы)
   useEffect(() => {
@@ -22,7 +27,7 @@ export function V3Composer({ placeholder, pending, onSend, defaultText = "" }: {
   function submit() {
     if (!canSend) return;
     onSend(text.trim());
-    setText("");
+    if (!controlled) setText("");
     box.current?.focus(); // на телефоне клавиатура остаётся
   }
   function onKey(e: KeyboardEvent<HTMLTextAreaElement>) {
@@ -51,7 +56,7 @@ export function V3Composer({ placeholder, pending, onSend, defaultText = "" }: {
         className="v3-type-chat block min-h-[46px] min-w-0 flex-1 resize-none bg-transparent py-[11px] outline-none placeholder:text-[color:var(--v3-ink-soft)] placeholder:opacity-80"
         style={{ color: "var(--v3-ink)", outline: "none" }} // кольцо фокуса рисует форма (focus-within), иначе у textarea квадратная рамка
       />
-      <V3RoundButton data-ref="send" type="submit" label={t("chatv3.send")} size={46} disabled={pending}><IconSend size={22} /></V3RoundButton>
+      <V3RoundButton data-ref="send" type="submit" label={t("chatv3.send")} size={46} disabled={pending || disabled}><IconSend size={22} /></V3RoundButton>
       {text.length >= COUNT_FROM && (
         <span className="v3-type-caption absolute -top-6 right-2 tabular-nums" style={{ color: "var(--v3-ink-soft)" }}>
           {t("chat.count").replace("{n}", String(text.length)).replace("{max}", String(MAX_LEN))}

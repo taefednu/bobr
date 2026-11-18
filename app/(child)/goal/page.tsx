@@ -1,24 +1,32 @@
 "use client";
-import { useMutation } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
-import { CharacterSays } from "@/components/child/CharacterSays";
+import { V3Screen } from "@/components/v3";
 import { GoalView } from "@/components/goal/GoalView";
-import { useT } from "@/lib/i18n";
 import { useGuard } from "@/lib/ui/session";
 import type { GoalIntent } from "@/lib/ui/types";
 
 export default function Page() {
-  const { t } = useT();
   const router = useRouter();
   const setGoal = useMutation(api.goal.set);
   const { token, ready } = useGuard(1, 1);
   const [intent, setIntent] = useState<GoalIntent | null>(null);
   const [failed, setFailed] = useState(false);
   const busy = useRef(false);
+  const goalLine = useAction(api.goalDialog.line);
+  const [line, setLine] = useState<string | null>(null);
 
-  if (!ready) return <CharacterSays who="bobr" thinking />;
+  // Живая фраза не блокирует выбор цели: кнопки видны сразу, любой сбой оставляет goal.ask.
+  useEffect(() => {
+    if (!token) return;
+    let alive = true;
+    goalLine({ token }).then((r) => alive && setLine(r.reply), () => undefined);
+    return () => { alive = false; };
+  }, [token, goalLine]);
+
+  if (!ready) return <V3Screen><span /></V3Screen>;
 
   async function save() {
     if (!token || !intent || busy.current) return;
@@ -34,10 +42,5 @@ export default function Page() {
     }
   }
 
-  return (
-    <>
-      <GoalView intent={intent} onPick={setIntent} onContinue={() => void save()} />
-      {failed && <p role="alert" className="text-body text-ink">{t("lesson.error")}</p>}
-    </>
-  );
+  return <GoalView line={line} failed={failed} intent={intent} onPick={setIntent} onContinue={() => void save()} />;
 }

@@ -4,7 +4,7 @@
 import { v } from "convex/values";
 import { MODELS, resolveDemoMode, TIMEOUTS_MS } from "../lib/config";
 import { BEAT_POSE, stepScene, WAITING_STATES, type Beat, type BobrPose } from "../lib/bobr/scene";
-import { entryAttempt, solvedAttempt, wrongRuleAttempt } from "../lib/bobr/attempts";
+import { entryAttempt, sceneAttempt, solvedAttempt, wrongRuleAttempt } from "../lib/bobr/attempts";
 import { deferredPut } from "../lib/bobr/deferredCache";
 import { postChecksBobr } from "../lib/bobr/postChecks";
 import { checklistFor } from "../lib/judge/checklists";
@@ -20,9 +20,10 @@ import { copyCheck, crisisRouting, preGuard } from "../lib/safety";
 import { BobrTurn, GuardResult, Judge, OutputCheck, TOPIC_IDS, type TopicId } from "../lib/types";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { action, internalMutation, internalQuery, type ActionCtx, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { action, internalMutation, internalQuery, query, type ActionCtx, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { operandFractions, publicTask } from "./lessonView";
-import { whoArgs } from "./session";
+import { studentIdOf, whoArgs } from "./session";
+import { defaultScene, teachSceneView, type Scene } from "./teachView";
 import { enqueueTaughtBobr } from "./outbox";
 
 // ── тонкая копия из turn.ts ──
@@ -57,6 +58,7 @@ const attemptV = v.object({
   expression: v.string(),
   misconception: v.union(v.string(), v.null()),
 });
+const sceneStoredV = v.object({ turnNo: v.number(), beat: beatV, reply: v.union(v.string(), v.null()), lineKey: v.union(v.string(), v.null()), pose: v.string() });
 const publicTaskV = v.object({ kind: v.string(), params: v.record(v.string(), v.string()), numbersShown: v.array(v.string()) });
 const demoV = v.object({
   type: v.union(v.literal("pie"), v.literal("strip"), v.literal("line")),
@@ -106,6 +108,7 @@ type SceneCtx = {
   lang: "uz" | "ru"; state: string; currentTopic: string | null; riskCount: number; turnNo: number;
   level: "gap" | "solved_self" | "taught_bobr" | null; rounds: number; bobrLevel: number;
   ustozLines: string[]; bobrLines: string[]; last6: string[];
+  scene: Scene | null;
 };
 type Applied = { state: string; beat: Beat; rounds: number; level: number; attempt: Att | null };
 
@@ -131,6 +134,7 @@ export const context = internalQuery({
     lang, state: v.string(), currentTopic: v.union(v.string(), v.null()), riskCount: v.number(), turnNo: v.number(),
     level: v.union(levelV, v.null()), rounds: v.number(), bobrLevel: v.number(),
     ustozLines: v.array(v.string()), bobrLines: v.array(v.string()), last6: v.array(v.string()),
+    scene: v.union(v.null(), sceneStoredV),
   })),
   handler: async (ctx, { studentId }) => {
     const s = await ctx.db.get("students", studentId);
@@ -144,6 +148,7 @@ export const context = internalQuery({
       ustozLines: last.filter((t) => t.role === "ustoz").slice(0, 6).reverse().map((t) => t.text),
       bobrLines: last.filter((t) => t.role === "bobr").slice(0, 30).map((t) => t.text),
       last6: last.filter((t) => t.role === "child").slice(0, 6).reverse().map((t) => t.text),
+      scene: s.teachScene ?? null,
     };
   },
 });
@@ -157,7 +162,7 @@ export const beginScene = internalMutation({
     const row = await topicRow(ctx, studentId, topic);
     if (!s || s.state === "CRISIS" || row?.level !== "solved_self") return null;
     const turnNo = (s.turnNo ?? 0) + 1;
-    await ctx.db.patch("students", studentId, { state: "TEACH_BOBR", currentTopic: topic, turnNo, lastReply: undefined });
+    await ctx.db.patch("students", studentId, { state: "TEACH_BOBR", currentTopic: topic, turnNo, lastReply: undefined, teachScene: defaultScene("entry", turnNo) });
     await ctx.db.patch("topicStatus", row._id, { bobrQuestionRounds: 0 });
     return turnNo;
   },
@@ -208,19 +213,19 @@ export const applyVerdict = internalMutation({
     if (row?.level !== "solved_self") return null;
 
     if (outcome === "copy" || outcome === "retry") {
-      await ctx.db.patch("students", studentId, { state: "TEACH_BOBR" });
+      await ctx.db.patch("students", studentId, { state: "TEACH_BOBR", teachScene: defaultScene("question", turnNo, outcome === "copy" ? "teach.copyCheck" : undefined) });
       return { state: "TEACH_BOBR", beat: "question", rounds: row.bobrQuestionRounds, level: await taughtCount(ctx, studentId), attempt: entryAttempt(topic) };
     }
 
     // Судья не ответил: наивный вопрос (спека), но круг не сгорает — ребёнок не виноват в сбое.
     if (outcome === "unavailable") {
-      await ctx.db.patch("students", studentId, { state: "BOBR_QUESTION" });
+      await ctx.db.patch("students", studentId, { state: "BOBR_QUESTION", teachScene: defaultScene("question", turnNo) });
       return { state: "BOBR_QUESTION", beat: "question", rounds: row.bobrQuestionRounds, level: await taughtCount(ctx, studentId), attempt: entryAttempt(topic) };
     }
 
     const step = stepScene(row.bobrQuestionRounds, outcome);
     const now = Date.now();
-    await ctx.db.patch("students", studentId, { state: step.state });
+    await ctx.db.patch("students", studentId, { state: step.state, teachScene: defaultScene(step.beat, turnNo) });
     if (step.taught) {
       // одной транзакцией: статус, дом, пуш родителю
       await ctx.db.patch("topicStatus", row._id, { bobrQuestionRounds: step.rounds, level: "taught_bobr", taughtAt: now });
@@ -240,11 +245,15 @@ export const applyVerdict = internalMutation({
 
 /** Реплика Bobr в историю. Только при совпавшем turnNo, иначе false. */
 export const recordBobrLine = internalMutation({
-  args: { studentId: v.id("students"), turnNo: v.number(), reply: v.string() },
+  args: { studentId: v.id("students"), turnNo: v.number(), reply: v.string(), pose: v.optional(v.string()) },
   returns: v.boolean(),
-  handler: async (ctx, { studentId, turnNo, reply }) => {
+  handler: async (ctx, { studentId, turnNo, reply, pose }) => {
     const s = await ctx.db.get("students", studentId);
     if (!s || (s.turnNo ?? 0) !== turnNo) return false;
+    // реплика модели в сцену: после перезагрузке ребёнок видит ту же
+    if (s.teachScene && s.teachScene.turnNo === turnNo) {
+      await ctx.db.patch("students", studentId, { teachScene: { ...s.teachScene, reply, lineKey: null, pose: pose ?? s.teachScene.pose } });
+    }
     await ctx.db.insert("turns", {
       studentId, sessionId: studentId, role: "bobr", kind: "reply", text: reply, state: s.state, ts: Date.now(),
     });
@@ -300,7 +309,7 @@ async function speak(
   if (line === "repeat") line = await once();
   if (line === "repeat") return { reply: null, lineKey: `teach.line.${beat}`, pose: BEAT_POSE[beat] };
   if (!line || !(await outputOk(ctx, d, att.task.id, c.lang, line.reply))) return { reply: null, lineKey: null, pose: BEAT_POSE[beat] };
-  const ok: boolean = await ctx.runMutation(internal.teach.recordBobrLine, { studentId: a.studentId, turnNo: a.turnNo, reply: line.reply });
+  const ok: boolean = await ctx.runMutation(internal.teach.recordBobrLine, { studentId: a.studentId, turnNo: a.turnNo, reply: line.reply, pose: line.pose });
   return ok ? { reply: line.reply, lineKey: null, pose: line.pose } : "stale";
 }
 
@@ -315,6 +324,25 @@ function respond(status: Status, ap: Applied, att: Att | null, line: { reply: st
       : null,
   };
 }
+
+const SCENE_STATES = [...WAITING_STATES, "TOPIC_DONE"];
+
+/** Сцена для useQuery: реплика, поза, круг и попытка с сервера. answer не отдаётся. */
+export const scene = query({
+  args: whoArgs,
+  returns: v.union(v.null(), v.object({
+    state: v.string(), turnNo: v.number(), beat: beatV, reply: v.union(v.string(), v.null()), lineKey: v.union(v.string(), v.null()),
+    pose: v.string(), attempt: v.string(), expression: v.string(), task: publicTaskV, rounds: v.number(), bobrLevel: v.number(),
+    demo: v.union(demoV, v.null()),
+  })),
+  handler: async (ctx, who) => {
+    const studentId = await studentIdOf(ctx, who);
+    const s = studentId && (await ctx.db.get("students", studentId));
+    if (!s?.currentTopic || !s.teachScene || !SCENE_STATES.includes(s.state)) return null; // CRISIS и урок — не сцена
+    const row = await topicRow(ctx, s._id, s.currentTopic);
+    return teachSceneView(s, row?.bobrQuestionRounds ?? 0, await taughtCount(ctx, s._id));
+  },
+});
 
 // ── публичные action ──
 // Вход как у turn: только токен ребёнка (session.resolve).
@@ -361,7 +389,7 @@ async function explainTurn(ctx: ActionCtx, d: Diag, who: { token: string }, valu
   }
   const topic = c.currentTopic as TopicId | null;
   const checklist = topic && (TOPIC_IDS as readonly string[]).includes(topic) ? checklistFor(topic) : null;
-  const entry = checklist && topic ? entryAttempt(topic) : null;
+  const entry = checklist && topic ? sceneAttempt(topic, c.scene) : null; // попытка, которую ребёнок видит сейчас
   if (!topic || !checklist || !entry || c.level !== "solved_self" || !WAITING_STATES.includes(c.state)) return NONE("rejected");
   if (!pg.text.trim()) return NONE("rejected");
 
@@ -379,7 +407,10 @@ async function explainTurn(ctx: ActionCtx, d: Diag, who: { token: string }, valu
       ...llm(), breaker, cache: judgeCache.cache, step: "judge", model: MODELS.judge, schema: Judge, system: JUDGE_PREFIX,
       tail: judgeTail({ lang: c.lang, expression: entry.expression, attempt: entry.attempt, checklist, explanation: pg.text }),
       timeoutMs: TIMEOUTS_MS.judge, effort: "medium", maxTokens: 2048,
-      cacheKey: cacheKey({ step: "judge", beat: "explain", itemId: entry.task.id, lang: c.lang, normInput: pg.text }),
+      cacheKey: cacheKey({
+        step: "judge", beat: "explain", itemId: entry.task.id, lang: c.lang,
+        normInput: c.scene?.beat === "wrong_rule" || c.scene?.beat === "solved" ? `${entry.expression}|${entry.attempt}\n${pg.text}` : pg.text, // та же задача входа — прежний ключ (REPLAY)
+      }),
     });
     // TODO(спека): при partial ещё 2 судьи параллельно
     d.judge = { ok: r.ok, why: r.ok ? undefined : r.reason, ms: r.meta.ms };

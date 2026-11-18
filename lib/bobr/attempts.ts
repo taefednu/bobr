@@ -62,3 +62,10 @@ export function solvedAttempt(topic: TopicId, seed: number): Attempt | null {
   const t = other(topic, seed);
   return t && { task: sceneTask(t), attempt: t.answer, expression: taskExpression(t), misconception: null };
 }
+
+/** Попытка, которую ребёнок видит сейчас: считается из сохранённой сцены (beat + turnNo-seed). Нет сцены — попытка входа. */
+export function sceneAttempt(topic: TopicId, scene: { beat: string; turnNo: number } | null): Attempt | null {
+  if (scene?.beat === "wrong_rule") return wrongRuleAttempt(topic, scene.turnNo);
+  if (scene?.beat === "solved") return solvedAttempt(topic, scene.turnNo);
+  return entryAttempt(topic);
+}
