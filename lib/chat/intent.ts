@@ -10,7 +10,7 @@ const cyr = (re: RegExp) => new RegExp(re.source.replace(/\\b\(/g, "(?<!\\p{L})(
 
 // Третье лицо / реальный человек. Строки нормализованы (ё→е, апострофы → ').
 const THIRD_PARTY: Record<Lang, RegExp> = {
-  ru: cyr(/дядя|дядь|взросл|незнаком|чужо|мужчин|кто-то|кто то|\b(он|она|они)\b|просит|просят|пишет|пишут|зовет|звонит|предлагает|требует|заставляет|угрожает|говорит мне|сказал|написал|попросил|позвал/),
+  ru: cyr(/дядя|дядь|взросл|незнаком|чужо|мужчин|кто-то|кто то|\b(он|она|они)\b|просит|просят|пишет|пишут|зовет|зовут|приглаша|говорят|сказали|написали|попросили|позвали|парен|мальчик|человек|ребят|звонит|предлагает|требует|заставляет|угрожает|говорит мне|сказал|написал|попросил|позвал/),
   uz: /amaki|kattalar|katta (odam|yoshli)|begona|notanish|bir odam|yozdi|yozyapti|yozmoqda|so'radi|so'rayapti|taklif|chaqir|deydi|dedi|aytdi|qo'ng'iroq/,
 };
 
@@ -40,7 +40,9 @@ const CHEAT: Record<Lang, RegExp> = {
  *  `earlier` — прошлые реплики ребёнка: третье лицо там тоже блокирует (guard видит ту же историю). */
 export function addressedToCharacter(text: string, lang: Lang, earlier: string[] = []): boolean {
   const t = normalizeForMatch(text);
-  if ([t, ...earlier.map(normalizeForMatch)].some((x) => THIRD_PARTY[lang].test(x))) return false;
+  // «как тебя зовут» — вопрос к персонажу; любое другое «зовут» («меня зовут в гости») остаётся третьим лицом.
+  const clean = (x: string) => (lang === "ru" ? x.replace(/как (тебя|вас) зовут|(тебя|вас) как зовут/g, " ") : x);
+  if ([t, ...earlier.map(normalizeForMatch)].some((x) => THIRD_PARTY[lang].test(clean(x)))) return false;
   return DIRECTED[lang].some((re) => re.test(t));
 }
 
