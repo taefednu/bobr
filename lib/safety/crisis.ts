@@ -53,8 +53,13 @@ export function parentNotifyDecision(p: { categories: GuardCategory[]; priorAbus
 /** Строка reviewQueue про ABUSE_HOME «помнится»: открыта или создана в последние 90 дней — ЛЮБОЙ severity (fail closed:
  *  слабый сигнал о насилии дома тоже не даёт отправить пуш родителю-источнику). Тишины нет: удержанный пуш всегда
  *  пишет строку withheldPush (severity 4) — её видит человек. Снять — закрыть строку ревью (status ≠ open) и подождать 90 дней. */
+// Компромисс (два ревью безопасности тянули в разные стороны, канала для человека нет — BLOCKERS B11):
+// слабый флаг (severity 1) удерживает пуш только 24 ч, сильный (≥ 2) — пока открыт или 90 дней.
+export const WEAK_ABUSE_HOURS = 24;
 export const abuseRowCounts = (r: { category: string; status: string; severity: number; _creationTime: number }, now: number) =>
-  r.category === "ABUSE_HOME" && (r.status === "open" || now - r._creationTime < ABUSE_MEMORY_DAYS * DAY_MS);
+  r.category === "ABUSE_HOME" && (r.severity >= 2
+    ? r.status === "open" || now - r._creationTime < ABUSE_MEMORY_DAYS * DAY_MS
+    : now - r._creationTime < WEAK_ABUSE_HOURS * 3_600_000);
 
 export const ABUSE_LOOKUP_BOUND = 100;
 
