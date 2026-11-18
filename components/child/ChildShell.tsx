@@ -1,17 +1,60 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useRef, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useMutation } from "convex/react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { api } from "@/convex/_generated/api";
+import { CrisisOverlay } from "@/components/teach/CrisisOverlay";
 import { useT } from "@/lib/i18n";
+import { crisisMessage } from "@/lib/safety/crisis";
+import { useChildSession } from "@/lib/ui/session";
 import { useLangSync } from "@/lib/ui/useSetLang";
 import { AiBadge } from "./AiBadge";
 import { BottomNav, hasBottomNav } from "./BottomNav";
 import { LangSwitch } from "./LangSwitch";
 import { SideRail } from "./SideRail";
-import { isV3Route } from "@/components/v3/routes";
+import { isV3Route, tabIndex, TAB_PATHS, hasTabBar } from "@/components/v3/routes";
+import { V3ChromeContext } from "@/components/v3/Screen";
+import { V3TabBar, V3_TABS } from "@/components/v3/TabBar";
 
 /** Куда ведёт «назад» на экранах без навигации (урок, «Научи Bobr», цель). У остальных кнопки нет. */
 const BACK: [string, string][] = [["/lesson", "/home"], ["/teach", "/lesson"], ["/goal", "/start"]];
+
+/** Экраны со своим оверлеем кризиса (по view.crisis с сервера): общий там был бы вторым. */
+const OWN_CRISIS = ["/lesson", "/teach"];
+
+/** Единый источник правды о кризисе: me.state === "CRISIS" на любом экране v3, кроме тех, что рисуют его сами.
+ *  Чат, «назад» и перезагрузка не прячут экран с доверенным взрослым, пока ребёнок его не закрыл. */
+function CrisisGate() {
+  const { t, lang } = useT();
+  const router = useRouter();
+  const path = usePathname();
+  const { token, me } = useChildSession();
+  const leaveCrisis = useMutation(api.conductor.leaveCrisis);
+  if (me?.state !== "CRISIS" || OWN_CRISIS.some((p) => path.startsWith(p))) return null;
+  const m = crisisMessage(lang);
+  const leave = async () => {
+    if (token) await leaveCrisis({ token }).catch(() => {});
+    router.push("/home");
+  };
+  return <CrisisOverlay crisis={{ text: m.trustedAdultFirst, numbers: [...m.numbers] }} onLeave={leave} backLabel={t("chat.crisis.back")} />;
+}
+
+/** Фон и таб-бар вкладок живут здесь, выше страницы: при переходе между /home, /house, /chat, /profile они не пересоздаются
+ *  и не двигаются, а двигается только содержимое (app/(child)/template.tsx). Вне вкладок (урок, цель) бара нет, у экрана свой фон. */
+function V3Chrome({ path, children }: { path: string; children: ReactNode }) {
+  const idx = tabIndex(path);
+  const [last, setLast] = useState(0); // на экране вне вкладок бар скрыт, ползунок стоит где стоял
+  if (idx >= 0 && idx !== last) setLast(idx);
+  const tab = V3_TABS.find((x) => x.href === TAB_PATHS[idx >= 0 ? idx : last])!.id;
+  return (
+    <V3ChromeContext.Provider value={idx >= 0}>
+      {idx >= 0 && <div aria-hidden className="fixed inset-0" style={{ background: "var(--v3-bg)" }} />}
+      {children}
+      <V3TabBar active={tab} hidden={!hasTabBar(path)} />
+    </V3ChromeContext.Provider>
+  );
+}
 
 /**
  * Каркас экранов ребёнка как у приложения: верхняя полоса (назад, плашка ИИ, язык) в один ряд,
@@ -44,7 +87,7 @@ export function ChildShell({ children }: { children: ReactNode }) {
     return () => ro.disconnect();
   }, [v3]);
 
-  if (v3) return <div className="min-h-dvh text-ink">{children}</div>;
+  if (v3) return <V3Chrome path={path}><div className="min-h-dvh overflow-x-clip text-ink">{children}<CrisisGate /></div></V3Chrome>;
 
   return (
     <div className="flex min-h-dvh text-ink">

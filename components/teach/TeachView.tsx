@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Character, type Emotion } from "@/components/child/Character";
-import { NumberLine } from "@/components/fractions/NumberLine";
+import { V3LessonLine } from "@/components/v3/lesson/parts";
 import { V3Pie } from "@/components/v3/chat/Pie";
 import { Avatar } from "@/components/v3/chat/Bubbles";
 import { V3Composer } from "@/components/v3/chat/Composer";
@@ -117,7 +117,7 @@ export function TeachView(p: TeachViewProps) {
           </div>
         </header>
 
-        <div className="-mx-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-4 pb-4 pt-8">
+        <div className="v3-scroll -mx-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-4 pb-4 pt-8">
           {/* Сцена: Bobr и его решение */}
           <section className="flex flex-col items-center gap-3">
             <Character who="bobr" size={150} emotion={emotion} beat={String(p.turn)} thinking={thinking} talking={talking} lively />
@@ -167,7 +167,7 @@ export function TeachView(p: TeachViewProps) {
               <p className="v3-type-label">{t("teach.demo")}</p>
               <div className="flex flex-wrap items-end justify-center gap-6">
                 {demo.type === "line"
-                  ? <NumberLine values={demoValues} />
+                  ? <V3LessonLine values={demoValues} />
                   : demoValues.map((value, i) => <V3Pie key={i} fraction={value} className="block size-[104px]" />)}
               </div>
             </div>

@@ -1,4 +1,5 @@
 import Fraction from "fraction.js";
+import { sliceAnim } from "@/components/v3/motion";
 import { useT } from "@/lib/i18n";
 
 // Лепёшка из строки дроби ("2/4"), числитель и знаменатель как есть (без сокращения). Закрашенные доли равномерно по кругу.
@@ -22,10 +23,10 @@ export function V3Pie({ fraction, className, dataRef }: { fraction: string; clas
   try { ok = Number.isInteger(n) && Number.isInteger(d) && d >= 2 && d <= 12 && new Fraction(n, d).compare(1) < 0 && n > 0; } catch {}
   if (!ok) return null;
   return (
-    <svg data-ref={dataRef} role="img" aria-label={t("chatv3.pie.aria").replace("{n}", String(n)).replace("{d}", String(d))} viewBox={`0 0 ${2 * R} ${2 * R}`} className={className} style={{ filter: "drop-shadow(0 3px 4px oklch(64% 0.1 60 / 0.2))" }}>
+    <svg data-ref={dataRef} role="img" aria-label={t("chatv3.pie.aria").replace("{n}", String(n)).replace("{d}", String(d))} viewBox={`0 0 ${2 * R} ${2 * R}`} className={className} style={{ filter: "drop-shadow(var(--v3-pie-drop))" }}>
       {Array.from({ length: d }, (_, i) => {
         const on = Math.floor(((i + 1) * n) / d) > Math.floor((i * n) / d);
-        return <path key={i} d={slice(i, d)} fill={on ? "var(--v3-teal)" : OTHER} stroke="var(--v3-card-ustoz)" strokeWidth={GAP} strokeLinejoin="round" />;
+        return <path key={i} d={slice(i, d)} className="v3-viz" style={sliceAnim(i, d, on)} fill={on ? "var(--v3-teal)" : OTHER} stroke="var(--v3-card-ustoz)" strokeWidth={GAP} strokeLinejoin="round" />;
       })}
     </svg>
   );

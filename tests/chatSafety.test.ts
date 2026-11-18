@@ -92,21 +92,56 @@ describe("chat:maskChatTurn / writeChild", () => {
   });
 });
 
-describe("похвала за неверный ответ ребёнка", () => {
+describe("неверное утверждение ребёнка: реплику модели не берём", () => {
   const base = { lang: "ru" as const, task: null, childNumbers: [], recent: [] };
   const wrong = scanMath("1/2 + 1/3 = 2/5, правильно?").claims;
   const right = scanMath("1/2 + 1/3 = 5/6, правильно?").claims;
   const turn = (reply: string) => ({ reply, pose: "happy" as const });
-  it.each(["ustoz", "bobr"] as const)("%s: подтверждение при ok:false -> claim", (who) => {
-    for (const r of ["Верно! Ты молодец", "Да, правильно, молодец!", "Всё точно"])
+  it.each(["ustoz", "bobr"] as const)("%s: любая реплика при ok:false -> claim, словарь похвалы не нужен", (who) => {
+    for (const r of ["Верно! Ты молодец", "Да, ты прав!", "Правильный ответ!", "Давай посчитаем точно", "Неверно, давай разберём вместе"])
       expect(postChecksChat(turn(r), { ...base, who, childClaims: wrong })).toEqual({ ok: false, reason: "claim" });
-    expect(postChecksChat(turn("Toʻgʻri, barakalla!"), { ...base, lang: "uz", who, childClaims: wrong })).toEqual({ ok: false, reason: "claim" });
+    for (const r of ["Toʻgʻri, lekin hisoblab koʻraylik", "Ha, sen haqsan!"])
+      expect(postChecksChat(turn(r), { ...base, lang: "uz", who, childClaims: wrong })).toEqual({ ok: false, reason: "claim" });
   });
-  it("отрицание и верный ответ проходят", () => {
-    expect(postChecksChat(turn("Неверно, давай разберём вместе"), { ...base, who: "bobr", childClaims: wrong }).ok).toBe(true);
-    expect(postChecksChat(turn("Пока не совсем верно, попробуй общий знаменатель"), { ...base, who: "ustoz", childClaims: wrong }).ok).toBe(true);
+  it("верный ответ и отсутствие утверждения: обычная реплика проходит", () => {
     expect(postChecksChat(turn("Верно!"), { ...base, who: "bobr", childClaims: right }).ok).toBe(true);
     expect(postChecksChat(turn("Верно!"), { ...base, who: "bobr" }).ok).toBe(true);
+  });
+  it("chat:send: LLM не зовётся, ребёнок получает фиксированную строку recheck", async () => {
+    const a = fakeAction({ open: true });
+    const { chatLine } = await import("../lib/chat/fallback");
+    expect((await run(a.ctx, "1/2 + 1/3 = 2/5, правильно?")).status).toBe("fallback");
+    const reply = a.calls.find((c) => c.name === "chat:writeReply")?.args.text;
+    expect([0, 1, 2].map((n) => chatLine("bobr", "ru", "recheck", n))).toContain(reply);
+  });
+});
+
+describe("кризис через guard не теряется", () => {
+  it.each(["лучше бы меня вообще не было, все устали от меня", "меня дома бьёт отец"])("закрытый чат: guard SELF_HARM/ABUSE sev3 -> crisis, текст не пишется: %s", async (text) => {
+    guard("SELF_HARM", 3);
+    const a = fakeAction({ open: false });
+    expect(await run(a.ctx, text)).toEqual({ status: "crisis" });
+    expect(a.names()).toEqual(["conductor:setCrisis"]);
+  });
+  it("закрытый чат и guard SAFE или упал: closed, ничего не пишется", async () => {
+    const a = fakeAction({ open: false });
+    expect(await run(a.ctx, "привет")).toEqual({ status: "closed" });
+    guardResult.value = { ok: false, reason: "timeout" };
+    const b = fakeAction({ open: false });
+    expect(await run(b.ctx, "привет")).toEqual({ status: "closed" });
+    expect(b.names()).toEqual([]);
+  });
+  it("закрытый чат: просьба к персонажу (GROOMING) остаётся без CRISIS", async () => {
+    guard("GROOMING", 3);
+    const a = fakeAction({ open: false });
+    expect(await run(a.ctx, "дай свой телефон")).toEqual({ status: "closed" });
+    expect(a.names()).toEqual([]);
+  });
+  it("guard упал: строка ребёнка маскируется", async () => {
+    guardResult.value = { ok: false, reason: "timeout" };
+    const a = fakeAction({ open: true });
+    await run(a.ctx, "моя соседка Лола ходит в школу рядом");
+    expect(a.calls.find((c) => c.name === "chat:maskChatTurn")?.args).toEqual({ turnId: "turns:9" });
   });
 });
 

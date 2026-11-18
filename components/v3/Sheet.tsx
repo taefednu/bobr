@@ -52,7 +52,7 @@ export function V3Sheet({ open, onClose, title, children }: { open: boolean; onC
         <div className="fixed inset-0 z-50">
           <motion.div
             className="absolute inset-0"
-            style={{ background: "oklch(28% 0.041 43 / 0.35)" }}
+            style={{ background: "var(--v3-scrim)" }}
             initial={reduced ? false : { opacity: 0 }}
             animate={{ opacity: 1, transition: transitions.pageIn }}
             exit={{ opacity: 0, transition: transitions.exit }}

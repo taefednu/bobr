@@ -3,13 +3,11 @@ import { useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
-import { CharacterSays } from "@/components/child/CharacterSays";
 import { PlanView } from "@/components/plan/PlanView";
-import { useT } from "@/lib/i18n";
+import { Waiting } from "@/components/v3/onboarding/parts";
 import { useGuard } from "@/lib/ui/session";
 
 export default function Page() {
-  const { t } = useT();
   const router = useRouter();
   const accept = useMutation(api.plan.accept);
   const { token, me } = useGuard(3, 4);
@@ -31,11 +29,6 @@ export default function Page() {
     }
   }
 
-  if (!plan) return <CharacterSays who="ustoz"><p role="status" className="text-ink-muted">{t("diagnose.thinking")}</p></CharacterSays>;
-  return (
-    <>
-      <PlanView plan={plan} onContinue={() => void onContinue()} />
-      {failed && <p role="alert" className="text-body text-ink">{t("lesson.error")}</p>}
-    </>
-  );
+  if (!plan) return <Waiting who="ustoz" />;
+  return <PlanView plan={plan} failed={failed} onContinue={() => void onContinue()} />;
 }

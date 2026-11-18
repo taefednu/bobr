@@ -22,6 +22,26 @@ export function operandFractions(p: Record<string, string>): string[] {
   return [];
 }
 
+/** Рисунок-условие задачи вида picture (текст ссылается на «картинку»). Это данные условия, они и так в params.
+ *  Отдаём геометрию (k закрашено из n), а не строку-дробь: в useQuery строки с ответом задачи быть не должно.
+ *  Клиент рисует без числовой подписи. Подсказкой не является и от реплики не зависит. */
+export type TaskPicture = { type: "pie" | "strip" | "line"; cells: { k: number; n: number }[] };
+export function taskPicture(t: Pick<Task, "topic" | "kind" | "params">): TaskPicture | null {
+  if (t.kind !== "picture") return null;
+  const p = t.params;
+  const c = (k: string, n: string) => ({ k: Number(k), n: Number(n) });
+  switch (t.topic) {
+    case "N2": return p.num && p.den ? { type: "pie", cells: [c(p.num, p.den)] } : null;
+    case "N3": return p.num && p.den ? { type: "line", cells: [c(p.num, p.den)] } : null;
+    case "N4": return p.p && p.q ? { type: "pie", cells: [c("1", p.p), c("1", p.q)] } : null;
+    case "N5": return p.num && p.den ? { type: "strip", cells: [c(p.num, p.den)] } : null;
+    case "N6": return p.a && p.b ? { type: "line", cells: [c(p.a, "1"), c(p.b, "1")] } : null; // бусины на a и b, кратные не отмечены
+    case "N8": return p.a && p.c && p.den ? { type: "strip", cells: [c(p.a, p.den), c(p.c, p.den)] } : null;
+    case "N9": return p.a && p.b && p.c && p.d ? { type: "pie", cells: [c(p.a, p.b), c(p.c, p.d)] } : null;
+    default: return null;
+  }
+}
+
 // Состояния урока и сцены «Научи Bobr» (из них сцену можно войти заново: перезагрузка посреди сцены).
 const TEACH_ENTRY_STATES = ["LESSON_SOLVE", "TOPIC_DONE", "TEACH_BOBR", "BOBR_QUESTION", "BOBR_ATTEMPT", "JUDGING"];
 
@@ -40,6 +60,7 @@ export function lessonView(s: Doc<"students">, progress: Doc<"taskProgress"> | n
     socratic: publicProgress(progress, s),
     canTeach: canTeachFrom(s, topicLevel),
     task: s.currentTask && s.currentTask.kind !== "mcq" ? publicTask(s.currentTask) : null, // проба диагностики идёт только через diagnose:view
+    picture: s.currentTask && s.currentTask.kind !== "mcq" ? taskPicture(s.currentTask) : null,
     reply: s.lastReply
       ? { text: s.lastReply.reply, component: s.lastReply.component, hintButton: s.lastReply.hintButton }
       : null,
@@ -64,6 +85,7 @@ export const viewValidator = v.union(v.null(), v.object({
   task: v.union(v.null(), v.object({
     topic: v.string(), kind: v.string(), params: v.record(v.string(), v.string()), numbersShown: v.array(v.string()),
   })),
+  picture: v.union(v.null(), v.object({ type: v.union(v.literal("pie"), v.literal("strip"), v.literal("line")), cells: v.array(v.object({ k: v.number(), n: v.number() })) })),
   reply: v.union(v.null(), v.object({
     text: v.union(v.string(), v.null()),
     component: v.union(v.null(), v.object({

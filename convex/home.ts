@@ -3,7 +3,7 @@ import { v } from "convex/values";
 import { graph } from "../lib/content";
 import { pickTeach, planProgress as progressOf } from "../lib/home/progress";
 import { query } from "./_generated/server";
-import { GENERATED, planProgress } from "./mahalla";
+import { GENERATED, houseTopicsOf, planProgress } from "./mahalla";
 import { childOrNull } from "./session";
 
 export const view = query({
@@ -23,7 +23,7 @@ export const view = query({
       next: next ? { topic: next, title: graph.topics.find((t) => t.id === next)?.title[child.lang] ?? next, percent } : null,
       taught: rows.filter((r) => r.level === "taught_bobr").length,
       plan: { done, total },
-      teachTopic: pickTeach(rows, order, (t) => GENERATED.has(t)),
+      teachTopic: pickTeach(rows, houseTopicsOf(order), (t) => GENERATED.has(t)),
     };
   },
 });

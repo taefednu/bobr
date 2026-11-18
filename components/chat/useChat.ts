@@ -11,7 +11,7 @@ export function useChat(token: string | null, who: Partner) {
   const data = useQuery(api.chat.view, token ? { token, who } : "skip");
   const send = useAction(api.chat.send);
   const [op, setOp] = useState<Op | null>(null);
-  const [outcome, setOutcome] = useState<{ who: Partner; notice: Notice | null; crisis: boolean } | null>(null);
+  const [outcome, setOutcome] = useState<{ who: Partner; notice: Notice | null } | null>(null);
   const busy = useRef(false);
   const count = useRef(0);
   count.current = data?.messages.length ?? 0;
@@ -25,9 +25,9 @@ export function useChat(token: string | null, who: Partner) {
       setOp({ who, text, base: count.current });
       try {
         const { status } = await send({ token, who, text });
-        setOutcome({ who, crisis: status === "crisis", notice: status === "fallback" || status === "rejected" ? status : null });
+        setOutcome({ who, notice: status === "fallback" || status === "rejected" ? status : null });
       } catch {
-        setOutcome({ who, crisis: false, notice: "error" });
+        setOutcome({ who, notice: "error" });
       } finally {
         busy.current = false;
         setOp(null);
@@ -43,7 +43,6 @@ export function useChat(token: string | null, who: Partner) {
     // пока сервер не вернул сообщение ребёнка, показываем его сами
     optimistic: mine && count.current <= mine.base ? mine.text : null,
     notice: outcome?.who === who ? outcome.notice : null,
-    crisis: outcome?.crisis ?? false,
     submit,
   };
 }

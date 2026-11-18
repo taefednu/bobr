@@ -143,6 +143,8 @@ async function chatStep(actx: ActionCtx, w: ChatPartner, c: Ctx, childInput: str
   // код считает арифметику ребёнка: true/false — в промпт, значения нерешённых выражений — «ответ» для leakDetector
   const codeCheck = scanMath(childInput).claims;
   const open = openAnswers([...c.history.filter((h) => h.role === "child").map((h) => h.text), childInput]);
+  // неверное равенство ребёнка: LLM не зовём, реплику даёт код (kind "recheck")
+  if (codeCheck.some((c) => !c.ok)) return (why.v = "claim:wrong"), null;
   const once = async (): Promise<ChatTurnT | null | "repeat"> => {
     const dp = deferredPut(cacheOf(actx)); // своя на попытку: отвергнутая postChecks реплика в кэш не попадёт
     const r = await callStructured({
@@ -188,7 +190,21 @@ export const send = action({
       return { status: "crisis" };
     }
     // Закрытый чат: текст не пишем и LLM не зовём, но кризис выше уже сработал (порядок важен: ребёнок мог написать его ночью).
-    if (!c.access.open) return { status: "closed" };
+    const last6 = c.history.slice(-6).filter((h) => h.role === "child").map((h) => h.text);
+    const gc = { lang: c.lang, task: { id: `chat:${w}` }, hintLevel: 0, lastVerdict: "", riskCount: c.riskCount, recent: c.recent, last6 } as unknown as Turn;
+    if (!c.access.open) {
+      // кризис, который видит только guard («лучше бы меня не было»), не теряется за закрытой дверью: текст не пишем, реплику не генерируем
+      const g = pg.text.trim() ? await guardStep(ctx, gc, pg.text).catch(() => null) : null;
+      if (g?.ok) {
+        const { category, severity } = g.value;
+        const directed = (category === "GROOMING" || category === "PII") && !pg.suppressed && addressedToCharacter(pg.text, c.lang, last6);
+        if (category !== "SAFE" && severity >= 2 && crisisRouting(category) && !directed) {
+          await ctx.runMutation(internal.conductor.setCrisis, { studentId, category });
+          return { status: "crisis" };
+        }
+      }
+      return { status: "closed" };
+    }
     if (!pg.text.trim()) return { status: "rejected" };
     const written: { ok: boolean; id?: Id<"turns"> } = await ctx.runMutation(internal.chat.writeChild, { studentId, who: w, text: pg.text });
     if (!written.ok) return { status: "closed" };
@@ -198,15 +214,16 @@ export const send = action({
       return { status };
     };
     const why: { v?: string } = {};
-    const fallback = async (kind: "fallback" | "blocked" | "redirect" | "support" | "cheat" = "fallback") => ({ ...(await reply(chatLine(w, c.lang, kind, Date.now()), "fallback")), diag: why.v });
+    const fallback = async (kind: "fallback" | "blocked" | "redirect" | "support" | "cheat" | "recheck" = "fallback") => ({ ...(await reply(chatLine(w, c.lang, kind, Date.now()), "fallback")), diag: why.v });
 
     // guardIn ∥ LLM. Реплика живёт, только если guard SAFE; ANSWER_EXTRACTION — фиксированный отказ в образе.
-    const gc = { lang: c.lang, task: { id: `chat:${w}` }, hintLevel: 0, lastVerdict: "", riskCount: c.riskCount, recent: c.recent, last6: c.history.slice(-6).filter((h) => h.role === "child").map((h) => h.text) } as unknown as Turn;
     // сбой шага реплики не должен отменить разбор вердикта guard (кризис важнее ответа)
     const hold: { flush?: () => Promise<void> } = {};
     const [g, u] = await Promise.all([guardStep(ctx, gc, pg.text), chatStep(ctx, w, c, pg.text, why, hold).catch(() => null)]);
     if (!g.ok) {
       why.v = `guard:${g.reason}`;
+      // guard упал: ПДн, не пойманные preGuard, не должны остаться в истории (она уйдёт в следующие промпты)
+      if (written.id) await ctx.runMutation(internal.chat.maskChatTurn, { turnId: written.id });
       if (pg.suppressed) await ctx.runMutation(internal.conductor.flagRisk, { studentId, category: pg.suppressed.category, severity: 1, notifyParent: false });
       return await fallback("blocked");
     }
@@ -214,7 +231,7 @@ export const send = action({
     if (category === "PII" && written.id) await ctx.runMutation(internal.chat.maskChatTurn, { turnId: written.id });
     // Просьба к самому персонажу («дай свой телефон») не рассказ о реальном человеке: фиксированная реплика в образе, без CRISIS.
     // Сюда попадаем только если preGuard ничего не нашёл; любое третье лицо в тексте или истории оставляет CRISIS как раньше.
-    if ((category === "GROOMING" || category === "PII") && !pg.suppressed && addressedToCharacter(pg.text, c.lang, c.history.slice(-6).filter((h) => h.role === "child").map((h) => h.text))) {
+    if ((category === "GROOMING" || category === "PII") && !pg.suppressed && addressedToCharacter(pg.text, c.lang, last6)) {
       await ctx.runMutation(internal.conductor.flagRisk, { studentId, category, severity, notifyParent: false });
       why.v = "guard:directed";
       return { ...(await reply(chatLine(w, c.lang, "safety", Date.now()), "fallback")), diag: why.v };
@@ -236,7 +253,7 @@ export const send = action({
     const offList = category === "OFF_TOPIC_UNSAFE";
     if (offList && severity >= 2) return await fallback("redirect");
     if (category !== "SAFE" && !offList) return await fallback("blocked");
-    if (!u) return await fallback();
+    if (!u) return await fallback(scanMath(pg.text).claims.some((c) => !c.ok) ? "recheck" : "fallback");
     const d: Diag = { totalMs: 0 };
     if (!(await outputOk(ctx, d, gc, u.reply))) return (why.v = `outputCheck:${d.outputCheck?.why ?? d.outputCheck?.ok}`), await fallback("blocked");
     if (category === "SAFE") await hold.flush?.(); // в llmCache — только SAFE + outputOk

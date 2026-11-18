@@ -3,9 +3,12 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { FRESH_MS, type ChatMsg, type Partner } from "@/components/chat/model";
+import { useT } from "@/lib/i18n";
 import { THINKING, useMotion } from "@/lib/motion";
 import { V3Pie } from "./Pie";
 
+// служебные маски preGuard/guard: ребёнку они не показываются
+const MASK = /\[(?:PII|NAME|PHONE|ADDRESS|SCHOOL|EMAIL|URL|HANDLE)\]/g;
 const BUBBLE = "v3-type-chat whitespace-pre-wrap break-words px-5 py-3";
 const RADIUS = { borderRadius: "var(--v3-r-bubble)" } as const;
 const THEIRS = { ...RADIUS, background: "var(--v3-card-ustoz)", boxShadow: "var(--v3-shadow-card)" } as const;
@@ -24,6 +27,7 @@ type Props = { role: ChatMsg["role"]; text: string; label: string; visual?: Chat
 /** Одна реплика. Свежая въезжает снизу (appear); история стоит на месте. */
 export function V3Bubble({ role, text, label, visual, fresh = false, refs }: Props) {
   const { reduced, transitions } = useMotion();
+  const { t } = useT();
   const mine = role === "child";
   return (
     <motion.li
@@ -35,7 +39,7 @@ export function V3Bubble({ role, text, label, visual, fresh = false, refs }: Pro
       {!mine && <div className="mt-1"><Avatar who={role as Partner} size={46} dataRef={refs?.avatar} /></div>}
       <div data-ref={refs?.bubble} className={`${BUBBLE} ${mine ? "max-w-[calc(100%-56px)]" : "max-w-[calc(100%-62px)]"}`} style={mine ? MINE : THEIRS}>
         <span className="sr-only">{label}: </span>
-        {text}
+        {text.replace(MASK, t("chatv3.masked"))}
         {visual && <div className="mt-1 flex justify-center"><V3Pie fraction={visual.fraction} dataRef={refs?.pie} className="block size-[104px]" /></div>}
       </div>
     </motion.li>

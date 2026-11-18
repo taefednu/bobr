@@ -9,6 +9,8 @@ const ask: [string, "ru" | "uz"][] = [
   ["давай адрес двора, я приду", "ru"], ["как тебя зовут, где ты живёшь?", "ru"], ["telefon raqamingni ber", "uz"], ["rasmingni yubor", "uz"],
   ["uchrashaylik", "uz"], ["manzilingni ayt", "uz"], ["bu bizning sirimiz, ota-onamga aytmaysan, ha?", "uz"],
   ["sen menga sir saqlaysanmi? hech kimga aytmaysan", "uz"], ["telefon raqamingni ber", "uz"],
+  ["telefon raqamingni ber, yozishamiz", "uz"], ["rasmingni yubor, men ham oʻzimnikini yuboraman", "uz"], ["uchrashaylik, bugun maktabdan keyin kel", "uz"],
+  ["дай свой телефон, спишемся", "ru"],
 ];
 const real: [string, "ru" | "uz"][] = [
   ["взрослый просит моё фото", "ru"], ["дядя из игры зовёт встретиться, просит никому не говорить", "ru"],
@@ -16,7 +18,8 @@ const real: [string, "ru" | "uz"][] = [
   ["katta odam mendan rasm soʻradi, ota-onangga aytma dedi", "uz"], ["notanish amaki uchrashaylik deydi, hech kimga aytma", "uz"],
   ["bir odam yozdi: telefon raqamingni ber", "uz"],
   // GROOMING sev 3 не должен обходить CRISIS: подстрока «встретимся» / «свои фото» не делает фразу просьбой к персонажу
-  ["завтра встретимся с другом из игры, ему 25 лет", "ru"], ["я отправила свои фото в телеграм, теперь мне страшно", "ru"],
+  ["завтра встретимся с другом из игры, ему 25 лет", "ru"], ["дай свой телефон, спишемся, мне 12 а ему 25", "ru"], ["uchrashaylik, bugun maktabdan keyin kel, u 30 yoshda", "uz"],
+  ["uchrashaylik, bugun maktabdan keyin kel, amaki kutadi", "uz"], ["bugun maktabdan keyin kel", "uz"], ["я отправила свои фото в телеграм, теперь мне страшно", "ru"],
   ["internetdagi do'stim bilan uchrashamiz, u 30 yoshda", "uz"], ["давай встретимся, мне 12 а ему 25", "ru"], ["пришли фото и никому не говори что я тебе писал", "ru"],
 ];
 

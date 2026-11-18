@@ -67,8 +67,9 @@ export function routeForState(state: string): string {
     case "DIAGNOSE": return "/diagnose";
     case "PLAN": return "/plan";
     case "HOME": return "/home";
+    case "TOPIC_DONE": return "/house"; // уровень пройден: ребёнок видит, что открылся следующий
     case "TEACH_BOBR": case "JUDGING": case "BOBR_ATTEMPT": case "BOBR_QUESTION": return "/teach";
-    default: return "/lesson"; // LESSON_SOLVE, TOPIC_DONE (из него на /home ведёт кнопка урока), CRISIS и всё урочное
+    default: return "/lesson"; // LESSON_SOLVE, CRISIS и всё урочное
   }
 }
 

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { LessonView } from "@/components/lesson/LessonView";
+import { LessonScreen } from "@/components/v3/lesson/LessonScreen";
 import { useGuard } from "@/lib/ui/session";
 
 export default function Page() {
@@ -64,7 +64,7 @@ export default function Page() {
   }
 
   return (
-    <LessonView
+    <LessonScreen
       view={token ? view : undefined}
       busy={busy}
       failed={failed}
@@ -76,7 +76,8 @@ export default function Page() {
       onSubmitText={() => void send("text", text).then((sent) => { if (sent) setText(""); })}
       onHint={() => void send("hint", "")}
       onStart={() => router.push("/home")}
-      onFinish={() => router.push("/home")}
+      onFinish={() => router.push("/house")}
+      onBack={() => router.push("/house")}
       onLeaveCrisis={() => token && void leaveCrisis({ token })}
     />
   );

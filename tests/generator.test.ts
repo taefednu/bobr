@@ -4,7 +4,7 @@ import { DEMO_PROBES, generateTask, mcqOptions, type GenKind } from "../lib/frac
 import { checkAnswer } from "../lib/fractions/parseAnswer";
 import type { TopicId } from "../lib/types";
 
-const TOPICS: TopicId[] = ["N2", "N5", "N6", "N8", "N9"];
+const TOPICS: TopicId[] = ["N2", "N3", "N4", "N5", "N6", "N8", "N9"];
 const KINDS: GenKind[] = ["picture", "word", "missing"];
 const SEEDS = 1000;
 const eq = (a: string, b: string) => new Fraction(a).equals(new Fraction(b));
@@ -30,7 +30,7 @@ describe("generateTask: свойства", () => {
           // ответ несократим (строка = toFraction)
           expect(t.answer).toBe(new Fraction(t.answer).toFraction());
           // знаменатели операндов 2–12
-          for (const k of topic === "N9" ? ["b", "d"] : ["den", "b", "d", "toDen"]) { // N9 missing: toDen = НОК, может быть >12
+          for (const k of topic === "N9" ? ["b", "d"] : ["den", "b", "d", "toDen", "p", "q"]) { // N9 missing: toDen = НОК, может быть >12
             if (t.params[k]) expect(+t.params[k]).toBeGreaterThanOrEqual(2), expect(+t.params[k]).toBeLessThanOrEqual(12);
           }
           if (topic === "N6") expect(t.requireReduced).toBe(false);
@@ -76,6 +76,26 @@ describe("generateTask: свойства", () => {
   it("N5 1/2 = ?/6: 3/6 верно", () => {
     const t = generateTask("N5", "missing", 1);
     expect(checkAnswer(`${t.answer}/${t.params.toDen}`, t).status).toBe("ok");
+  });
+
+  it("N4: больше та единичная дробь, у которой знаменатель меньше; missing — этот знаменатель", () => {
+    for (let seed = 0; seed < 200; seed++) {
+      const { p, q } = generateTask("N4", "word", seed).params;
+      expect(p).not.toBe(q);
+      expect(generateTask("N4", "word", seed).answer).toBe(`1/${Math.min(+p, +q)}`);
+      expect(generateTask("N4", "picture", seed).answer).toBe(`1/${Math.min(+p, +q)}`);
+      const m = generateTask("N4", "missing", seed);
+      expect(m.answer).toBe(String(Math.min(+m.params.p, +m.params.q)));
+      expect(checkAnswer(m.answer, m).status).toBe("ok");
+    }
+  });
+
+  it("N3: k/n несократима, точка внутри отрезка 0..1", () => {
+    for (let seed = 0; seed < 200; seed++) {
+      const t = generateTask("N3", "word", seed);
+      expect(+t.params.num).toBeLessThan(+t.params.den);
+      expect(t.answer).toBe(`${t.params.num}/${t.params.den}`);
+    }
   });
 
   it("неподдержанная тема — понятная ошибка", () => {

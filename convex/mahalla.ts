@@ -1,9 +1,10 @@
 // Махалля (карта домов) и старт урока по теме. Состояние домов — из таблицы houses, Date.now() в query нет.
 import { v } from "convex/values";
 import { graph } from "../lib/content";
+import { LESSON } from "../lib/config";
 import { generateTask } from "../lib/fractions";
 import type { TopicId } from "../lib/types";
-import { pickNext } from "../lib/home/progress";
+import { houseTopics, pickNext, sessionStartPatch } from "../lib/home/progress";
 import type { Id } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import { childOf, childOrNull } from "./session";
@@ -27,6 +28,9 @@ export async function planProgress(ctx: QueryCtx, studentId: Id<"students">) {
   const level = new Map(rows.map((r) => [r.topic as string, r.level as string]));
   return { rows, plan, order, level, next: pickNext(order, (t) => level.get(t), (t) => GENERATED.has(t)) };
 }
+
+/** Темы, которые показывает дом (до 6) и которые одни разрешает mahalla:startLesson. */
+export const houseTopicsOf = (order: readonly string[]) => houseTopics(order, graph.topics, (t) => GENERATED.has(t));
 
 export const view = query({
   args: { token: v.string() },
@@ -60,28 +64,27 @@ export const view = query({
   },
 });
 
-/** HOME → LESSON_SOLVE по теме из плана. Задача без seed, как в startDemoLesson. */
+/** HOME → LESSON_SOLVE по теме, которую показывает дом (houseTopicsOf). Задача без seed, как в startDemoLesson. */
 export const startLesson = mutation({
   args: { token: v.string(), topic: v.string() },
   returns: v.null(),
   handler: async (ctx, { token, topic }) => {
     const child = await childOf(ctx, token);
     const id = graph.topics.find((t) => t.id === topic)?.id as TopicId | undefined; // topic с клиента — только из графа
-    const plan = await ctx.db.query("plans").withIndex("by_student", (q) => q.eq("studentId", child._id)).order("desc").first();
     // Из махалли можно начать тему и после урока или брошенной сцены «Научи Bobr» (в HOME сами не возвращаются); из CRISIS и до плана — нельзя.
     const from = (["HOME", "LESSON_SOLVE", "TOPIC_DONE", "TEACH_BOBR", "BOBR_QUESTION", "BOBR_ATTEMPT", "JUDGING"] as string[]).includes(child.state);
-    if (!from || !id || !GENERATED.has(id) || !plan?.order?.includes(id)) throw new Error("cannot start");
+    if (!from || !id || !houseTopicsOf((await planProgress(ctx, child._id)).order).includes(id)) throw new Error("cannot start");
     // Re-entering an active lesson (including another device) cannot erase its ladder.
     if (child.state === "LESSON_SOLVE" && child.currentTask && child.currentTopic === id) return null;
     // Seed зависит от номера сессии темы (101, 201, …): повторная сессия не выдаёт уже решённые задачи. Дальше conductor: seed + 1.
     const earlier = await ctx.db.query("lessonSessions")
       .withIndex("by_student_and_topicNodeId_and_startedAt", (q) => q.eq("studentId", child._id).eq("topicNodeId", id)).take(MAX_SESSIONS);
     const { seed: _seed, ...task } = generateTask(id, "word", SEED + SESSION_STEP * earlier.length);
-    // Новая сессия темы: выдана 1 задача (эта), серия с нуля. Иначе submitAnswer при счётчике 0 (после диагностики)
+    // Новая сессия темы: выдана 1 задача (эта), серия с нуля, если прошлая сессия закончена (sessionStartPatch). Иначе submitAnswer при счётчике 0 (после диагностики)
     // выдаёт ту же задачу ещё раз, а при старом счётчике 8 сразу закрывает тему.
     const row = await ctx.db.query("topicStatus")
       .withIndex("by_student_and_topic", (q) => q.eq("studentId", child._id).eq("topic", id)).unique();
-    if (row) await ctx.db.patch("topicStatus", row._id, { tasksThisSession: 1, streak: 0 });
+    if (row) await ctx.db.patch("topicStatus", row._id, sessionStartPatch(row, LESSON.maxTasksPerTopicPerSession));
     await ctx.db.patch("students", child._id, {
       currentTopic: id, state: "LESSON_SOLVE", hintLevel: undefined, wrongOnTask: undefined,
       turnNo: (child.turnNo ?? 0) + 1,

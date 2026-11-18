@@ -2,10 +2,12 @@
 // Экран /profile по эталону 4-profile.png (docs/design/v3/measure/profile.json). Живая страница и /dev/v3/profile рендерят этот компонент.
 // Имя ребёнка только показывается здесь: ни в логи, ни в запросы (tests/displayNameGuard.test.ts).
 import { useMutation } from "convex/react";
+import { motion } from "framer-motion";
 import Image from "next/image";
 import { useCallback, useEffect, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { api } from "@/convex/_generated/api";
 import { IconChevron, V3Card, V3Screen, V3Sheet } from "@/components/v3";
+import { useReveal } from "@/components/v3/motion";
 import { useT, type Key, type Lang } from "@/lib/i18n";
 import { useToken } from "@/lib/ui/session";
 import { useSetLang } from "@/lib/ui/useSetLang";
@@ -70,8 +72,8 @@ function Row({ ref_, tone, icon, label, value, onClick, last, children }: {
       <span data-ref={`rowIcon${ref_.slice(3)}`} className="flex size-[39px] shrink-0 items-center justify-center rounded-full" style={{ background: ICON_TONE[tone].bg, color: ICON_TONE[tone].fg }}>
         {icon}
       </span>
-      <span className="min-w-0 flex-1 text-[17px] leading-5 font-bold">{label}</span>
-      {value && <span className="max-w-[55%] text-right text-[16px] leading-5 font-medium" style={{ color: "var(--v3-ink-soft)" }}>{value}</span>}
+      <span className={`text-[17px] leading-5 font-bold ${value ? "shrink-0" : "min-w-0 flex-1"}`}>{label}</span>
+      {value && <span className="ml-auto min-w-0 max-w-[55%] text-right text-[16px] leading-5 font-medium" style={{ color: "var(--v3-ink-soft)" }}>{value}</span>}
       {children}
     </>
   );
@@ -103,6 +105,7 @@ export function ProfileView({ data }: { data: ProfileData }) {
   const setLang = useSetLang();
   const saveGoal = useMutation(api.goal.set);
   const [sound, setSound] = useSound();
+  const reveal = useReveal();
   const [sheet, setSheet] = useState<null | "lang" | "goal" | "parents">(null);
   const [pick, setPick] = useState<Goal | null>(null); // выбранная цель видна сразу, пока сервер не подтвердил
   const [failed, setFailed] = useState(false);
@@ -126,24 +129,24 @@ export function ProfileView({ data }: { data: ProfileData }) {
 
   return (
     <V3Screen tab="profile">
-      <h1 data-ref="title" className="mx-auto mt-[54px] w-fit min-w-[156px] text-center text-[32px] leading-7 font-extrabold">{t("profile.title")}</h1>
-      <div data-ref="avatar" className="relative mx-auto mt-[19px] size-[152px] shrink-0 overflow-hidden rounded-full" style={{ background: "var(--v3-avatar)" }}>
+      <motion.h1 {...reveal(0)} data-ref="title" className="mx-auto mt-[54px] w-fit min-w-[156px] text-center text-[32px] leading-7 font-extrabold">{t("profile.title")}</motion.h1>
+      <motion.div {...reveal(1)} data-ref="avatar" className="relative mx-auto mt-[19px] size-[152px] shrink-0 overflow-hidden rounded-full" style={{ background: "var(--v3-avatar)" }}>
         <Image src="/v3/avatar-bobr.webp" alt="" fill sizes="152px" priority className="object-cover" />
-      </div>
-      <p data-ref="name" className="mx-auto mt-[9px] h-[29px] w-fit min-w-[200px] text-center max-w-full truncate text-[30px] leading-[29px] font-extrabold">{data.name ?? t("profile.noName")}</p>
-      <p data-ref="grade" className="mx-auto mt-[9px] h-4 w-fit min-w-[100px] text-center text-[17px] leading-4 font-medium" style={{ color: "var(--v3-ink-soft)" }}>
+      </motion.div>
+      <motion.p {...reveal(2)} data-ref="name" className="mx-auto mt-[9px] h-[29px] w-fit min-w-[200px] text-center max-w-full truncate text-[30px] leading-[29px] font-extrabold">{data.name ?? t("profile.noName")}</motion.p>
+      <motion.p {...reveal(2)} data-ref="grade" className="mx-auto mt-[9px] h-4 w-fit min-w-[100px] text-center text-[17px] leading-4 font-medium" style={{ color: "var(--v3-ink-soft)" }}>
         {data.grade !== null ? fill(t("profile.grade"), { n: data.grade }) : null}
-      </p>
+      </motion.p>
 
       <div className="mt-5 grid grid-cols-2 gap-2">
-        <V3Card tone="peach" radius="stat" data-ref="stat1" className="flex min-h-[90px] items-center gap-3 px-3 py-3">
+        <V3Card as={motion.div} {...reveal(3)} tone="peach" radius="stat" data-ref="stat1" className="flex min-h-[90px] items-center gap-3 px-3 py-3">
           <Image src="/v3/stat-fraction.webp" alt="" width={48} height={48} className="shrink-0" />
           <div className="min-w-0">
             <p className="v3-type-caption" style={{ color: "var(--v3-ink-soft)" }}>{t("profile.stat.topics")}</p>
             <p className={`v3-type-card ${uzFit}`}>{fill(t("profile.stat.topicsValue"), data.topics)}</p>
           </div>
         </V3Card>
-        <V3Card tone="peach" radius="stat" data-ref="stat2" className="flex min-h-[90px] items-center gap-1 px-2 py-3">
+        <V3Card as={motion.div} {...reveal(4)} tone="peach" radius="stat" data-ref="stat2" className="flex min-h-[90px] items-center gap-1 px-2 py-3">
           <Image src="/v3/stat-bird.webp" alt="" width={52} height={52} className="shrink-0" />
           <div className="min-w-0">
             <p className="v3-type-caption text-[14px]" style={{ color: "var(--v3-ink-soft)" }}>{t("profile.stat.taught")}</p>
@@ -152,7 +155,7 @@ export function ProfileView({ data }: { data: ProfileData }) {
         </V3Card>
       </div>
 
-      <V3Card tone="settings" radius="stat" data-ref="settings" className="mt-3 flex flex-col" style={{ padding: "6.5px 0 7.5px" }}>
+      <V3Card as={motion.div} {...reveal(5)} tone="settings" radius="stat" data-ref="settings" className="mt-3 flex flex-col" style={{ padding: "6.5px 0 7.5px" }}>
         <Row ref_="row1" tone="lang" icon={<IconGlobe />} label={t("profile.row.lang")} value={t(`lang.${lang}`)} onClick={() => setSheet("lang")}>
           <IconChevron style={{ color: "var(--v3-ink-soft)" }} />
         </Row>
@@ -171,7 +174,7 @@ export function ProfileView({ data }: { data: ProfileData }) {
         </Row>
       </V3Card>
 
-      <V3Card tone="note" radius="stat" data-ref="note" className="mt-[11px] flex h-[82px] items-center gap-3 pr-5 pl-3">
+      <V3Card as={motion.div} {...reveal(6)} tone="note" radius="stat" data-ref="note" className="-mb-1 mt-[11px] flex h-[82px] items-center gap-3 pr-5 pl-3">
         <Image src="/v3/note-duo.webp" alt="" width={130} height={70} className="shrink-0" />
         <p className="v3-type-label min-w-0 flex-1 text-[18px] leading-6">{t("profile.note")}</p>
       </V3Card>

@@ -18,5 +18,5 @@ const DATA: ChatData = {
 };
 
 export function Demo() {
-  return <ChatScreen who="ustoz" data={DATA} optimistic={null} pending={false} notice={null} crisis={false} onSend={() => {}} onLeave={() => {}} onBack={() => {}} />;
+  return <ChatScreen who="ustoz" data={DATA} optimistic={null} pending={false} notice={null} onSend={() => {}} onLeave={() => {}} onBack={() => {}} />;
 }

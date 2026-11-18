@@ -17,6 +17,7 @@ import { action, type ActionCtx } from "./_generated/server";
 import { operandFractions, publicTask } from "./lessonView";
 import { whoArgs } from "./session";
 import { isExplicitHelpRequest } from "../lib/socratic/state";
+import { fallbackAsk, fallbackHint } from "../lib/socratic/fallback";
 import {
   approvedHints, HintSelection, HINT_CATALOG_VERSION, HINT_SELECTOR_PREFIX, hintSelectionTail, renderHint, safeAnalogy,
   type EscalationLevel, type HintContext, type InterestTheme,
@@ -131,8 +132,9 @@ export async function guardStep(ctx: ActionCtx, c: Turn, childInput: string) {
 }
 
 /** Selection is deliberately separate from free conversation. Drafts never
- * cause unrestricted generation; no reviewed candidate means code fallback. */
-async function socraticReply(ctx: ActionCtx, d: Diag, studentId: Id<"students">, expectedTurnNo: number) {
+ * cause unrestricted generation; no reviewed candidate means a code-written reply (lib/socratic/fallback.ts):
+ * the child is never left without Ustoz. `ask` = free question: code text only, no catalog selection. */
+async function socraticReply(ctx: ActionCtx, d: Diag, studentId: Id<"students">, expectedTurnNo: number, ask = false) {
   const latest: Turn | null = await ctx.runQuery(internal.conductor.turnContext, { studentId });
   if (!latest?.socratic || latest.turnNo !== expectedTurnNo) return { status: "fallback" as const };
   const c = latest;
@@ -141,7 +143,7 @@ async function socraticReply(ctx: ActionCtx, d: Diag, studentId: Id<"students">,
     misconceptionTag: c.socratic!.misconceptionTag, interestTheme: c.socratic!.interestTheme,
   };
   let rendered: ReturnType<typeof renderHint> = null;
-  if (approvedHints(context).length) {
+  if (!ask && approvedHints(context).length) {
     const tail = hintSelectionTail(context);
     const selection = await callStructured({
       ...llm(), breaker, cache: cacheOf(ctx), step: "socraticHint", model: MODELS.ustozTurn,
@@ -172,11 +174,16 @@ async function socraticReply(ctx: ActionCtx, d: Diag, studentId: Id<"students">,
     }
   }
   d.component = "code";
-  await ctx.runMutation(internal.conductor.recordReply, {
-    studentId, turnNo: expectedTurnNo, reply: null, hintButton: true,
-    component: toStored(normalizeComponent(null, { operands: operandFractions(c.task.params), childFractions: [], answer: c.task.answer }).component),
+  // Fixed code text, same server checks as a catalog hint (answer leak, numbers). The repeat guard is off:
+  // at the top of the ladder the same step may legitimately be shown again. outputCheck is for free LLM text only.
+  const text = (ask ? fallbackAsk : fallbackHint)(c.lang, c.task.topic, context.escalationLevel);
+  const code = postUstoz({ reply: text, component: null, intent: "hint", hintLevel: context.escalationLevel - 1, revealsAnswer: false }, {
+    answer: c.task.answer, numbersShown: c.task.numbersShown, childNumbers: [], recent: [], operands: [], childFractions: [],
   });
-  return { status: "fallback" as const };
+  const written = await ctx.runMutation(internal.conductor.recordReply, {
+    studentId, turnNo: expectedTurnNo, reply: code.result.ok ? code.result.value.reply : null, hintButton: true, component: null,
+  });
+  return { status: written && code.result.ok ? "replied" as const : "fallback" as const };
 }
 
 // Категории guard, при которых Ustoz отвечает В РОЛИ (отказ по-доброму): реплика всё равно идёт через postChecks и outputCheck.
@@ -281,6 +288,8 @@ export const turn = action({
     };
 
     const fallback = () => respond(null);
+    // Lesson with a ladder: free text / an unparsed answer always gets a fixed code reply (never silence, never generated from the input).
+    const socraticAsk = async () => done(await socraticReply(ctx, d, studentId, turnNo, input.type === "text"));
 
     // The verdict already confirms success. A generic Ustoz confirmation could
     // praise independent work even after the child used scaffolding.
@@ -314,7 +323,7 @@ export const turn = action({
       if (pg.suppressed) {
         await ctx.runMutation(internal.conductor.flagRisk, { studentId, category: pg.suppressed.category, severity: 1, notifyParent: false });
       }
-      return done(await fallback());
+      return c.socratic ? socraticAsk() : done(await fallback());
     }
     const { category, severity } = g.value;
     if (category !== "SAFE" && severity >= 2 && crisisRouting(category)) {
@@ -327,6 +336,7 @@ export const turn = action({
       });
     }
     if (category === "PII") await ctx.runMutation(internal.conductor.maskChildTurn, { studentId, turnNo });
+    if (c.socratic) return socraticAsk();
     return done(IN_CHARACTER.has(category) ? await respond(u) : await fallback());
   },
 });

@@ -34,6 +34,12 @@ const DIRECTED: Record<Lang, RegExp[]> = {
   ],
 };
 const FILLER = /^(?:ha|да|ok|ок)$/;
+// Закрытый список безопасных продолжений просьбы к персонажу («..., спишемся», «..., bugun maktabdan keyin kel»). Без цифр и без третьего лица;
+// сами по себе не считаются просьбой: нужна хотя бы одна якорная часть из DIRECTED.
+const CONTINUATION: Record<Lang, RegExp[]> = {
+  ru: [/^(?:тогда )?(?:спишемся|напишемся|будем переписываться|общаться будем)$/, /^я (?:тоже )?(?:пришлю|отправлю|скину) (?:свое|свою|свои|свой|тебе)(?: \p{L}+)?$/u, /^(?:сегодня |завтра )?(?:после школы |после уроков )?(?:приходи|приезжай|выходи)$/u],
+  uz: [/^(?:keyin |unda )?(?:yozishamiz|gaplashamiz|yozishib turamiz)$/, /^men ham o'zimnikini (?:yuboraman|jo'nataman|beraman)$/, /^(?:bugun |ertaga )?(?:maktabdan keyin |darsdan keyin )?(?:kel|kelgin|chiq)$/],
+};
 
 const CHEAT: Record<Lang, RegExp> = {
   ru: cyr(/списа(ть|л)|списыв|шпаргалк|(обмануть|соврать|наврать) (мам|пап|родител|учител)|(скрыть|подделать|исправить) (оценк|дневник)/),
@@ -49,7 +55,8 @@ export function addressedToCharacter(text: string, lang: Lang, earlier: string[]
   if ([t, ...earlier.map(normalizeForMatch)].some((x) => THIRD_PARTY[lang].test(clean(x)))) return false;
   const parts = t.split(/[,.!?;:]+/).map((x) => x.replace(/\s+/g, " ").trim()).filter(Boolean);
   const anchored = parts.filter((x) => !FILLER.test(x));
-  return anchored.length > 0 && anchored.every((x) => DIRECTED[lang].some((re) => re.test(x)));
+  const directed = (x: string) => DIRECTED[lang].some((re) => re.test(x));
+  return anchored.some(directed) && anchored.every((x) => directed(x) || CONTINUATION[lang].some((re) => re.test(x)));
 }
 
 /** Просьба списать / обмануть про оценки: не «дай ответ задачи», а отдельный отказ. */

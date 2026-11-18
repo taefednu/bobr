@@ -110,6 +110,22 @@ export const POSE_ACT: Record<string, { rest: { rotate: number; scale: number };
 /** Ожидание ответа: Bobr качает головой, три точки в облачке зажигаются по очереди. Крутится, пока ждём. */
 export const THINKING = { rotate: [-4, 6, -4], periodS: 1.6, dotStepS: 0.25, dotPeriodS: 1.1 } as const;
 
+/** Каскад блоков при входе на экран: один раз, только opacity и сдвиг; весь каскад не длиннее `maxS`, ввод не ждёт. */
+export const REVEAL = { stepS: 0.06, y: 10, maxS: 0.42 } as const;
+
+/** Визуализации дробей (лепёшка, полоска, прямая, кольцо): появляются по очереди один раз при показе, закрашенные
+ *  «наливаются», проценты считаются без проскока. Мс отдаются в CSS-анимации (`.v3-viz-*`, globals.css) инлайном.
+ *  Вся очередь долей укладывается в `queueMaxMs`, чтобы лепёшка на 12 долей не тянулась. */
+export const VIZ = { inMs: 240, sliceStepMs: 55, queueMaxMs: 500, fillMs: 380, fillAfterMs: 120, ringMs: 900, countMs: 900, startMs: 80 } as const;
+
+/** Задержка i-го элемента из n в очереди визуализации (мс): шаг сжимается, если очередь длиннее `queueMaxMs`. */
+export function vizDelayMs(i: number, n: number): number {
+  return VIZ.startMs + i * Math.min(VIZ.sliceStepMs, VIZ.queueMaxMs / Math.max(1, n));
+}
+
+/** Нажатие карточки или камня на тач-экране: чуть глубже кнопки, без проскока по масштабу. */
+export const PRESS = { scale: 0.97, stone: 0.86 } as const;
+
 /** Наведение только на устройствах с мышью: на касании ложный hover поднимает кнопки. */
 export const HOVER_MEDIA = "(hover: hover) and (pointer: fine)";
 

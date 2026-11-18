@@ -24,5 +24,5 @@ export default function Page() {
   }
 
   if (!data) return <CharacterSays who="bobr" thinking />;
-  return <HouseView data={data} onBack={() => router.push("/home")} onStart={onStart} />;
+  return <HouseView data={data} onStart={onStart} />;
 }

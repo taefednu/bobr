@@ -1,6 +1,5 @@
 "use client";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
 import type { ChatData, ClosedReason, Notice, Partner } from "@/components/chat/model";
 import { ChatScreen } from "@/components/v3/chat/ChatScreen";
 
@@ -19,7 +18,7 @@ const data = (who: Partner, o: Omit<Partial<ChatData>, "access"> & { access?: Pa
 const closed = (reason: ClosedReason, minutesLeft = 0) => data("ustoz", { access: { open: false, reason, minutesLeft } });
 const long = "Я думаю, что число сверху показывает, сколько частей лепёшки мы взяли, а число снизу, на сколько равных частей её разрезали. ".repeat(4).slice(0, 430);
 
-type S = { who?: Partner; data: ChatData | null; optimistic?: string; pending?: boolean; notice?: Notice; crisis?: boolean; draft?: string };
+type S = { who?: Partner; data: ChatData | null; optimistic?: string; pending?: boolean; notice?: Notice; draft?: string };
 const STATES: Record<string, S> = {
   "empty-ustoz": { data: data("ustoz", { messages: [] }) },
   "empty-bobr": { who: "bobr", data: data("bobr", { messages: [] }) },
@@ -34,14 +33,11 @@ const STATES: Record<string, S> = {
   "closed-session": { data: closed("session_limit", 25) },
   "closed-day": { data: closed("day_limit") },
   "closed-crisis": { data: closed("crisis_block") },
-  crisis: { data: data("ustoz"), crisis: true },
   counter: { data: data("ustoz"), draft: long },
 };
 
 export function States() {
   const s = useSearchParams().get("s");
-  const [mounted, setMounted] = useState(false); // кризис в живом чате приходит после монтирования; фикстура так же
-  useEffect(() => setMounted(true), []);
   const st = s ? STATES[s] : null;
   if (!st) {
     return (
@@ -52,5 +48,5 @@ export function States() {
       </div>
     );
   }
-  return <ChatScreen who={st.who ?? "ustoz"} data={st.data} optimistic={st.optimistic ?? null} pending={!!st.pending} notice={st.notice ?? null} crisis={mounted && !!st.crisis} draft={st.draft} onSend={() => {}} onLeave={() => {}} onBack={() => {}} />;
+  return <ChatScreen who={st.who ?? "ustoz"} data={st.data} optimistic={st.optimistic ?? null} pending={!!st.pending} notice={st.notice ?? null} draft={st.draft} onSend={() => {}} onLeave={() => {}} onBack={() => {}} />;
 }

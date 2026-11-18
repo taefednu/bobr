@@ -172,6 +172,10 @@ body {
   --v3-stone-rim: oklch(55% 0.09 285);     /* синеватый борт камня уровня, как на эталоне */
   --v3-sun: oklch(84% 0.15 78);            /* текущий уровень: единственный янтарный камень на острове */
   --v3-sun-deep: oklch(70% 0.16 65);
+  --v3-sun-top: oklch(93% 0.1 90);          /* верх плашки текущего камня */
+  --v3-sun-glow: oklch(84% 0.15 78 / 0.7);  /* свечение текущего камня */
+  --v3-stone-shadow: oklch(40% 0.06 60 / 0.25); /* тень камня */
+  --v3-grass-patch: oklch(74% 0.15 125 / 0.9); /* заплата цвета травы под камнем */
   --v3-sub: oklch(33.7% 0.108 36);       /* #631b05 подзаголовки карточек дома */
   --v3-title: oklch(19% 0.052 44);          /* #260a01 заголовки дома */
 
@@ -179,6 +183,8 @@ body {
   --v3-shadow-card: inset 0 1px 0 oklch(100% 0 0 / 0.7), 0 6px 18px oklch(64% 0.1 60 / 0.14);
   --v3-shadow-nav: inset 0 1px 0 oklch(100% 0 0 / 0.7), 0 8px 22px oklch(64% 0.1 60 / 0.16);
   --v3-shadow-round: inset 0 2px 3px oklch(100% 0 0 / 0.35), 0 6px 14px oklch(62% 0.11 200 / 0.35);
+  --v3-scrim: oklch(28% 0.041 43 / 0.35);   /* затемнение под шторкой */
+  --v3-pie-drop: 0 3px 4px oklch(64% 0.1 60 / 0.2); /* тень лепёшки в чате (аргумент drop-shadow) */
   --v3-shadow-sheet: 0 -10px 30px oklch(50% 0.08 50 / 0.18);
 
   --v3-r-banner: 32px;
@@ -195,6 +201,10 @@ body {
   --v3-nav-gap: 17px;      /* зазор от низа кадра 845 до таб-бара */
   --v3-nav-slot: 56px;
   --v3-nav-pad: 8px;
+  /* Движение таб-бара и перехода между вкладками (пружину ползунка задаёт lib/motion.ts: move). */
+  --v3-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --v3-nav-out: 200ms;     /* бар уезжает вниз в чате и возвращается */
+  --v3-nav-icon: 180ms;    /* иконка вкладки: масштаб и яркость */
 
   /* Типографские роли: вес / кегль / строка. Onest, заголовки 700–800. */
   --v3-type-greeting: 800 34px/38px var(--font-sans);
@@ -219,3 +229,26 @@ body {
 @utility v3-type-caption { font: var(--v3-type-caption); }
 @utility v3-type-label { font: var(--v3-type-label); }
 @utility v3-type-chat { font: var(--v3-type-chat); }
+
+/* v3: полос прокрутки нет нигде, кроме переписки. Короткий экран всё равно листается пальцем и колесом, чтобы ничего не стало недоступно. */
+:root:has(.v3-screen) { overscroll-behavior-y: none; }
+:root:has(.v3-screen), :root:has(.v3-screen) *:not(.v3-scroll) { scrollbar-width: none; }
+:root:has(.v3-screen)::-webkit-scrollbar, :root:has(.v3-screen) *:not(.v3-scroll)::-webkit-scrollbar { display: none; }
+.v3-scroll { --v3-scroll-thumb: color-mix(in oklch, var(--v3-teal-strong) 38%, transparent); }
+.v3-scroll::-webkit-scrollbar { width: 4px; }
+.v3-scroll::-webkit-scrollbar-track { background: transparent; }
+.v3-scroll::-webkit-scrollbar-thumb { background: var(--v3-scroll-thumb); border-radius: 999px; }
+.v3-scroll:hover::-webkit-scrollbar-thumb { background: color-mix(in oklch, var(--v3-teal-strong) 62%, transparent); }
+/* v3: появление визуализаций дробей (лепёшка, полоска, прямая, кольцо). Длительности, задержки и кривая приходят инлайном
+   из VIZ в lib/motion.ts; здесь только ключевые кадры. Один раз при показе, при reduced всё сразу в итоговом виде. */
+@keyframes v3-viz-in { from { opacity: 0; } }
+@keyframes v3-viz-fill { from { fill: var(--v3-pie-other); } }
+@keyframes v3-viz-ring { from { stroke-dasharray: 0 999; } }
+@media (prefers-reduced-motion: reduce) { .v3-viz { animation: none !important; } }
+@supports not selector(::-webkit-scrollbar) {
+  .v3-scroll { scrollbar-width: thin; scrollbar-color: var(--v3-scroll-thumb) transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --v3-nav-out: 0ms; --v3-nav-icon: 0ms; }
+}

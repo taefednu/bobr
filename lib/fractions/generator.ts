@@ -8,7 +8,9 @@ export type GenKind = Exclude<TaskKind, "mcq">;
 
 // Kind↔topic: picture/word — одна формула числа на тему, ответ — дробь (N5: числитель над toDen).
 // missing (N2/N5/N8/N9): ответ — числитель над params.toDen, requireReduced false; N6 — целое, toDen нет.
-// TODO: N1, N3, N4, N7, N10 — генератор не написан.
+// N3 — та же формула, что N2 (точка на прямой вместо закрашенной части). N4 — какая единичная дробь больше (ответ 1/min;
+// missing: знаменатель большей дроби, целое, toDen нет).
+// TODO: N1, N7, N10 — генератор не написан.
 
 /** mulberry32: 32-битный seeded PRNG, [0, 1). */
 function mulberry32(seed: number) {
@@ -165,16 +167,42 @@ function addDiff(a: number, b: number, c: number, d: number, missing: boolean): 
   };
 }
 
+function compareUnit(p: number, q: number, missing: boolean): Built {
+  const lo = Math.min(p, q), hi = Math.max(p, q); // больше та, у которой знаменатель меньше
+  const params = { p: String(p), q: String(q) };
+  if (missing)
+    return {
+      params, answer: String(lo),
+      distractors: distract(f(lo), [{ v: f(hi) }, { v: f(p + q) }, { v: f(lo + 1) }, { v: f(hi + 1) }]),
+      requireReduced: false, numbersShown: s(1, p, 1, q),
+    };
+  const ans = f(1, lo);
+  return {
+    params, answer: ans.toFraction(),
+    distractors: distract(ans, [{ v: f(1, hi) }, { v: f(1, p + q) }, { v: f(1, hi + 1) }, { v: f(2, lo) }]), // «знаменатель больше — дробь больше»
+    requireReduced: true, numbersShown: s(1, p, 1, q),
+  };
+}
+
 const int = (r: () => number, lo: number, hi: number) => lo + Math.floor(r() * (hi - lo + 1));
 const coprimeIn = (r: () => number, lo: number, hi: number, n: number) => {
   const xs = Array.from({ length: hi - lo + 1 }, (_, i) => lo + i).filter((x) => gcd(x, n) === 1);
   return xs[int(r, 0, xs.length - 1)];
 };
 
+const partTask = (r: () => number, m: boolean) => {
+  const n = int(r, 2, 12);
+  return partOfWhole(coprimeIn(r, 1, n - 1, n), n, m); // k/n уже несократима
+};
+
 const BUILDERS: Partial<Record<TopicId, (r: () => number, missing: boolean) => Built>> = {
-  N2: (r, m) => {
-    const n = int(r, 2, 12);
-    return partOfWhole(coprimeIn(r, 1, n - 1, n), n, m); // k/n уже несократима
+  N2: partTask,
+  N3: partTask,
+  N4: (r, m) => {
+    const p = int(r, 2, 12);
+    let q = int(r, 2, 11);
+    if (q >= p) q++; // p ≠ q
+    return compareUnit(p, q, m);
   },
   N5: (r) => {
     const b = int(r, 2, 6);

@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useRef, useState } from "react";
-import { V3RoundButton, V3Screen, V3Sheet, IconArrowLeft, IconDots } from "@/components/v3";
+import { V3RoundButton, V3Screen, V3Sheet, IconDots } from "@/components/v3";
 import { useT } from "@/lib/i18n";
-import { EASE, TARGETS, useMotion } from "@/lib/motion";
+import { EASE, PRESS, TARGETS, useMotion } from "@/lib/motion";
 
 export type HouseData = {
   levels: { n: number; topic: string; title: string; state: "done" | "current" | "next" | "review"; canStart: boolean }[];
@@ -26,7 +26,7 @@ const STONES = [
 type Level = HouseData["levels"][number];
 type Sheet = { kind: "closed"; n: number } | { kind: "error" } | { kind: "more" } | null;
 
-export function HouseView({ data, onBack, onStart }: { data: HouseData; onBack: () => void; onStart: (topic: string) => Promise<boolean> }) {
+export function HouseView({ data, onStart }: { data: HouseData; onStart: (topic: string) => Promise<boolean> }) {
   const { t } = useT();
   const { reduced, transitions } = useMotion();
   const [sheet, setSheet] = useState<Sheet>(null);
@@ -47,13 +47,13 @@ export function HouseView({ data, onBack, onStart }: { data: HouseData; onBack: 
     }
   }
 
+  // Стрелки «назад» нет (решение владельца 18.11): навигация в таб-баре.
   return (
-    <V3Screen>
+    <V3Screen tab="house">
       <header className="mx-[5px] flex items-center gap-[14px] pt-[30px]">
-        <V3RoundButton data-ref="back" label={t("child.back")} size={62} tone="round" onClick={onBack}><IconArrowLeft size={30} /></V3RoundButton>
         <h1
           data-ref="title"
-          className="v3-type-banner flex h-[62px] w-[196px] min-w-0 shrink-0 items-center justify-center rounded-full px-3 text-center"
+          className="v3-type-banner flex h-[62px] min-w-0 flex-1 items-center justify-center rounded-full px-3 text-center"
           style={{ background: "linear-gradient(to bottom, var(--v3-blue-top), var(--v3-blue-bottom))", color: "var(--v3-on-teal)", boxShadow: "var(--v3-shadow-round)" }}
         >
           {t("house.title")}
@@ -61,9 +61,10 @@ export function HouseView({ data, onBack, onStart }: { data: HouseData; onBack: 
         <V3RoundButton data-ref="more" label={t("house.more")} size={62} tone="round" onClick={() => setSheet({ kind: "more" })}><IconDots size={30} /></V3RoundButton>
       </header>
 
-      <div className="relative mt-[120px] h-[513px] w-[380px] max-w-none" style={{ marginLeft: "calc(50% - 190px)" }}>
+      <div className="relative mt-[120px] max-w-none" style={{ width: "min(380px, 100vw)", aspectRatio: "380 / 513", marginLeft: "calc(50% - min(380px, 100vw) / 2)" }}>
         {/* eslint-disable-next-line @next/next/no-img-element -- вырезку агент ассетов подменит под тем же именем */}
-        <img data-ref="island" src="/v3/house-island.png" alt={t("house.scene")} width={380} height={513} className="block h-full w-full select-none" draggable={false} />
+        <motion.img data-ref="island" src="/v3/house-island.png" alt={t("house.scene")} width={380} height={513} className="block h-full w-full select-none" draggable={false}
+          initial={reduced ? false : { opacity: 0, scale: TARGETS.appearFromScale + 0.07 }} animate={{ opacity: 1, scale: 1, transition: transitions.appear }} />
         {STONES.map((s) => {
           const l = data.levels.find((x) => x.n === s.n);
           const mine = pending !== null && pending === l?.topic;
@@ -79,7 +80,9 @@ export function HouseView({ data, onBack, onStart }: { data: HouseData; onBack: 
               aria-busy={mine}
               disabled={pending !== null}
               onClick={() => void pick(s.n)}
-              whileTap={{ scale: 0.86, y: TARGETS.pressDepthPx / 2 }}
+              initial={reduced ? false : { opacity: 0, scale: TARGETS.appearFromScale }}
+              animate={{ opacity: 1, scale: 1, transition: { ...transitions.pop, delay: reduced ? 0 : 0.2 + s.n * 0.07 } }}
+              whileTap={{ scale: PRESS.stone, y: TARGETS.pressDepthPx / 2 }}
               transition={transitions.press}
               className="absolute cursor-pointer rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--v3-blue-top)] disabled:cursor-default"
               style={{ left: `calc(${s.cx}% - ${s.size / 2}px)`, top: `calc(${s.cy}% - ${s.size / 2}px)`, width: s.size, height: s.size, filter: pending !== null && !mine ? "saturate(0.4) brightness(0.92)" : undefined }}
@@ -119,20 +122,21 @@ function sheetTitle(s: Sheet, t: ReturnType<typeof useT>["t"]) {
 // Камень рисует код целиком: непрозрачная плашка закрывает запечённый в картинке камень (и свечение камня 2), число и состояние берутся из данных.
 // Ассет без камней (ASSETS.md) от этого не меняется. Метка «пройден» стоит в потоке рядом с числом, внутри эллипса, и не вылезает за камень.
 function Stone({ n, state, pending }: { n: number; state?: Level["state"]; pending: boolean }) {
+  const { transitions } = useMotion();
   const current = state === "current";
   return (
     <>
       {/* ponytail: заплата цвета травы гасит ореол, запечённый в картинке вокруг камня 2; уйдёт вместе с камнями при замене house-island.png */}
-      {!current && <span aria-hidden className="absolute -inset-[10px] rounded-full" style={{ background: "radial-gradient(closest-side, oklch(74% 0.15 125 / 0.9) 55%, transparent)" }} />}
-    <span
+      {!current && <span aria-hidden className="absolute -inset-[10px] rounded-full" style={{ background: "radial-gradient(closest-side, var(--v3-grass-patch) 55%, transparent)" }} />}
+    <motion.span
       aria-hidden
       className="absolute inset-x-0 top-[14%] flex h-[72%] items-center justify-center gap-[3px] rounded-[50%]"
+      animate={{ scale: current ? 1.14 : 1, transition: transitions.pop }}
       style={{
-        background: current ? "linear-gradient(to bottom, oklch(93% 0.1 90), var(--v3-sun))" : "linear-gradient(to bottom, var(--v3-card), var(--v3-card-warm))",
+        background: current ? "linear-gradient(to bottom, var(--v3-sun-top), var(--v3-sun))" : "linear-gradient(to bottom, var(--v3-card), var(--v3-card-warm))",
         boxShadow: current
-          ? "0 4px 0 var(--v3-sun-deep), 0 0 0 3px var(--v3-on-teal), 0 0 0 5px var(--v3-sun-deep), 0 0 20px 6px oklch(84% 0.15 78 / 0.7)"
-          : "0 4px 0 var(--v3-stone-rim), 0 7px 8px oklch(40% 0.06 60 / 0.25)",
-        transform: current ? "scale(1.14)" : undefined,
+          ? "0 4px 0 var(--v3-sun-deep), 0 0 0 3px var(--v3-on-teal), 0 0 0 5px var(--v3-sun-deep), 0 0 20px 6px var(--v3-sun-glow)"
+          : "0 4px 0 var(--v3-stone-rim), 0 7px 8px var(--v3-stone-shadow)",
         color: "var(--v3-ink)",
         font: "800 20px/1 var(--font-sans)",
         zIndex: current ? 1 : 0,
@@ -144,7 +148,7 @@ function Stone({ n, state, pending }: { n: number; state?: Level["state"]; pendi
           <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--v3-on-teal)" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12.5 4.5 4.5L19 7" /></svg>
         </span>
       )}
-    </span>
+    </motion.span>
     </>
   );
 }

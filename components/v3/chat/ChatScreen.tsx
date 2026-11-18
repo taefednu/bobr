@@ -1,18 +1,14 @@
 "use client";
 // Экран /chat по эталону docs/design/v3/3-chat.png. Данные и действия приходят пропсами: page.tsx (живой Convex) и
 // /dev/v3/chat (фикстуры) рендерят один компонент. Все состояния прежнего ChatView сохранены: пустой чат со стартерами,
-// ожидание, optimistic, notice, остаток минут, закрытый чат, кризис.
+// ожидание, optimistic, notice, остаток минут, закрытый чат. Кризис рисует ChildShell по me.state (один источник правды).
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
-import { Portrait } from "@/components/chat/Portrait";
 import { LEFT_NOTE_MIN, type ChatData, type Notice, type Partner } from "@/components/chat/model";
-import { AiBadge } from "@/components/child/AiBadge";
-import { PressButton } from "@/components/ui/press-button";
 import { IconArrowLeft, V3RoundButton, V3Screen } from "@/components/v3";
+import { Alive } from "@/components/v3/motion";
 import { useT } from "@/lib/i18n";
 import { useMotion } from "@/lib/motion";
-import { crisisMessage } from "@/lib/safety/crisis";
 import { Avatar, V3Bubble, V3MessageRow, V3Typing } from "./Bubbles";
 import { V3ClosedCard } from "./ClosedCard";
 import { V3Composer } from "./Composer";
@@ -23,7 +19,6 @@ type Props = {
   optimistic: string | null;
   pending: boolean;
   notice: Notice | null;
-  crisis: boolean;
   onSend: (text: string) => void;
   onLeave: () => void;
   onBack: () => void;
@@ -49,8 +44,8 @@ function useVisibleHeight() {
   return h;
 }
 
-export function ChatScreen({ who, data, optimistic, pending, notice, crisis, onSend, onLeave, onBack, draft }: Props) {
-  const { t, lang } = useT();
+export function ChatScreen({ who, data, optimistic, pending, notice, onSend, onLeave, onBack, draft }: Props) {
+  const { t } = useT();
   const { reduced, transitions } = useMotion();
   const scroller = useRef<HTMLUListElement>(null);
   const vh = useVisibleHeight();
@@ -75,7 +70,7 @@ export function ChatScreen({ who, data, optimistic, pending, notice, crisis, onS
         <header className="flex shrink-0 items-center gap-[22px] pt-[37px]">
           <V3RoundButton data-ref="back" label={t("chatv3.back")} size={42} tone="cream" onClick={onBack}><IconArrowLeft size={20} /></V3RoundButton>
           <div className="flex min-w-0 flex-1 items-center gap-[13px]">
-            <Avatar who={who} size={65} dataRef="avatar" />
+            <Alive who={who}><Avatar who={who} size={65} dataRef="avatar" /></Alive>
             <div className="flex min-w-0 flex-col items-start gap-1.5">
               <h1 data-ref="name" className="v3-type-name" style={{ lineHeight: "23px" }}>{name}</h1>
               {/* раскрытие ИИ: постоянная строка шапки, не прятать и не уменьшать */}
@@ -84,7 +79,7 @@ export function ChatScreen({ who, data, optimistic, pending, notice, crisis, onS
           </div>
         </header>
 
-        <ul ref={scroller} aria-label={t("chat.log")} aria-live="polite" className="-mx-4 flex min-h-0 flex-1 list-none flex-col gap-[18px] overflow-y-auto overscroll-contain px-4 pb-4 pt-[30px]">
+        <ul ref={scroller} aria-label={t("chat.log")} aria-live="polite" className="v3-scroll -mx-4 flex min-h-0 flex-1 list-none flex-col gap-[18px] overflow-y-auto overscroll-contain px-4 pb-4 pt-[30px]">
           {empty && (
             <>
               <V3Bubble role={who} text={t(`chat.greet.${who}`)} label={name} fresh />
@@ -140,17 +135,6 @@ export function ChatScreen({ who, data, optimistic, pending, notice, crisis, onS
         </div>
       </div>
 
-      {crisis && typeof document !== "undefined" && createPortal(
-        // как в уроке: полный экран, спокойно, без движения; текст и номера из шаблона crisisMessage
-        <div role="alertdialog" aria-modal="true" className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-sand p-6 text-center text-ink">
-          <AiBadge />
-          <Portrait who={who} size={72} />
-          <p className="max-w-md text-title">{crisisMessage(lang).trustedAdultFirst}</p>
-          <p className="text-title font-bold">{t("lesson.crisis.call")} {crisisMessage(lang).numbers.join(", ")}</p>
-          <PressButton onClick={onLeave}>{t("chat.crisis.back")}</PressButton>
-        </div>,
-        document.body,
-      )}
     </V3Screen>
   );
 }

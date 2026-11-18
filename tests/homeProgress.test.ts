@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { houseLevels, pickNext, pickTeach, planProgress } from "../lib/home/progress";
+import { houseLevels, houseTopics, pickNext, sessionStartPatch, pickTeach, planProgress } from "../lib/home/progress";
 import { pieVisual } from "../lib/chat/visual";
 
 const order = ["N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8"];
@@ -17,12 +17,40 @@ describe("home progress", () => {
     expect(planProgress([], lv({}))).toEqual({ done: 0, total: 0, percent: 0 });
     expect(planProgress(["a", "b"], lv({ a: "gap" })).percent).toBe(0);
   });
-  it("levels: only startable topics, plan order, at most 6, states from level and current", () => {
-    const l = houseLevels(order, lv({ N1: "solved_self", N3: "taught_bobr" }), "N2", (t) => t === "N3", (t) => t !== "N4");
-    expect(l.map((x) => x.topic)).toEqual(["N1", "N2", "N3", "N5", "N6", "N7"]);
+  it("levels: current is the first topic not done, done and review stay open, canStart everywhere", () => {
+    const l = houseLevels(["N8", "N6", "N5", "N9", "N2", "N3"], lv({ N8: "solved_self", N6: "taught_bobr" }), (t) => t === "N6");
     expect(l.map((x) => x.n)).toEqual([1, 2, 3, 4, 5, 6]);
-    expect(l.map((x) => x.state)).toEqual(["done", "current", "review", "next", "next", "next"]);
+    expect(l.map((x) => x.state)).toEqual(["done", "review", "current", "next", "next", "next"]);
     expect(l.every((x) => x.canStart)).toBe(true);
+  });
+  it("level done moves current to the next stone", () => {
+    const t = ["N8", "N6", "N5"];
+    expect(houseLevels(t, lv({}), () => false).map((x) => x.state)).toEqual(["current", "next", "next"]);
+    expect(houseLevels(t, lv({ N8: "solved_self" }), () => false).map((x) => x.state)).toEqual(["done", "current", "next"]);
+  });
+});
+
+const G = [
+  { id: "N1", prereqs: [] }, { id: "N2", prereqs: ["N1"] }, { id: "N3", prereqs: ["N2"] }, { id: "N4", prereqs: ["N3"] },
+  { id: "N5", prereqs: ["N4", "N6"] }, { id: "N6", prereqs: [] }, { id: "N8", prereqs: ["N2"] }, { id: "N9", prereqs: ["N5", "N8"] },
+];
+describe("session start", () => {
+  it("keeps the streak of an unfinished session, resets it for a fresh or finished one", () => {
+    expect(sessionStartPatch({ tasksThisSession: 3 }, 8)).toEqual({ tasksThisSession: 1 });
+    expect(sessionStartPatch({ tasksThisSession: 0 }, 8)).toEqual({ tasksThisSession: 1, streak: 0 });
+    expect(sessionStartPatch({ tasksThisSession: 8 }, 8)).toEqual({ tasksThisSession: 1, streak: 0 });
+  });
+});
+
+describe("house topics", () => {
+  const ok = (t: string) => t !== "N1";
+  it("plan first in plan order, then the rest of the graph in prerequisite order, six in all", () => {
+    expect(houseTopics(["N8", "N6", "N5", "N9"], G, ok)).toEqual(["N8", "N6", "N5", "N9", "N2", "N3"]);
+    expect(houseTopics(["N6"], G, ok)).toEqual(["N6", "N2", "N3", "N4", "N5", "N8"]);
+  });
+  it("topics that cannot start are skipped, even in the plan; empty plan falls back to the graph", () => {
+    expect(houseTopics(["N1", "N8"], G, ok)[0]).toBe("N8");
+    expect(houseTopics([], G, ok)).toEqual(["N2", "N3", "N4", "N6", "N5", "N8"]);
   });
 });
 
@@ -50,6 +78,12 @@ describe("teach topic", () => {
   it("skips topics outside the plan or not startable, takes the latest valid one", () => {
     expect(pickTeach(rows, ["N8", "N6", "N5"], () => true)).toBe("N5");
     expect(pickTeach(rows, ["N8", "N6", "N5"], (t) => t !== "N5")).toBe("N8");
+  });
+  it("works without a plan: teaches a topic the house shows, not one outside its six", () => {
+    const g = [{ id: "N2", prereqs: [] }, { id: "N5", prereqs: ["N2"] }, { id: "N9", prereqs: ["N5"] }];
+    const shown = houseTopics([], g, () => true);
+    expect(pickTeach(rows, shown, () => true)).toBe("N2");
+    expect(pickTeach([{ topic: "N7", level: "solved_self", solvedSelfAt: 99 }, ...rows], shown, (t) => t !== "N7")).toBe("N2");
   });
   it("null when nothing fits, so the circle goes to /house", () => {
     expect(pickTeach(rows, ["N1"], () => true)).toBeNull();

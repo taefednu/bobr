@@ -1,26 +1,28 @@
 "use client";
-import type { ReactNode } from "react";
-import { Card } from "@/components/child/Card";
-import { CharacterSays } from "@/components/child/CharacterSays";
-import { Fraction } from "@/components/child/Fraction";
-import { Pie } from "@/components/fractions/Pie";
-import { PressButton } from "@/components/ui/press-button";
+// Диагностика в языке v3. Пробы, варианты и ожидание те же; вердикт считает сервер, здесь его нет.
+import { motion } from "framer-motion";
+import { useState, type ReactNode } from "react";
+import { V3Card } from "@/components/v3";
+import { Cta, Note, OnboardScreen, ProbePie, Rise, Say, V3Frac } from "@/components/v3/onboarding/parts";
+import { useReveal } from "@/components/v3/motion";
 import { useT } from "@/lib/i18n";
+import { PRESS, useMotion } from "@/lib/motion";
 import { fill } from "@/lib/ui/fill";
 import type { DiagnoseView as View } from "@/lib/ui/types";
 
 type Props = {
   view: View;
   busy: boolean;
+  failed?: boolean;
   onAnswer: (probeId: string, value: string) => void;
   onDone: () => void;
 };
 
 type Probe = NonNullable<View["probe"]>;
 
-const NUM = "text-numeral";
+const NUM = 46;
 const Op = ({ children }: { children: ReactNode }) => (
-  <span aria-hidden className="font-display text-numeral font-bold text-ink-muted">{children}</span>
+  <span aria-hidden className="text-[34px] leading-none font-extrabold" style={{ color: "var(--v3-ink-soft)" }}>{children}</span>
 );
 
 // Форма params решает, как рисовать: незнакомая проба от бэкенда всё равно покажется.
@@ -29,12 +31,12 @@ function Expression({ probe }: { probe: Probe }) {
   const p = probe.params;
   const has = (...ks: string[]) => ks.every((k) => k in p); // порядок проверок ниже: от самой полной формы
   const row = (children: ReactNode) => <div className="flex flex-wrap items-center justify-center gap-4">{children}</div>;
-  const ask = (text: string) => <p className="text-center text-body text-ink-muted">{text}</p>;
+  const ask = (text: string) => <p className="v3-type-label text-center" style={{ color: "var(--v3-ink-soft)" }}>{text}</p>;
 
   if (has("a", "b", "c", "d")) {
     return (
       <>
-        {row(<><Fraction value={`${p.a}/${p.b}`} className={NUM} /><Op>+</Op><Fraction value={`${p.c}/${p.d}`} className={NUM} /></>)}
+        {row(<><V3Frac value={`${p.a}/${p.b}`} size={NUM} /><Op>+</Op><V3Frac value={`${p.c}/${p.d}`} size={NUM} /></>)}
         {ask(t("diagnose.probe.add"))}
       </>
     );
@@ -42,7 +44,7 @@ function Expression({ probe }: { probe: Probe }) {
   if (has("a", "c", "den")) {
     return (
       <>
-        {row(<><Fraction value={`${p.a}/${p.den}`} className={NUM} /><Op>+</Op><Fraction value={`${p.c}/${p.den}`} className={NUM} /></>)}
+        {row(<><V3Frac value={`${p.a}/${p.den}`} size={NUM} /><Op>+</Op><V3Frac value={`${p.c}/${p.den}`} size={NUM} /></>)}
         {ask(t("diagnose.probe.add"))}
       </>
     );
@@ -50,7 +52,7 @@ function Expression({ probe }: { probe: Probe }) {
   if (has("num", "den", "toDen")) {
     return (
       <>
-        {row(<><Fraction value={`${p.num}/${p.den}`} className={NUM} /><Op>=</Op><Fraction value={`?/${p.toDen}`} className={NUM} /></>)}
+        {row(<><V3Frac value={`${p.num}/${p.den}`} size={NUM} /><Op>=</Op><V3Frac value={`?/${p.toDen}`} size={NUM} /></>)}
         {ask(t("diagnose.probe.equiv"))}
       </>
     );
@@ -58,46 +60,66 @@ function Expression({ probe }: { probe: Probe }) {
   if (has("num", "den")) {
     return (
       <>
-        {row(<Pie value={`${p.num}/${p.den}`} hideValue />)}
+        {row(<ProbePie value={`${p.num}/${p.den}`} label={t("onboard.diag.pieAria")} />)}
         {ask(t("diagnose.probe.part"))}
       </>
     );
   }
   if (has("a", "b")) {
-    return <p className="text-center font-display text-title font-bold">{fill(t("diagnose.probe.lcm"), p)}</p>;
+    return <p className="v3-type-section text-center">{fill(t("diagnose.probe.lcm"), p)}</p>;
   }
-  return <p className="text-center font-display text-numeral font-bold tabular">{probe.numbersShown.join(" ")}</p>;
+  return <p className="text-center text-[40px] leading-[44px] font-extrabold tabular-nums">{probe.numbersShown.join(" ")}</p>;
 }
 
-export function DiagnoseView({ view, busy, onAnswer, onDone }: Props) {
+// Выбранный вариант подсвечен, пока сервер не ответил; новая проба (key) сбрасывает выбор.
+function Options({ probe, busy, onAnswer }: { probe: Probe; busy: boolean; onAnswer: Props["onAnswer"] }) {
+  const { t } = useT();
+  const [picked, setPicked] = useState<string | null>(null);
+  const reveal = useReveal();
+  const { transitions } = useMotion();
+  return (
+    <div role="group" aria-label={t("onboard.diag.options")} data-ref="options" className="grid grid-cols-2 gap-3">
+      {probe.options.map((o, i) => (
+        <V3Card key={o} as={motion.button} {...reveal(1 + i)} whileTap={{ scale: PRESS.scale }} transition={transitions.press} type="button" tone="circle" radius="card" disabled={busy} aria-pressed={picked === o}
+          onClick={() => { setPicked(o); onAnswer(probe.id, o); }}
+          className="flex min-h-[92px] cursor-pointer items-center justify-center px-3 py-4 disabled:cursor-default"
+          style={picked === o ? { outline: "3px solid var(--v3-teal-strong)", outlineOffset: -3 } : undefined}>
+          <V3Frac value={o} size={36} />
+        </V3Card>
+      ))}
+    </div>
+  );
+}
+
+export function DiagnoseView({ view, busy, failed, onAnswer, onDone }: Props) {
   const { t } = useT();
   const probe = view.probe;
 
   if (!probe) {
     return (
-      <div className="flex flex-col gap-6 sm:pt-[8vh]">
-        <h1 className="font-display text-title font-bold">{t("diagnose.heading")}</h1>
-        <CharacterSays who="ustoz">{t("diagnose.done")}</CharacterSays>
-        <PressButton fullWidth onClick={onDone}>{t("diagnose.toPlan")}</PressButton>
-      </div>
+      <OnboardScreen cta={<Cta onClick={onDone}>{t("diagnose.toPlan")}</Cta>}>
+        <h1 className="v3-type-banner">{t("diagnose.heading")}</h1>
+        <Rise><Say who="ustoz">{t("diagnose.done")}</Say></Rise>
+        {failed && <Note>{t("lesson.error")}</Note>}
+      </OnboardScreen>
     );
   }
 
   const say = busy ? t("diagnose.thinking") : view.asked === 0 ? t("diagnose.intro") : t("diagnose.ack");
   return (
-    <div className="flex flex-col gap-6 sm:pt-[8vh]">
-      <h1 className="font-display text-title font-bold">{t("diagnose.heading")}</h1>
-      <CharacterSays who="ustoz">{say}</CharacterSays>
-      <Card className="flex flex-col gap-4">
-        <Expression probe={probe} />
-      </Card>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-        {probe.options.map((o) => (
-          <PressButton key={probe.id + o} variant="secondary" fullWidth tall disabled={busy} onClick={() => onAnswer(probe.id, o)}>
-            <Fraction value={o} className="text-title" />
-          </PressButton>
-        ))}
+    <OnboardScreen>
+      <div>
+        <p className="v3-type-caption" style={{ color: "var(--v3-ink-soft)" }}>{fill(t("onboard.diag.progress"), { n: String(view.asked + 1) })}</p>
+        <h1 className="v3-type-banner">{t("diagnose.heading")}</h1>
       </div>
-    </div>
+      <Say who="ustoz"><span role={busy ? "status" : undefined}>{say}</span></Say>
+      <Rise key={`probe-${probe.id}`}>
+        <V3Card radius="banner" data-ref="probe" className="flex min-h-[176px] flex-col items-center justify-center gap-4 px-4 py-6">
+          <Expression probe={probe} />
+        </V3Card>
+      </Rise>
+      <Options key={`opts-${probe.id}`} probe={probe} busy={busy} onAnswer={onAnswer} />
+      {failed && <Note>{t("lesson.error")}</Note>}
+    </OnboardScreen>
   );
 }

@@ -5,7 +5,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { IconArrowLeft, IconChevron, V3Card, V3RoundButton, V3Screen } from "@/components/v3";
 import { Avatar } from "@/components/v3/chat/Bubbles";
 import { useT } from "@/lib/i18n";
-import { useMotion } from "@/lib/motion";
+import { Alive, useReveal } from "@/components/v3/motion";
+import { PRESS, useMotion } from "@/lib/motion";
 import { GOAL_INTENTS, type GoalIntent } from "@/lib/ui/types";
 
 type Props = {
@@ -24,16 +25,17 @@ const BUBBLE = { borderRadius: "var(--v3-r-bubble)", background: "var(--v3-card-
 export function GoalView({ intent, onPick, onContinue, line, failed }: Props) {
   const { t } = useT();
   const { reduced, transitions } = useMotion();
+  const reveal = useReveal();
   const said = intent ? t(`goal.reply.${intent}`) : line ?? t("goal.ask");
   return (
     <V3Screen className="gap-6 pb-8">
       <header className="pt-[37px]">
         <V3RoundButton label={t("child.back")} size={42} tone="cream" href="/start"><IconArrowLeft size={20} /></V3RoundButton>
       </header>
-      <h1 className="v3-type-screen">{t("goal.title")}</h1>
+      <motion.h1 {...reveal(0)} className="v3-type-screen">{t("goal.title")}</motion.h1>
 
-      <div className="flex items-start gap-[9px]" role="group" aria-live="polite">
-        <div className="mt-1"><Avatar who="bobr" size={64} /></div>
+      <motion.div {...reveal(1)} className="flex items-start gap-[9px]" role="group" aria-live="polite">
+        <div className="mt-1"><Alive who="bobr"><Avatar who="bobr" size={64} /></Alive></div>
         <div className="min-w-0 flex-1">
           <AnimatePresence mode="wait" initial={false}>
             <motion.p
@@ -49,27 +51,34 @@ export function GoalView({ intent, onPick, onContinue, line, failed }: Props) {
           </AnimatePresence>
           <p role="note" className="v3-type-caption mt-2 px-2" style={{ color: "var(--v3-ink-soft)" }}>{t("ai.badge")}</p>
         </div>
-      </div>
+      </motion.div>
 
       <div className="flex flex-col gap-3 pt-2">
         {intent ? (
-          <button
+          <motion.button
             type="button"
             onClick={onContinue}
-            className="v3-type-label flex h-14 w-full cursor-pointer items-center justify-center rounded-full transition-transform duration-100 active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100"
+            initial={reduced ? false : { opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0, transition: transitions.appear }}
+            whileTap={{ scale: PRESS.scale }}
+            transition={transitions.press}
+            className="v3-type-label flex h-14 w-full cursor-pointer items-center justify-center rounded-full"
             style={{ background: "linear-gradient(160deg, var(--v3-teal), var(--v3-teal-strong))", color: "var(--v3-on-teal)", boxShadow: "var(--v3-shadow-round)" }}
           >
             {t("goal.continue")}
-          </button>
+          </motion.button>
         ) : (
-          GOAL_INTENTS.map((i) => (
+          GOAL_INTENTS.map((i, k) => (
             <V3Card
               key={i}
-              as="button"
+              as={motion.button}
+              {...reveal(2 + k)}
+              whileTap={{ scale: PRESS.scale }}
+              transition={transitions.press}
               type="button"
               radius="stat"
               onClick={() => onPick(i)}
-              className="v3-type-label flex min-h-16 w-full cursor-pointer items-center justify-between gap-3 px-5 py-3 text-left transition-transform duration-100 active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100"
+              className="v3-type-label flex min-h-16 w-full cursor-pointer items-center justify-between gap-3 px-5 py-3 text-left"
             >
               <span className="min-w-0">{t(`goal.btn.${i}`)}</span>
               <span aria-hidden style={{ color: "var(--v3-ink-soft)" }}><IconChevron /></span>

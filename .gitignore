@@ -28,3 +28,5 @@ next-env.d.ts
 .ref-check
 # Parent Telegram bot secrets
 bot/.env
+.playwright-mcp
+.ref-check

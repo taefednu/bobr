@@ -28,7 +28,6 @@ function Chat() {
       optimistic={chat.optimistic}
       pending={chat.pending}
       notice={chat.notice}
-      crisis={chat.crisis}
       onSend={chat.submit}
       onLeave={leave}
       onBack={() => router.push("/home")}

@@ -9,5 +9,5 @@ export function Demo() {
   const data: HouseData = {
     levels: STATES.map((state, i) => ({ n: i + 1, topic: `N${i + 1}`, title: `${lang === "ru" ? "Тема" : "Mavzu"} ${i + 1}`, state, canStart: true })),
   };
-  return <HouseView data={data} onBack={() => {}} onStart={async () => true} />;
+  return <HouseView data={data} onStart={async () => true} />;
 }
