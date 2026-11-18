@@ -3,11 +3,12 @@
 // второй мутацией со сверкой номера хода. Импорты lib/ — только относительные.
 import { v } from "convex/values";
 import { CHAT, LESSON } from "../lib/config";
-import { checkAnswer, DEMO_PROBES, type TaskKind } from "../lib/fractions";
+import { checkAnswer, DEMO_PROBES, generateTask, type TaskKind } from "../lib/fractions";
 import { houseState } from "../lib/houses";
 import { crisisRouting } from "../lib/safety/crisis";
-import { GUARD_CATEGORIES, type GuardCategory } from "../lib/types";
+import { GUARD_CATEGORIES, type GuardCategory, type TopicId } from "../lib/types";
 import { internalMutation, internalQuery, mutation } from "./_generated/server";
+import { operandFractions } from "./lessonView";
 
 const lang = v.union(v.literal("uz"), v.literal("ru"));
 // дублирует Component из lib/types.ts
@@ -65,10 +66,13 @@ export const turnContext = internalQuery({
   },
 });
 
-/** value — УЖЕ после preGuard (маска ПДн). Дальше — только код. */
+// Виды задач по кругу (спека: 3 вида): word → picture → missing. Сид зависит от номера задачи.
+const KINDS = ["word", "picture", "missing"] as const;
+
+/** value — УЖЕ после preGuard (маска ПДн). Дальше — только код. Верный ответ → следующая задача (другой id/вид). */
 export const submitAnswer = internalMutation({
   args: { studentId: v.id("students"), value: v.string() },
-  returns: v.object({ turnNo: v.number(), verdict: v.string(), beat: v.string() }),
+  returns: v.object({ turnNo: v.number(), verdict: v.string(), beat: v.string(), hintLevel: v.number() }),
   handler: async (ctx, { studentId, value }) => {
     const s = await ctx.db.get("students", studentId);
     if (!s?.currentTask) throw new Error("no current task");
@@ -78,9 +82,14 @@ export const submitAnswer = internalMutation({
     const now = Date.now();
     const hint = s.hintLevel ?? 0;
 
+    // Лесенка подсказок (код): каждые 2 ошибки на задаче → +1, потолок 4. Модель уровень не двигает.
+    const wrongs = (s.wrongOnTask ?? 0) + (r.status === "wrong" || r.status === "misconception" ? 1 : 0);
+    let nextHint = r.status !== "almost" && wrongs > (s.wrongOnTask ?? 0) && wrongs % 2 === 0 ? Math.min(4, hint + 1) : hint;
+
     const row = await ctx.db.query("topicStatus")
       .withIndex("by_student_and_topic", (q) => q.eq("studentId", studentId).eq("topic", task.topic)).unique();
-    // Серия: верный ВВОДОМ без подсказок +1; любой другой разбор (кроме нераспознанного ввода) обнуляет.
+    // Серия по РАЗНЫМ задачам (после верного — новая): верный ВВОДОМ без подсказок +1; другой разбор (кроме
+    // нераспознанного ввода) обнуляет.
     let streak = row?.streak ?? 0;
     if (r.status === "ok" && hint === 0) streak++;
     else if (r.status !== "unparsed") streak = 0;
@@ -90,10 +99,23 @@ export const submitAnswer = internalMutation({
       level = "solved_self";
       solvedSelfAt = now;
     }
-    const tasks = (row?.tasksThisSession ?? 0) + 1;
-    if (row) await ctx.db.patch("topicStatus", row._id, { streak, level, tasksThisSession: tasks, solvedSelfAt });
+    let served = row?.tasksThisSession ?? 1; // выданных задач темы за сессию (текущая уже посчитана)
+    const patch: Record<string, unknown> = {};
+    if (r.status === "ok") {
+      if (served >= LESSON.maxTasksPerTopicPerSession) {
+        patch.state = "TOPIC_DONE";
+      } else {
+        served++;
+        const fresh = generateTask(task.topic as TopicId, KINDS[(served - 1) % KINDS.length], 100 + served);
+        const { seed: _seed, ...rest } = fresh;
+        patch.currentTask = rest;
+        nextHint = 0;
+        patch.wrongOnTask = 0;
+      }
+    } else patch.wrongOnTask = wrongs;
+    if (row) await ctx.db.patch("topicStatus", row._id, { streak, level, tasksThisSession: served, solvedSelfAt });
     else await ctx.db.insert("topicStatus", {
-      studentId, topic: task.topic, level, streak, tasksThisSession: tasks, bobrQuestionRounds: 0, solvedSelfAt,
+      studentId, topic: task.topic, level, streak, tasksThisSession: served, bobrQuestionRounds: 0, solvedSelfAt,
     });
 
     const house = houseState({ level, taughtAt: row?.taughtAt }, now);
@@ -103,11 +125,70 @@ export const submitAnswer = internalMutation({
     else await ctx.db.insert("houses", { studentId, topic: task.topic, state: house });
 
     const turnNo = (s.turnNo ?? 0) + 1;
-    await ctx.db.patch("students", studentId, { turnNo, lastVerdict: verdict, lastReply: undefined });
+    await ctx.db.patch("students", studentId, { ...patch, turnNo, lastVerdict: verdict, hintLevel: nextHint, lastReply: undefined });
     await ctx.db.insert("turns", {
-      studentId, sessionId: studentId, role: "child", kind: "answer", text: value, state: s.state, ts: now,
+      studentId, sessionId: studentId, role: "child", kind: "answer", text: value, turnNo, state: s.state, ts: now,
     });
-    return { turnNo, verdict, beat: BEAT[r.status] ?? "nudge_step" };
+    return { turnNo, verdict, beat: BEAT[r.status] ?? "nudge_step", hintLevel: nextHint };
+  },
+});
+
+/** Кнопка «подсказка»: код двигает лесенку (+1, потолок 4) и показывает компонент по операндам. LLM не нужен. */
+export const pressHint = internalMutation({
+  args: { studentId: v.id("students") },
+  returns: v.number(),
+  handler: async (ctx, { studentId }) => {
+    const s = await ctx.db.get("students", studentId);
+    if (!s?.currentTask) throw new Error("no current task");
+    const hintLevel = Math.min(4, (s.hintLevel ?? 0) + 1);
+    const turnNo = (s.turnNo ?? 0) + 1;
+    const params = operandFractions(s.currentTask.params).map((value, i) => ({ key: `f${i + 1}`, value }));
+    await ctx.db.patch("students", studentId, {
+      turnNo, hintLevel,
+      lastReply: { turnNo, reply: null, component: params.length ? { type: "pie", params } : null, hintButton: hintLevel < 4 },
+    });
+    return hintLevel;
+  },
+});
+
+/** Флаг риска от guard: reviewQueue + riskCount. Текста ребёнка не пишем. */
+export const flagRisk = internalMutation({
+  args: { studentId: v.id("students"), category: v.string(), severity: v.number(), notifyParent: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, { studentId, category, severity, notifyParent }) => {
+    const s = await ctx.db.get("students", studentId);
+    if (!s) return null;
+    const cat = (GUARD_CATEGORIES as readonly string[]).includes(category) ? (category as GuardCategory) : "OFF_TOPIC_UNSAFE";
+    await ctx.db.patch("students", studentId, { riskCount: s.riskCount + 1 });
+    // «Скажи ответ» и попытки взлома — частые и не про безопасность ребёнка: только счётчик риска,
+    // без строки на ревью (иначе очередь тонет в шуме и пропускает настоящие флаги).
+    if (cat === "ANSWER_EXTRACTION" || cat === "JAILBREAK") return null;
+    await ctx.db.insert("reviewQueue", { studentId, category: cat, severity: Math.max(1, Math.min(4, Math.round(severity))), status: "open", notifyParent });
+    return null;
+  },
+});
+
+/** guard сказал PII: в БД остаётся маска, чтобы значение не попало в последующие last6. */
+export const maskChildTurn = internalMutation({
+  args: { studentId: v.id("students"), turnNo: v.number() },
+  returns: v.null(),
+  handler: async (ctx, { studentId, turnNo }) => {
+    const rows = await ctx.db.query("turns").withIndex("by_student_and_ts", (q) => q.eq("studentId", studentId)).order("desc").take(10);
+    const t = rows.find((r) => r.role === "child" && r.turnNo === turnNo);
+    if (t) await ctx.db.patch("turns", t._id, { text: "[PII]" });
+    return null;
+  },
+});
+
+/** Выход из CRISIS-оверлея: урок продолжается с сохранённого стейта; болталка остаётся закрытой (chatBlockedUntil). */
+export const leaveCrisis = mutation({
+  args: { studentId: v.id("students") },
+  returns: v.null(),
+  handler: async (ctx, { studentId }) => {
+    const s = await ctx.db.get("students", studentId);
+    if (s?.state !== "CRISIS") return null;
+    await ctx.db.patch("students", studentId, { state: s.stateBeforeCrisis ?? "LESSON_SOLVE", stateBeforeCrisis: undefined });
+    return null;
   },
 });
 
@@ -121,7 +202,7 @@ export const recordText = internalMutation({
     const turnNo = (s.turnNo ?? 0) + 1;
     await ctx.db.patch("students", studentId, { turnNo, lastReply: undefined });
     await ctx.db.insert("turns", {
-      studentId, sessionId: studentId, role: "child", kind: "text", text: value, state: s.state, ts: Date.now(),
+      studentId, sessionId: studentId, role: "child", kind: "text", text: value, turnNo, state: s.state, ts: Date.now(),
     });
     return turnNo;
   },
@@ -131,16 +212,14 @@ export const recordText = internalMutation({
 export const recordReply = internalMutation({
   args: {
     studentId: v.id("students"), turnNo: v.number(), reply: v.union(v.string(), v.null()), component,
-    hintButton: v.boolean(), hintLevel: v.optional(v.number()),
+    hintButton: v.boolean(),
   },
   returns: v.boolean(),
-  handler: async (ctx, { studentId, turnNo, reply, component, hintButton, hintLevel }) => {
+  handler: async (ctx, { studentId, turnNo, reply, component, hintButton }) => {
     const s = await ctx.db.get("students", studentId);
     if (!s || (s.turnNo ?? 0) !== turnNo) return false;
-    const cur = s.hintLevel ?? 0;
-    // число от модели — подсказка коду: растёт не быстрее чем на 1 за ход, потолок 4
-    const next = hintLevel === undefined ? cur : Math.min(4, Math.max(cur, Math.min(Math.trunc(hintLevel), cur + 1)));
-    await ctx.db.patch("students", studentId, { lastReply: { turnNo, reply, component, hintButton }, hintLevel: next });
+    // hintLevel от модели игнорируется: лесенку ведёт только код (submitAnswer / useHint)
+    await ctx.db.patch("students", studentId, { lastReply: { turnNo, reply, component, hintButton } });
     if (reply !== null) {
       await ctx.db.insert("turns", {
         studentId, sessionId: studentId, role: "ustoz", kind: "reply", text: reply, state: s.state, ts: Date.now(),

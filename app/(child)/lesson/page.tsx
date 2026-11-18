@@ -45,6 +45,7 @@ export default function Page() {
   const { t, lang } = useT();
   const start = useMutation(api.conductor.startDemoLesson);
   const turn = useAction(api.turn.turn);
+  const leaveCrisis = useMutation(api.conductor.leaveCrisis);
   const [studentId, setStudentId] = useState<Id<"students"> | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -60,8 +61,8 @@ export default function Page() {
 
   const view = useQuery(api.lesson.view, studentId ? { studentId } : "skip");
 
-  async function send(type: "answer" | "text", value: string) {
-    if (!studentId || !value.trim() || busy) return;
+  async function send(type: "answer" | "text" | "hint", value: string) {
+    if (!studentId || (type !== "hint" && !value.trim()) || busy) return;
     setBusy(true); // индикатор ожидания — сразу, до ответа сервера (<150 мс)
     setFailed(false);
     try {
@@ -98,7 +99,9 @@ export default function Page() {
             <input aria-label={t("lesson.answer")} placeholder={t("lesson.answer")} value={answer} onChange={(e) => setAnswer(e.target.value)} className={`${field} min-w-0 flex-1`} />
             <button type="submit" disabled={busy} className={btn}>{t("lesson.check")}</button>
           </form>
-          {verdict && !busy && <p role="status" className="text-base text-ink">{t(verdict)}</p>}
+          {verdict && !busy && <p role="status" className="text-base text-ink">{t(verdict)}{view.lastVerdict === "ok" && view.state !== "TOPIC_DONE" ? ` ${t("lesson.next")}` : ""}</p>}
+          {view.state === "TOPIC_DONE" && <p role="status" className="text-base text-ink">{t("lesson.done")}</p>}
+          {!busy && view.hintLevel > 0 && <p className="border border-ink-muted bg-paper p-3 text-base text-ink">{t(`lesson.hintStep.${Math.min(4, view.hintLevel)}` as Key)}</p>}
           {busy && <p role="status" className="text-base text-ink-muted">{t("lesson.thinking")}</p>}
           {failed && <p role="alert" className="text-base text-ink">{t("lesson.error")}</p>}
           {!busy && view.reply?.text && <p className="border border-ink-muted bg-clay-100 p-3 text-base text-ink">{view.reply.text}</p>}
@@ -107,8 +110,8 @@ export default function Page() {
               {pies.map(([k, value]) => <Pie key={k} value={value} />)}
             </div>
           )}
-          {!busy && view.reply?.hintButton && (
-            <button type="button" className={btn} onClick={() => void send("text", t("lesson.hintRequest"))}>{t("lesson.hint")}</button>
+          {!busy && view.reply?.hintButton && view.hintLevel < 4 && view.state !== "TOPIC_DONE" && (
+            <button type="button" className={btn} onClick={() => void send("hint", "")}>{t("lesson.hint")}</button>
           )}
           <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void send("text", text).then(() => setText("")); }}>
             <input aria-label={t("lesson.askPlaceholder")} placeholder={t("lesson.askPlaceholder")} value={text} onChange={(e) => setText(e.target.value)} className={`${field} min-w-0 flex-1`} />
@@ -121,6 +124,7 @@ export default function Page() {
           <AiBadge />
           <p className="max-w-md text-xl">{view.crisis.text}</p>
           <p className="text-xl font-bold">{t("lesson.crisis.call")} {view.crisis.numbers.join(", ")}</p>
+          <button type="button" className={btn} onClick={() => studentId && void leaveCrisis({ studentId })}>{t("lesson.crisis.back")}</button>
         </div>
       )}
     </>

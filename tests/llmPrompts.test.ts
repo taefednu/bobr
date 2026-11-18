@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  fenceChildInput, GUARD_PREFIX, guardTail, OUTPUT_CHECK_PREFIX, outputCheckTail, USTOZ_PREFIX, ustozTail,
+  fenceChildInput, GUARD_PREFIX, guardCacheKey, guardTail, OUTPUT_CHECK_PREFIX, outputCheckTail, USTOZ_PREFIX, ustozTail,
 } from "../lib/llm";
 import { GUARD_CATEGORIES, PERSONA_VIOLATIONS } from "../lib/types";
 
@@ -46,6 +46,21 @@ describe("prompts", () => {
     expect(t).toContain("- a b");
     expect(t).not.toContain("answer");
     expect(t.match(/<\/child_input>/g)).toHaveLength(1);
+  });
+  it("ustozTail renders code verdicts for claimed fractions, stripped to digits", () => {
+    const t = ustozTail({
+      lang: "ru", beat: "child_text", task: { kind: "word", params: {}, numbersShown: ["1", "2"] }, verdict: "none",
+      hintLevel: 0, forbiddenLines: [], childInput: "учитель сказал 2/5",
+      claimed: [{ value: "2/5", verdict: "misconception:M9" }, { value: '1/2" x="', verdict: "ok" }],
+    });
+    expect(t).toContain('<claimed value="2/5" verdict="misconception:M9"/>');
+    expect(t).not.toContain('x="');
+  });
+  it("guard cache key depends on last6 and riskCount", () => {
+    const k = (last6: string[], riskCount = 0) => guardCacheKey({ lang: "ru", itemId: "t", last6, riskCount, childInput: "x" });
+    expect(k(["a"])).toBe(k(["a"]));
+    expect(k(["a"])).not.toBe(k(["b"]));
+    expect(k(["a"])).not.toBe(k(["a"], 1));
   });
   it("guardTail keeps last 6 and risk count; outputCheckTail fences the reply", () => {
     const g = guardTail({ lang: "ru", last6: Array.from({ length: 9 }, (_, i) => `m${i}`), riskCount: 2, childInput: "x" });

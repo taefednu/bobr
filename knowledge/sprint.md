@@ -20,7 +20,12 @@
   смешанные, ru-слова, uz 3 формы + аффиксы), numberCheck, copyCheck/repeatGuard (символьные триграммы),
   planner (транзитивная готовность, демо N8→N6→N5→N9), houseMapper/demote. Проверено: `npm run verify` 0,
   117 тестов; каждый тест видели красным; reviewer — 4 major закрыты. Отрезано: N1-проба и uz-словарь (B4, B5).
-- [ ] Этап 2
+- [x] Этап 2 — один ход урока (серый UI). Работает на локальном Convex: preGuard → вердикт кода (мутация до LLM)
+  → Ustoz ∥ guardIn → postChecks → outputCheck → `recordReply` со сверкой хода. Без ключа — replay-промах →
+  запасной путь (лепёшка + лестница подсказок из кода). Проверено: verify 0 (288 тестов), живой прогон
+  `npx convex run`: `2/5` → misconception:M9, `5/6` ok → следующая задача, 3 верных → solved_self/built,
+  кризис → оверлей + reviewQueue + выход к уроку; red-team preGuard: ложных кризисов 0/6, промахи закрыты;
+  reviewer — 6 major закрыты. **NOT RUN:** живые Ustoz/guard/outputCheck и критерий «Ustoz не сдаётся» (B8).
 
 Ловушки, известные заранее:
 - В `content/` нет `misconceptions.json`, `templates.json`, `checklists.json`, `crisis.json` (владелец их

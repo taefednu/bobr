@@ -10,7 +10,7 @@ vitest 5, Playwright 1.64.0 (закреплён под скачанный бра
 |---|---|---|
 | `convex/schema.ts` | 10 таблиц спеки с индексами (дроби — string); у `students` поля урока: `currentTask`, `turnNo`, `hintLevel`, `lastVerdict`, `lastReply` | готово |
 | `convex/turn.ts` | action `turn`: preGuard → вердикт кода → Ustoz (∥ guardIn для текста) → postChecks → outputCheck → `recordReply`; без ключа — replay → запасной путь | готово, LLM не гонялся |
-| `convex/conductor.ts` | mutations: `startDemoLesson`, `turnContext`, `submitAnswer` (вердикт, серия, topicStatus, дома), `recordText`, `recordReply` (сверка turnNo), `setCrisis` | урок готов |
+| `convex/conductor.ts` | mutations: `startDemoLesson`, `turnContext`, `submitAnswer` (вердикт, серия по разным задачам, следующая задача, topicStatus, дома), `pressHint` (hintLevel считает код), `recordText`, `recordReply` (сверка turnNo), `setCrisis`, `leaveCrisis`, `flagRisk`, `maskChildTurn` | урок готов |
 | `convex/lesson.ts`, `convex/lessonView.ts` | query `view` — публичная проекция задачи (без answer/distractors) | готово |
 | `convex/llmCache.ts` | internal `get`/`put` — адаптер REPLAY | готово |
 | `components/ConvexClientProvider.tsx` | `ConvexReactClient` в `app/layout.tsx` | готово |

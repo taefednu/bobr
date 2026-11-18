@@ -14,6 +14,15 @@ describe("postChecksUstoz", () => {
     });
     expect(postChecksUstoz(out, ctx)).toEqual({ ok: true, value: out });
   });
+  it("numbers are a SET: repeats of allowed numbers pass (real numbersShown, prompt style example)", () => {
+    const real = { answer: "5/6", numbersShown: ["1", "2", "1", "3"], childNumbers: ["2", "5"], recent: [] as string[] };
+    const out = turn("Ты получил 2/5 — давай проверим на полоске: 2/5 больше или меньше половины?");
+    expect(postChecksUstoz(out, real)).toEqual({ ok: true, value: out });
+  });
+  it("uz article «bir xil» is not a number word", () => {
+    const out = turn("Ikkala boʻlak bir xil kattalikdami?");
+    expect(postChecksUstoz(out, ctx)).toEqual({ ok: true, value: out });
+  });
   it.each([
     ["ответ 5/6"], ["это 10/12"], ["пять шестых получится"], ["чему равно 5 / 6?"],
   ])("rejects leak: %s", (r) => {

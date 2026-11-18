@@ -51,7 +51,8 @@ export default defineSchema({
       numbersShown: v.array(v.string()),
     })),
     turnNo: v.optional(v.number()), // растёт на каждый ход; реплика Ustoz пишется только при совпадении
-    hintLevel: v.optional(v.number()), // 0..4, считает код
+    hintLevel: v.optional(v.number()), // 0..4, считает ТОЛЬКО код: кнопка +1, каждые 2 ошибки на задаче +1, новая задача → 0
+    wrongOnTask: v.optional(v.number()), // ошибок на текущей задаче
     lastVerdict: v.optional(v.string()), // "ok" | "almost" | "misconception:M9" | "wrong" | "unparsed"
     lastReply: v.optional(v.object({
       turnNo: v.number(),
@@ -107,6 +108,7 @@ export default defineSchema({
     role: v.union(v.literal("child"), v.literal("ustoz"), v.literal("bobr"), v.literal("system")),
     kind: v.union(v.literal("answer"), v.literal("button"), v.literal("text"), v.literal("action"), v.literal("reply")),
     text: v.string(), // маскированный
+    turnNo: v.optional(v.number()), // номер хода ребёнка (для маски ПДн задним числом)
     state: convState,
     ts: v.number(), // ms; ключ для антиповтора (последние 20–30 реплик) и чистки по 30 дням
   })

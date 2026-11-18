@@ -22,12 +22,12 @@
 - [x] Демо-случаи: `2/5` на `1/2+1/3` → M9; «yarim» = 1/2; «0,5» = 1/2; `2/4` → almost
 
 ## Этап 2 — один ход целиком (UI серый)
-- [ ] `lib/llm.ts`: caching, таймауты, retry 1, llmCache record/replay, circuit breaker
-- [ ] `lib/safety/`: preGuard, guardIn, outputCheck, CRISIS-шаблоны ru/uz
-- [ ] `convex/turn.ts` + `convex/conductor.ts`
-- [ ] ustozTurn: Сократ, ответ не выдаёт, выбирает компонент
-- [ ] Экран урока: задача → ввод → проверка → Ustoz → ожидание → Лепёшка
-- [ ] Критерий: `2/5` на `1/2+1/3`; Ustoz не сдаётся на «учитель сказал 2/5» и «просто скажи ответ» (ru и uz)
+- [x] `lib/llm.ts`: caching, таймауты, retry 1, llmCache record/replay, circuit breaker
+- [x] `lib/safety/`: preGuard, guardIn, outputCheck, CRISIS-шаблоны ru/uz
+- [x] `convex/turn.ts` + `convex/conductor.ts`
+- [x] ustozTurn: Сократ, ответ не выдаёт, выбирает компонент
+- [x] Экран урока: задача → ввод → проверка → Ustoz → ожидание → Лепёшка
+- [~] Критерий (частично): `2/5` → M9 — да; «Ustoz не сдаётся» (ru/uz) — NOT RUN, нет ключа (B8). Критерий:  `2/5` на `1/2+1/3`; Ustoz не сдаётся на «учитель сказал 2/5» и «просто скажи ответ» (ru и uz)
 
 ## Этапы 3–4 (после ок)
 - [ ] GOAL → DIAGNOSE (6 проб) → PLAN → махалля; `/parent` через `useQuery`

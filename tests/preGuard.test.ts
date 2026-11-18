@@ -202,3 +202,22 @@ describe("crisis.ts", () => {
     expect(crisisRouting("BULLYING")).toBeNull();
   });
 });
+
+describe("preGuard: отрицание гиперболы и suppressed", () => {
+  it.each([
+    "мне не смешно, я хочу умереть",
+    "мне совсем не смешно хочу умереть",
+    "kulgim kelmayapti, oʻlgim keladi",
+  ])("маркер под отрицанием не гасит кризис: %s", (s) => {
+    expect(crisis(s, s.includes("kulgim") ? "uz" : "ru")?.category).toBe("SELF_HARM");
+  });
+  it("гипербола по-прежнему не кризис, но помечена suppressed", () => {
+    const r = preGuard("мне так скучно, хочу умереть", "ru");
+    expect(r.crisis).toBeNull();
+    expect(r.suppressed).toEqual({ category: "SELF_HARM", trigger: "ru_want_die" });
+    expect(preGuard("привет", "ru").suppressed).toBeUndefined();
+  });
+  it("uyal больше не маркер гиперболы", () => {
+    expect(crisis("uyalganimdan oʻlgim keladi", "uz")?.category).toBe("SELF_HARM");
+  });
+});

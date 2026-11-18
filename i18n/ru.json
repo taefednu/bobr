@@ -46,12 +46,20 @@
   "lesson.ask": "Спросить Ustoz",
   "lesson.askPlaceholder": "Напиши Ustoz…",
   "lesson.hint": "Подсказка",
-  "lesson.hintRequest": "Дай подсказку",
   "lesson.verdict.ok": "Верно!",
   "lesson.verdict.almost": "Почти: можно записать короче.",
   "lesson.verdict.misconception": "Не совсем. Давай разберёмся.",
   "lesson.verdict.wrong": "Пока неверно. Попробуй ещё.",
   "lesson.verdict.unparsed": "Не понял запись. Напиши дробь, например 1/2.",
   "lesson.crisis.call": "Позвони:",
-  "lesson.error": "Не получилось. Попробуй ещё раз."
+  "lesson.error": "Не получилось. Попробуй ещё раз.",
+  "lesson.task.picture.N9": "На картинке {a}/{b} и {c}/{d}. Сколько это вместе?",
+  "lesson.task.missing.N9": "{a}/{b} + {c}/{d} = ?/{toDen}. Какое число вместо ?",
+  "lesson.hintStep.1": "Посмотри на картинку: куски одного размера?",
+  "lesson.hintStep.2": "Складывать можно только одинаковые доли. На какие одинаковые доли можно разрезать оба куска?",
+  "lesson.hintStep.3": "Найди число, на которое делятся оба знаменателя. Это общий знаменатель.",
+  "lesson.hintStep.4": "Приведи обе дроби к общему знаменателю, потом сложи только числители.",
+  "lesson.crisis.back": "Вернуться к уроку",
+  "lesson.done": "На сегодня задач по этой теме хватит.",
+  "lesson.next": "Следующая задача:"
 }

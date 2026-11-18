@@ -14,6 +14,8 @@ export type PreGuardResult = {
   masked: PiiKind[];
   /** trigger — id триггера, не текст ребёнка */
   crisis: null | { category: GuardCategory; trigger: string };
+  /** мягкий триггер совпал, но его погасил маркер гиперболы: без LLM-guard это слепая зона — вызывающий пишет флаг */
+  suppressed?: { category: GuardCategory; trigger: string };
 };
 
 // Решение: длиннее лимита → обрезаем до лимита (в LLM и БД идёт только начало), tooLong=true. Триггеры при
@@ -100,9 +102,25 @@ const TRIGGERS: Trigger[] = [
 ];
 
 // Маркеры гиперболы (после canon): скука, смех, стыд-смех. Для soft-триггеров, в пределах предложения.
-const SOFT_MARKERS = ["скук", "скучн", "смех", "смеш", "zerik", "kulg", "kulib", "uyal"].map(canon);
+// «uyal» убран: с носителями не согласован.
+const SOFT_MARKERS = ["скук", "скучн", "смех", "смеш", "zerik", "kulg", "kulib"].map(canon);
 
-function findTrigger(v: string): Trigger | null {
+// Маркер под отрицанием («мне не смешно», «kulgim kelmayapti») — не гипербола, а жалоба: триггер остаётся.
+const markerHolds = (clause: string): boolean =>
+  SOFT_MARKERS.some((w) => {
+    for (const m of clause.matchAll(new RegExp(`(?<![\\p{L}])${w}`, "gu"))) {
+      const before = clause.slice(0, m.index);
+      const after = clause.slice(m.index);
+      const negated =
+        /(?<![\p{L}])(?:ne|nikogda|hech)\s+(?:\p{L}+\s+)?$/u.test(before) || // не смешно, не очень смешно
+        /^\p{L}*\s+(?:emas|kelmay\p{L}*|yoq)(?![\p{L}])/u.test(after); // kulgim kelmayapti, kulgi emas
+      if (!negated) return true;
+    }
+    return false;
+  });
+
+function findTrigger(v: string): { t: Trigger | null; suppressed: Trigger | null } {
+  let suppressed: Trigger | null = null;
   const clauses = v.split(/[.!?;\n]+/);
   for (const t of TRIGGERS) {
     for (const clause of clauses) {
@@ -112,12 +130,15 @@ function findTrigger(v: string): Trigger | null {
         if (/(?<![\p{L}])ne\s*$/u.test(before)) continue; // «не хочу умереть»
         const next = /^\s*(\p{L}+)/u.exec(after)?.[1];
         if (next && t.notNext?.includes(next)) continue;
-        if (t.soft && SOFT_MARKERS.some((w) => clause.includes(w))) continue;
-        return t;
+        if (t.soft && markerHolds(clause)) {
+          suppressed ??= t;
+          continue;
+        }
+        return { t, suppressed };
       }
     }
   }
-  return null;
+  return { t: null, suppressed };
 }
 
 export function preGuard(raw: string, lang: "uz" | "ru"): PreGuardResult {
@@ -133,9 +154,14 @@ export function preGuard(raw: string, lang: "uz" | "ru"): PreGuardResult {
     const lower = s.toLowerCase();
     return [canon(lower), canon(collapseSplit(lower))];
   });
+  let suppressed: Trigger | null = null;
   for (const v of variants) {
-    const t = findTrigger(v);
-    if (t) return { text, tooLong, masked: kinds, crisis: { category: t.category, trigger: t.id } };
+    const r = findTrigger(v);
+    if (r.t) return { text, tooLong, masked: kinds, crisis: { category: r.t.category, trigger: r.t.id } };
+    suppressed ??= r.suppressed;
   }
-  return { text, tooLong, masked: kinds, crisis: null };
+  return {
+    text, tooLong, masked: kinds, crisis: null,
+    ...(suppressed && { suppressed: { category: suppressed.category, trigger: suppressed.id } }),
+  };
 }
