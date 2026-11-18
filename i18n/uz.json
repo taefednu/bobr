@@ -165,5 +165,21 @@
   "lesson.task.missing.N6": "{a} va {b} ning EKUK = ? Qaysi son kerak?",
   "lesson.task.word.N8": "{a}/{den} va {c}/{den} ni qoʻsh. Qanday kasr chiqadi?",
   "lesson.task.picture.N8": "Rasmda {a}/{den} va {c}/{den}. Birgalikda qancha boʻladi?",
-  "lesson.task.missing.N8": "{a}/{den} + {c}/{den} = ?/{toDen}. ? oʻrniga qaysi son kerak?"
+  "lesson.task.missing.N8": "{a}/{den} + {c}/{den} = ?/{toDen}. ? oʻrniga qaysi son kerak?",
+  "lesson.hintStep.N8.1": "Maxrajlarga qara: ular bir xilmi?",
+  "lesson.hintStep.N8.2": "Boʻlaklar bir xil boʻlsa, ularning oʻlchami oʻzgaradimi?",
+  "lesson.hintStep.N8.3": "Maxraj boʻlak oʻlchamini bildiradi. Qoʻshganda nima koʻpayadi: boʻlaklar soni yoki oʻlchami?",
+  "lesson.hintStep.N8.4": "Suratlarni qoʻsh, maxrajni oʻzgartirma.",
+  "lesson.hintStep.N6.1": "Birinchi sonning karralilarini yozib chiq.",
+  "lesson.hintStep.N6.2": "Endi ikkinchi sonning karralilarini yoz.",
+  "lesson.hintStep.N6.3": "Ikkala roʻyxatda bor sonlarni top.",
+  "lesson.hintStep.N6.4": "Ulardan eng kichigini tanla.",
+  "lesson.hintStep.N5.1": "Yangi maxraj eskisidan necha marta katta?",
+  "lesson.hintStep.N5.2": "Har bir boʻlakni shuncha mayda boʻlakka boʻlsak, nima boʻladi?",
+  "lesson.hintStep.N5.3": "Kasr qiymati oʻzgarmasligi uchun surat bilan nima qilish kerak?",
+  "lesson.hintStep.N5.4": "Suratni ham maxraj oshgan songa koʻpaytir.",
+  "lesson.hintStep.N2.1": "Butun nechta teng boʻlakka boʻlingan?",
+  "lesson.hintStep.N2.2": "Shu son kasrning qayeriga yoziladi?",
+  "lesson.hintStep.N2.3": "Nechta boʻlak olingan?",
+  "lesson.hintStep.N2.4": "Olingan boʻlaklar soni chiziq ustiga, hamma boʻlaklar soni tagiga yoziladi."
 }

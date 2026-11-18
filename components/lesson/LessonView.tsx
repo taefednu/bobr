@@ -114,7 +114,7 @@ export function LessonView(p: LessonViewProps) {
               </div>
             )}
             {!busy && view.hintLevel > 0 && (
-              <p className="rounded-md bg-clay-100 p-4 text-body text-ink">{t(`lesson.hintStep.${Math.min(4, view.hintLevel)}` as Key)}</p>
+              <p className="rounded-md bg-clay-100 p-4 text-body text-ink">{t(`lesson.hintStep.${view.task.topic}.${Math.min(4, view.hintLevel)}` as Key) ?? t(`lesson.hintStep.${Math.min(4, view.hintLevel)}` as Key)}</p>
             )}
             {!busy && comp && fractions.length > 0 && (
               <div className="flex flex-wrap items-end justify-center gap-6">
