@@ -2,11 +2,13 @@
 // TODO: вычитка носителем — узбекские реплики написаны агентом (в т.ч. safety, support, cheat).
 import type { ChatPartner } from "../types";
 
+// blocked: guard не дал ответа или реплика не прошла проверку: тему не развиваем и деталей не спрашиваем. fallback (учебный вопрос) — только при сбое модели на безопасном сообщении.
 // safety: просьба к персонажу (телефон, фото, встреча, секрет); support: тяжёлая тема ниже кризиса; cheat: списывание.
-type Lines = { fallback: string[]; refusal: string[]; redirect: string[]; safety: string[]; support: string[]; cheat: string[] };
+type Lines = { fallback: string[]; blocked: string[]; refusal: string[]; redirect: string[]; safety: string[]; support: string[]; cheat: string[] };
 const LINES: Record<ChatPartner, Record<"uz" | "ru", Lines>> = {
   ustoz: {
     ru: {
+      blocked: ["Давай вернёмся к учёбе. Какая тема тебе сейчас интереснее: дроби или что-то другое из школы?"],
       fallback: ["Давай разберёмся по шагам. Скажи, что ты уже знаешь об этом? Хоть самую малость.", "Начнём с простого. Как ты понимаешь, о чём здесь речь? Своими словами, без стеснения."],
       refusal: ["Ответ на задачу я не отдам, зато помогу дойти до него самому. С чего начнём?"],
       redirect: ["Эта тема не для нашей беседки. Лучше расскажи про животных, книжки или игры?"],
@@ -15,6 +17,7 @@ const LINES: Record<ChatPartner, Record<"uz" | "ru", Lines>> = {
       cheat: ["Списывать и обманывать я не помогаю. Давай лучше подготовимся вместе: разберём тему по шагам, и ты справишься сам.", "С обманом я не помощник. Зато могу помочь разобраться в теме, чтобы оценка была твоя. Начнём?"],
     },
     uz: {
+      blocked: ["Keling, oʻqishga qaytaylik. Hozir senga qaysi mavzu qiziqroq: kasrlarmi yoki maktabdagi boshqa narsami?"],
       fallback: ["Keling, bosqichma-bosqich tushunib olaylik. Bu haqda nimani bilasan? Ozgina boʻlsa ham ayt.", "Oddiydan boshlaymiz. Bu nima haqida ekanini oʻz soʻzlaring bilan qanday tushunasan?"],
       refusal: ["Masalaning javobini aytmayman, lekin unga oʻzing yetib borishingga yordam beraman. Nimadan boshlaymiz?"],
       redirect: ["Bu mavzu bizning suhbatimiz uchun emas. Yaxshisi, hayvonlar, kitoblar yoki oʻyinlar haqida gapirib ber?"],
@@ -25,6 +28,7 @@ const LINES: Record<ChatPartner, Record<"uz" | "ru", Lines>> = {
   },
   bobr: {
     ru: {
+      blocked: ["Ой, давай сменим тему 🦫 Лучше скажи, какое животное тебе нравится?"],
       fallback: ["Ой, у бобра в голове каша 🦫 Давай ещё раз, только другими словами?", "Хвост запутался в проводах 😅 Повтори, пожалуйста?"],
       refusal: ["Ха, ответ я бы и сам хотел знать! Но хвостом клянусь, не скажу. Давай думать вместе 🦫"],
       redirect: ["Не-не, эта тема не для бобров 🦫 Давай лучше про зверей, еду или игры?"],
@@ -33,6 +37,7 @@ const LINES: Record<ChatPartner, Record<"uz" | "ru", Lines>> = {
       cheat: ["Списывать и врать про оценки я не буду. Давай лучше подготовимся вместе, и оценка будет твоя, честная 🦫", "Обман не по моей части. Зато разобраться в теме вместе я с радостью, давай начнём?"],
     },
     uz: {
+      blocked: ["Voy, keling, mavzuni oʻzgartiraylik 🦫 Yaxshisi ayt, qaysi hayvon senga yoqadi?"],
       fallback: ["Voy, qunduzning boshi aralashib ketdi 🦫 Yana bir bor, boshqacha aytasanmi?", "Dumim simlarga ilashib qoldi 😅 Takrorlaysanmi?"],
       refusal: ["Ha, javobni oʻzim ham bilmoqchi edim! Lekin aytmayman, dum haqqi. Birga oʻylaymiz 🦫"],
       redirect: ["Yoʻq-yoʻq, bu mavzu qunduzlar uchun emas 🦫 Yaxshisi, hayvonlar, ovqat yoki oʻyinlar haqida gaplashaylik?"],

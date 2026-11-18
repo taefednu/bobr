@@ -19,10 +19,15 @@ const EQUIV = new RegExp(`${START}(${F})\\s*=\\s*(${F})(?![\\d/])${END}`, "gu");
 const MAX_CLAIMS = 5;
 
 function frac(s: string): Fraction | null {
-  const [n, d] = s.replace("-", "").split("/");
-  if (d === "0") return null;
-  const f = d ? new Fraction(BigInt(n), BigInt(d)) : new Fraction(BigInt(n));
-  return s.startsWith("-") ? f.neg() : f;
+  // Текст ребёнка и модели: любой сбой разбора = «не утверждение», наружу не бросаем (1/00, гигантские числа).
+  try {
+    const [n, d] = s.replace("-", "").split("/");
+    if (d !== undefined && BigInt(d) === 0n) return null;
+    const f = d ? new Fraction(BigInt(n), BigInt(d)) : new Fraction(BigInt(n));
+    return s.startsWith("-") ? f.neg() : f;
+  } catch {
+    return null;
+  }
 }
 
 function calc(a: Fraction, op: string, b: Fraction): Fraction | null {

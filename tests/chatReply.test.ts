@@ -78,3 +78,9 @@ describe("chat prompt", () => {
     for (const p of [CHAT_BOBR_PREFIX, CHAT_USTOZ_PREFIX]) expect(p).not.toMatch(/displayName|<lang>ru/);
   });
 });
+
+describe("blocked line", () => {
+  it.each([["ustoz", "ru"], ["ustoz", "uz"], ["bobr", "ru"], ["bobr", "uz"]] as const)("%s %s: не просит рассказать о теме сообщения", (who, lang) => {
+    expect(chatLine(who, lang, "blocked", 1)).not.toMatch(/что ты (уже )?знаешь об этом|о чём здесь речь|nimani bilasan|nima haqida/i);
+  });
+});

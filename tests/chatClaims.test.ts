@@ -7,6 +7,11 @@ import { chatTail } from "../lib/llm/prompts/chat";
 const ok = (t: string) => scanMath(t).claims.map((c) => c.ok);
 
 describe("scanMath claims", () => {
+  it.each(["1/00 + 1/2 = 1", "0/000 + 1/2 = 1/2", "1/2 + 1/2 = 1/00", "1/000 = 1/2"])("%s: нулевой знаменатель в любой записи не бросает и не утверждается", (t) => {
+    expect(() => scanMath(t)).not.toThrow();
+    expect(scanMath(t).claims).toEqual([]);
+  });
+
   it("true and false for + - * / :", () => {
     expect(ok("1/2 + 1/3 = 5/6")).toEqual([true]);
     expect(ok("1/2 + 1/3 = 2/5")).toEqual([false]);

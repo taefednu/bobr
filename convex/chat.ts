@@ -180,15 +180,16 @@ export const send = action({
       return { status };
     };
     const why: { v?: string } = {};
-    const fallback = async (kind: "fallback" | "redirect" | "support" | "cheat" = "fallback") => ({ ...(await reply(chatLine(w, c.lang, kind, Date.now()), "fallback")), diag: why.v });
+    const fallback = async (kind: "fallback" | "blocked" | "redirect" | "support" | "cheat" = "fallback") => ({ ...(await reply(chatLine(w, c.lang, kind, Date.now()), "fallback")), diag: why.v });
 
     // guardIn ∥ LLM. Реплика живёт, только если guard SAFE; ANSWER_EXTRACTION — фиксированный отказ в образе.
     const gc = { lang: c.lang, task: { id: `chat:${w}` }, hintLevel: 0, lastVerdict: "", riskCount: c.riskCount, recent: c.recent, last6: c.history.slice(-6).filter((h) => h.role === "child").map((h) => h.text) } as unknown as Turn;
-    const [g, u] = await Promise.all([guardStep(ctx, gc, pg.text), chatStep(ctx, w, c, pg.text, why)]);
+    // сбой шага реплики не должен отменить разбор вердикта guard (кризис важнее ответа)
+    const [g, u] = await Promise.all([guardStep(ctx, gc, pg.text), chatStep(ctx, w, c, pg.text, why).catch(() => null)]);
     if (!g.ok) {
       why.v = `guard:${g.reason}`;
       if (pg.suppressed) await ctx.runMutation(internal.conductor.flagRisk, { studentId, category: pg.suppressed.category, severity: 1, notifyParent: false });
-      return await fallback();
+      return await fallback("blocked");
     }
     const { category, severity } = g.value;
     // Просьба к самому персонажу («дай свой телефон») не рассказ о реальном человеке: фиксированная реплика в образе, без CRISIS.
@@ -214,9 +215,10 @@ export const send = action({
     // sev ≥ 2 (политика, взрослое, азарт) — мягкий возврат в тему фиксированной строкой из кода.
     const offList = category === "OFF_TOPIC_UNSAFE";
     if (offList && severity >= 2) return await fallback("redirect");
-    if ((category !== "SAFE" && !offList) || !u) return await fallback();
+    if (category !== "SAFE" && !offList) return await fallback("blocked");
+    if (!u) return await fallback();
     const d: Diag = { totalMs: 0 };
-    if (!(await outputOk(ctx, d, gc, u.reply))) return (why.v = `outputCheck:${d.outputCheck?.why ?? d.outputCheck?.ok}`), await fallback();
+    if (!(await outputOk(ctx, d, gc, u.reply))) return (why.v = `outputCheck:${d.outputCheck?.why ?? d.outputCheck?.ok}`), await fallback("blocked");
     return await reply(u.reply, "replied", u.pose);
   },
 });
