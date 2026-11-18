@@ -6,7 +6,7 @@ import { SpeechBubble } from "./SpeechBubble";
 export function CharacterSays({ who, children }: { who: Who; children: ReactNode }) {
   return (
     <div className="flex items-start gap-3">
-      <Character who={who} size={104} className="sm:!size-36" />
+      <Character who={who} size={104} className="sm:!size-36" beat={typeof children === "string" ? children : undefined} />
       <SpeechBubble who={who}>{children}</SpeechBubble>
     </div>
   );

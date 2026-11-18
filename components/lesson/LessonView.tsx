@@ -47,11 +47,13 @@ export type LessonViewProps = {
   onFinish: () => void;
 };
 
-/** Дроби из params задачи для показа столбиком рядом с предложением (те же наборы ключей, что в convex/lessonView.ts). */
+/** Числа задачи столбиком рядом с предложением (формы params — как у генератора). Ответ в строку не попадает:
+ *  одиночное num/den (N2) и есть ответ, его не показываем; N5 с toDen показывает исходную дробь. */
 function taskFractions(p: Record<string, string>): string[] {
   if (p.a && p.b && p.c && p.d) return [`${p.a}/${p.b}`, `${p.c}/${p.d}`];
   if (p.a && p.c && p.den) return [`${p.a}/${p.den}`, `${p.c}/${p.den}`];
-  if (p.num && p.den) return [`${p.num}/${p.den}`];
+  if (p.a && p.b) return [p.a, p.b]; // N6: два числа
+  if (p.num && p.den && p.toDen && p.toDen !== p.den) return [`${p.num}/${p.den}`];
   return [];
 }
 
@@ -105,7 +107,7 @@ export function LessonView(p: LessonViewProps) {
               <div className="flex flex-wrap items-center gap-x-4 gap-y-3 text-numeral">
                 {taskFractions(view.task.params).map((f, i, all) => (
                   <Fragment key={`${f}-${i}`}>
-                    {i > 0 && all.length === 2 && <span aria-hidden className="text-ink-muted">+</span>}
+                    {i > 0 && all.length === 2 && !!view.task?.params.c && <span aria-hidden className="text-ink-muted">+</span>}
                     <Fraction value={f} />
                   </Fragment>
                 ))}
@@ -144,7 +146,7 @@ export function LessonView(p: LessonViewProps) {
                     type="text"
                     inputMode="text"
                     autoComplete="off"
-                    className={`${inputBase} h-[72px] px-4 text-center font-display text-numeral font-bold tabular placeholder:font-sans placeholder:text-body placeholder:font-normal`}
+                    className={`${inputBase} h-[72px] px-4 text-center ${p.answer ? "font-display text-numeral font-bold tabular" : "font-sans text-body"}`}
                     style={inkBorder}
                   />
                 </motion.div>

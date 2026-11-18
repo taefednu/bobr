@@ -12,7 +12,7 @@ import {
 import { PressButton } from "@/components/ui/press-button";
 import { useT, type Key } from "@/lib/i18n";
 import { useMotion } from "@/lib/motion";
-import type { MahallaView as View } from "@/lib/ui/demo-data";
+import type { MahallaView as View } from "@/lib/ui/types";
 
 type H = View["houses"][number];
 

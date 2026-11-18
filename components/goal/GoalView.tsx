@@ -2,7 +2,7 @@
 import { CharacterSays } from "@/components/child/CharacterSays";
 import { PressButton } from "@/components/ui/press-button";
 import { useT } from "@/lib/i18n";
-import { GOAL_INTENTS, type GoalIntent } from "@/lib/ui/demo-data";
+import { GOAL_INTENTS, type GoalIntent } from "@/lib/ui/types";
 
 type Props = {
   /** null — ещё не выбрал: Bobr спрашивает, видны три кнопки. */

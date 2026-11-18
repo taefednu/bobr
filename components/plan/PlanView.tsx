@@ -6,7 +6,7 @@ import { House } from "@/components/mahalla/House";
 import { PressButton } from "@/components/ui/press-button";
 import { useT } from "@/lib/i18n";
 import { fill } from "@/lib/ui/fill";
-import type { PlanView as Plan } from "@/lib/ui/demo-data";
+import type { PlanView as Plan } from "@/lib/ui/types";
 
 type Item = Plan["days"][number]["items"][number];
 

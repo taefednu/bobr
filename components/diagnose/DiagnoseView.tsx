@@ -7,7 +7,7 @@ import { Pie } from "@/components/fractions/Pie";
 import { PressButton } from "@/components/ui/press-button";
 import { useT } from "@/lib/i18n";
 import { fill } from "@/lib/ui/fill";
-import type { DiagnoseView as View } from "@/lib/ui/demo-data";
+import type { DiagnoseView as View } from "@/lib/ui/types";
 
 type Props = {
   view: View;

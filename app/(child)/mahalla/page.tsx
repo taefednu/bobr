@@ -1,14 +1,42 @@
 "use client";
+import { useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
+import { useRef, useState } from "react";
+import { api } from "@/convex/_generated/api";
+import { CharacterSays } from "@/components/child/CharacterSays";
 import { MahallaView } from "@/components/mahalla/MahallaView";
 import { useT } from "@/lib/i18n";
-import { stubMahalla } from "@/lib/ui/demo-data";
-
-const DEMO_NOW = Date.parse("2026-11-18T12:00:00Z");
+import { useGuard } from "@/lib/ui/session";
+import type { MahallaView as View } from "@/lib/ui/types";
 
 export default function Page() {
-  const { lang } = useT();
+  const { t } = useT();
   const router = useRouter();
-  // TODO(core): mahalla:view, mahalla:startLesson({token, topic})
-  return <MahallaView view={stubMahalla(DEMO_NOW, lang)} onStart={() => router.push("/lesson")} />;
+  const startLesson = useMutation(api.mahalla.startLesson);
+  const { token } = useGuard(4, 4);
+  const view = useQuery(api.mahalla.view, token ? { token } : "skip");
+  const [failed, setFailed] = useState(false);
+  const busy = useRef(false);
+
+  async function onStart(topic: string) {
+    if (!token || busy.current) return;
+    busy.current = true;
+    setFailed(false);
+    try {
+      await startLesson({ token, topic });
+      router.push("/lesson");
+    } catch {
+      setFailed(true);
+    } finally {
+      busy.current = false;
+    }
+  }
+
+  if (!view) return <CharacterSays who="bobr"><p role="status" className="text-ink-muted">{t("lesson.thinking")}</p></CharacterSays>;
+  return (
+    <>
+      <MahallaView view={view as View} onStart={(topic) => void onStart(topic)} />
+      {failed && <p role="alert" className="text-body text-ink">{t("lesson.error")}</p>}
+    </>
+  );
 }
