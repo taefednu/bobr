@@ -2,7 +2,7 @@
 import { v } from "convex/values";
 import { graph } from "../lib/content";
 import { houseState } from "../lib/houses";
-import { buildPlan } from "../lib/planner";
+import { buildPlan, validTestDate } from "../lib/planner";
 import { randomString } from "../lib/telegram/secure";
 import type { TopicId, TopicLevel } from "../lib/types";
 import { internalMutation, query, type QueryCtx } from "./_generated/server";
@@ -89,7 +89,7 @@ export const dashboard = query({
               ],
             })),
           }
-        : buildPlan({ graph, statuses, targets: PLAN_TARGETS, today, testDate: parent.testDate, now });
+        : buildPlan({ graph, statuses, targets: PLAN_TARGETS, today, testDate: parent.testDate && validTestDate(parent.testDate, today) ? parent.testDate : undefined, now });
 
       const week = (at?: number) => at !== undefined && now - at < 7 * DAY_MS;
       const fresh = rows.filter((r) => week(r.solvedSelfAt) || week(r.taughtAt));

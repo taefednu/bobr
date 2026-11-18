@@ -30,8 +30,8 @@ long polling), ходит в Convex через python-клиент по `docs/sp
 | Таблица | Ключевые поля | Кто пишет |
 |---|---|---|
 | `parents` | `telegramUserId`, `firstName`, `lang` (uz/ru), `consentAt`, `quietHours`, `notifyPrefs` | бот (C) |
-| `students` | `parentId`, `name` (только имя), `grade`, `lang`, `goal` {type, dueDate} | бот (C), онбординг (A) |
-| `linkCodes` | `code` (6 цифр), `studentId`, `expiresAt`, `usedAt` | бот (C) |
+| `students` | `parentId`, `name` (только имя), `grade`, `lang`, `goal` (`test_soon` / `improve` / `just_practice`), `testDate` (`YYYY-MM-DD`, только для `test_soon`) | бот (C), онбординг (A) |
+| `linkCodes` | `code` (8 символов из `ABCDEFGHJKMNPQRSTUVWXYZ23456789`, регистр при вводе не важен), `studentId`, `expiresAt`, `usedAt` | бот (C) |
 | `sessions` | `token`, `kind` (child/parent), `ownerId`, `expiresAt` | A / C |
 | `topicStatus` | `studentId`, `topicId`, `status` (unknown/gap/solved_self/taught_bobr), `taughtAt`, `lastReviewAt` | A, B |
 | `bobrState` | `studentId`, `level`, `taughtCount`, `lastLines[]` (30 последних) | B |
@@ -42,10 +42,14 @@ long polling), ходит в Convex через python-клиент по `docs/sp
 ## 3. Связывание родителя и ребёнка
 
 1. Родитель в боте: `/start` → согласие → имя ребёнка → бот создаёт `students` и `linkCodes`.
-2. Бот присылает родителю ссылку `https://<домен>/c/<code>` и сам код.
+2. Бот присылает родителю ссылку `{PUBLIC_APP_URL}/c/{code}` и сам код.
 3. Родитель открывает ссылку на устройстве ребёнка (или ребёнок вводит код на главной).
-4. Mutation `claimLinkCode` → создаёт `sessions` (kind=child), токен в `localStorage` устройства. Код одноразовый, живёт 24 ч.
+4. Mutation `claimLinkCode({code})` → создаёт `sessions` (kind=child), токен в `localStorage` устройства. Код одноразовый, живёт 24 ч.
 5. Ребёнку Telegram не нужен.
+
+**Статус контракта (18.11).** Этот раздел и цели выше — целевой контракт. В `main` пока старое: `linkCode:create` отдаёт
+ссылку `t.me`, `claimLinkCode` нет, `parents:setGoal` принимает `test_soon|homework|unknown`. Переводит сессия core;
+`docs/specs/API_FOR_BOT.md` обновится вместе с кодом. Длина кода (8 символов) уже совпадает.
 
 ## 4. Авторизация
 

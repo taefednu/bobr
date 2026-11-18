@@ -13,6 +13,10 @@ const student = {
 } as unknown as Doc<"students">;
 
 describe("lessonView", () => {
+  it("diagnosis probe (mcq) is not a lesson task: hidden from the lesson view", () => {
+    expect(lessonView({ ...student, state: "DIAGNOSE", currentTask: { ...task, kind: "mcq" } } as unknown as Doc<"students">).task).toBeNull();
+  });
+
   it("never exposes answer or distractors", () => {
     expect(probe.answer).toBe("5/6");
     expect(probe.distractors.some((d) => d.value === "2/5")).toBe(true);

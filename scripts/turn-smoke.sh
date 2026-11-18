@@ -58,5 +58,30 @@ run conductor:leaveCrisis "{\"studentId\":\"$C\"}" >/dev/null
 V=$(view "$C")
 eq "leaveCrisis -> crisis null, state restored" "$(js "$V" 'd.crisis===null&&d.state')" "LESSON_SOLVE"
 
+# Этап 3 по токену: цель → диагностика (ответы демо-пути) → план → махалля → урок из плана.
+TOK=$(js "$(run session:startDemo '{"lang":"ru"}')" d.token); T="{\"token\":\"$TOK\"}"
+run session:acceptConsent "$T" >/dev/null
+run goal:set "{\"token\":\"$TOK\",\"goal\":\"improve\"}" >/dev/null
+D=$(js "$(run session:me "$T")" d.studentId)
+run diagnose:start "$T" >/dev/null
+ASKED=""
+for _ in 1 2 3 4 5 6 7; do
+  V=$(run diagnose:view "$T"); P=$(js "$V" 'd.probe?d.probe.topic:""'); [ -z "$P" ] && break
+  ASKED="$ASKED$P "; RIGHT=$(js "$(snap "$D")" d.answer)
+  case $P in N9) VAL="2/5";; N8) VAL="3/10";; N2) VAL="$RIGHT";; *) VAL=$(js "$V" "d.probe.options.find(o=>o!=='$RIGHT')");; esac
+  [ "$(noleak "$V")" = "false" ] || bad "diagnose:view leaks answer" "$P"
+  run diagnose:answer "{\"token\":\"$TOK\",\"probeId\":\"$(js "$V" d.probe.id)\",\"value\":\"$VAL\"}" >/dev/null
+done
+eq "adaptive probes with demo answers" "$ASKED" "N9 N8 N2 N5 N6 "
+eq "plan order" "$(js "$(run plan:view "$T")" 'd.order.map(o=>o.topic).join(">")')" "N8>N6>N5>N9"
+run plan:accept "$T" >/dev/null
+eq "mahalla next" "$(js "$(run mahalla:view "$T")" d.next)" "N8"
+run mahalla:startLesson "{\"token\":\"$TOK\",\"topic\":\"N8\"}" >/dev/null
+ID1=$(js "$(snap "$D")" d.taskId)
+run turn:turn "{\"token\":\"$TOK\",\"input\":{\"type\":\"answer\",\"value\":\"$(js "$(snap "$D")" d.answer)\"}}" >/dev/null
+[ "$(js "$(snap "$D")" d.taskId)" != "$ID1" ] && ok "plan lesson: correct answer -> different task" || bad "plan lesson: next task" "same id $ID1"
+run mahalla:startLesson "{\"token\":\"$TOK\",\"topic\":\"N6\"}" >/dev/null
+eq "next plan topic starts after a lesson" "$(js "$(run lesson:view "$T")" d.task.topic)" "N6"
+
 echo; echo "ALL $STEP STEPS PASS"
 echo "LLM: replay/fallback (NOT RUN) — ANTHROPIC_API_KEY not used; steps with the LLM (Ustoz/guard/outputCheck replies) were not exercised live"

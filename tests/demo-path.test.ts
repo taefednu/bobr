@@ -1,7 +1,8 @@
 // Демо-путь спеки («Граф тем» → «Демо-путь»), детерминированная часть, без LLM.
 import { describe, expect, it } from "vitest";
 import { DEMO_PROBES, checkAnswer, type Task } from "../lib/fractions";
-import { buildPlan } from "../lib/planner";
+import { buildPlan, nextProbeTopic } from "../lib/planner";
+import type { TopicId } from "../lib/types";
 import { houseState } from "../lib/houses";
 import { graph } from "../lib/content";
 
@@ -54,5 +55,21 @@ describe("демо-путь", () => {
     expect(houseState({ level: "gap" }, NOW)).toBe("scaffold");
     expect(houseState({ level: "taught_bobr", taughtAt: NOW }, NOW)).toBe("alive");
     expect(houseState({ level: "taught_bobr", taughtAt: NOW - 7 * DAY }, NOW)).toBe("dimmed");
+  });
+  it("7. адаптивная диагностика по ответам ребёнка → ровно N8 → N6 → N5 → N9", () => {
+    const answers: Record<string, string> = { N9: "2/5", N8: "3/10", N2: probe("N2").answer };
+    const results: { topic: TopicId; ok: boolean }[] = [];
+    for (;;) {
+      const topic = nextProbeTopic({ graph, results, targets: ["N9"], maxProbes: 6, script: false });
+      if (!topic) break;
+      const t = probe(topic);
+      // N5, N6: заведомо неверный вариант (дистрактор)
+      const value = answers[topic] ?? t.distractors[0].value;
+      results.push({ topic, ok: checkAnswer(value, t).status === "ok" });
+    }
+    expect(results.map((r) => r.topic)).toEqual(["N9", "N8", "N2", "N5", "N6"]);
+    const statuses = Object.fromEntries(results.map((r) => [r.topic, { level: r.ok ? "solved_self" : "gap" }]));
+    const plan = buildPlan({ graph, statuses, targets: ["N9"], today: "2026-11-18", now: NOW });
+    expect(plan.order).toEqual(["N8", "N6", "N5", "N9"]);
   });
 });
