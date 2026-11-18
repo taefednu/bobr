@@ -1,5 +1,6 @@
 "use client";
 // Экран урока: чистое отображение. Convex, localStorage и send живут в app/(child)/lesson/page.tsx.
+import { Fragment } from "react";
 import { motion } from "framer-motion";
 import { AiBadge } from "@/components/child/AiBadge";
 import { BackLink } from "@/components/child/BackLink";
@@ -43,6 +44,7 @@ export type LessonViewProps = {
   onHint: () => void;
   onStart: () => void;
   onLeaveCrisis: () => void;
+  onFinish: () => void;
 };
 
 /** Дроби из params задачи для показа столбиком рядом с предложением (те же наборы ключей, что в convex/lessonView.ts). */
@@ -54,7 +56,7 @@ function taskFractions(p: Record<string, string>): string[] {
 }
 
 const inputBase =
-  "min-w-0 w-full rounded-lg bg-paper text-ink shadow-[var(--shadow-well)] outline-none placeholder:text-ink-muted focus:[outline:var(--focus-ring)] focus:[outline-offset:var(--focus-offset)]";
+  "min-w-0 w-full rounded-md bg-paper text-ink shadow-[var(--shadow-well)] outline-none placeholder:text-ink-muted focus:[outline:var(--focus-ring)] focus:[outline-offset:var(--focus-offset)]";
 const inkBorder = { border: "var(--stroke-ink) solid var(--color-ink)" } as const;
 
 export function LessonView(p: LessonViewProps) {
@@ -66,7 +68,9 @@ export function LessonView(p: LessonViewProps) {
   const verdict = view?.lastVerdict ? (`lesson.verdict.${view.lastVerdict.split(":")[0]}` as Key) : null;
   const comp = view?.reply?.component;
   const fractions = comp?.params.map((x) => x.value) ?? [];
-  const bubble = busy ? t("lesson.thinking") : (view?.reply?.text ?? null);
+  const bubble = busy || view === undefined ? t("lesson.thinking") : (view?.reply?.text ?? null);
+  const done = view?.state === "TOPIC_DONE";
+  const showNext = view?.lastVerdict === "ok" && !done;
   const punch = view?.lastVerdict === "ok" && !busy && !reduced;
 
   return (
@@ -74,15 +78,19 @@ export function LessonView(p: LessonViewProps) {
       <BackLink href="/mahalla" />
       <h1 className="sr-only">{t("lesson.title")}</h1>
 
-      {bubble ? (
+      {bubble || done ? (
         <CharacterSays who="ustoz">
-          <p role={busy ? "status" : undefined} className={busy ? "text-ink-muted" : undefined}>{bubble}</p>
+          {bubble && <p role={busy || view === undefined ? "status" : undefined} className={busy || view === undefined ? "text-ink-muted" : undefined}>{bubble}</p>}
+          {done && <p>{t("lesson.done")}</p>}
         </CharacterSays>
       ) : (
         <Character who="ustoz" size={88} />
       )}
 
-      {!view && (
+      {verdict && !busy && <p role="status" className="-mt-2 text-body text-ink-muted">{t(verdict)}</p>}
+      {p.failed && <p role="alert" className="text-body text-ink">{t("lesson.error")}</p>}
+
+      {view === null && (
         <div>
           <PressButton onClick={p.onStart}>{t("lesson.start")}</PressButton>
         </div>
@@ -91,76 +99,82 @@ export function LessonView(p: LessonViewProps) {
       {view?.task && taskKey && (
         <>
           <Card className="flex flex-col gap-4">
+            {showNext && <p className="text-body text-ink-muted">{t("lesson.next")}</p>}
             <p className="text-body">{fill(t(taskKey), view.task.params) || view.task.numbersShown.join(" ")}</p>
             {taskFractions(view.task.params).length > 0 && (
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-numeral">
-                {taskFractions(view.task.params).map((f, i) => <Fraction key={`${f}-${i}`} value={f} />)}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-3 text-numeral">
+                {taskFractions(view.task.params).map((f, i, all) => (
+                  <Fragment key={`${f}-${i}`}>
+                    {i > 0 && all.length === 2 && <span aria-hidden className="text-ink-muted">+</span>}
+                    <Fraction value={f} />
+                  </Fragment>
+                ))}
+              </div>
+            )}
+            {!busy && view.hintLevel > 0 && (
+              <p className="rounded-md bg-clay-100 p-4 text-body text-ink">{t(`lesson.hintStep.${Math.min(4, view.hintLevel)}` as Key)}</p>
+            )}
+            {!busy && comp && fractions.length > 0 && (
+              <div className="flex flex-wrap items-end justify-center gap-6">
+                {comp.type === "line"
+                  ? <NumberLine values={fractions} />
+                  : fractions.map((value, i) => (comp.type === "pie" ? <Pie key={i} value={value} size={130} /> : <Strip key={i} value={value} />))}
               </div>
             )}
           </Card>
 
-          <form className="flex flex-col gap-4 sm:flex-row sm:items-start" onSubmit={(e) => { e.preventDefault(); p.onSubmitAnswer(); }}>
-            <motion.div
-              key={view.lastVerdict === "ok" ? `ok-${view.hintLevel}-${view.task.numbersShown.join()}` : "idle"}
-              className="min-w-0 flex-1"
-              initial={punch ? { scale: targets.punchScale } : false}
-              animate={{ scale: 1, transition: transitions.punch }}
-            >
-              <input
-                aria-label={t("lesson.answer")}
-                placeholder={t("lesson.answer")}
-                value={p.answer}
-                onChange={(e) => p.onAnswerChange(e.target.value)}
-                type="text"
-                inputMode="text"
-                autoComplete="off"
-                className={`${inputBase} h-[72px] px-4 text-center font-display text-numeral font-bold tabular`}
-                style={inkBorder}
-              />
-            </motion.div>
-            <div className="sm:pt-3">
-              <PressButton type="submit" disabled={busy} fullWidth>{t("lesson.check")}</PressButton>
-            </div>
-          </form>
-
-          {verdict && !busy && (
-            <p role="status" className="text-body text-ink">
-              {t(verdict)}{view.lastVerdict === "ok" && view.state !== "TOPIC_DONE" ? ` ${t("lesson.next")}` : ""}
-            </p>
-          )}
-          {view.state === "TOPIC_DONE" && <p role="status" className="text-body text-ink">{t("lesson.done")}</p>}
-          {p.failed && <p role="alert" className="text-body text-ink">{t("lesson.error")}</p>}
-
-          {!busy && view.hintLevel > 0 && (
-            <p className="rounded-lg bg-clay-100 p-4 text-body text-ink">{t(`lesson.hintStep.${Math.min(4, view.hintLevel)}` as Key)}</p>
-          )}
-
-          {!busy && comp && fractions.length > 0 && (
-            <Card className="flex flex-wrap items-end justify-center gap-6">
-              {comp.type === "line"
-                ? <NumberLine values={fractions} />
-                : fractions.map((value, i) => (comp.type === "pie" ? <Pie key={i} value={value} /> : <Strip key={i} value={value} />))}
-            </Card>
-          )}
-
-          {!busy && view.reply?.hintButton && view.hintLevel < 4 && view.state !== "TOPIC_DONE" && (
+          {done ? (
             <div>
-              <PressButton variant="secondary" onClick={p.onHint}>{t("lesson.hint")}</PressButton>
+              <PressButton onClick={p.onFinish}>{t("plan.toMahalla")}</PressButton>
             </div>
-          )}
+          ) : (
+            <>
+              <form className="flex flex-col gap-4 sm:flex-row sm:items-start" onSubmit={(e) => { e.preventDefault(); p.onSubmitAnswer(); }}>
+                <motion.div
+                  key={view.lastVerdict === "ok" ? `ok-${view.hintLevel}-${view.task.numbersShown.join()}` : "idle"}
+                  className="min-w-0 flex-1"
+                  initial={punch ? { scale: targets.punchScale } : false}
+                  animate={{ scale: 1, transition: transitions.punch }}
+                >
+                  <input
+                    aria-label={t("lesson.answer")}
+                    placeholder={t("lesson.answer")}
+                    value={p.answer}
+                    onChange={(e) => p.onAnswerChange(e.target.value)}
+                    type="text"
+                    inputMode="text"
+                    autoComplete="off"
+                    className={`${inputBase} h-[72px] px-4 text-center font-display text-numeral font-bold tabular placeholder:font-sans placeholder:text-body placeholder:font-normal`}
+                    style={inkBorder}
+                  />
+                </motion.div>
+                <div className="sm:pt-3">
+                  <PressButton type="submit" disabled={busy} fullWidth>{t("lesson.check")}</PressButton>
+                </div>
+              </form>
 
-          <form className="flex flex-col gap-3 sm:flex-row sm:items-start" onSubmit={(e) => { e.preventDefault(); p.onSubmitText(); }}>
-            <input
-              aria-label={t("lesson.askPlaceholder")}
-              placeholder={t("lesson.askPlaceholder")}
-              value={p.text}
-              onChange={(e) => p.onTextChange(e.target.value)}
-              autoComplete="off"
-              className={`${inputBase} h-[52px] px-4 text-body`}
-              style={{ border: "var(--stroke-ink-thin) solid var(--color-ink-muted)" }}
-            />
-            <PressButton type="submit" variant="secondary" disabled={busy}>{t("lesson.ask")}</PressButton>
-          </form>
+              {!busy && view.reply?.hintButton && view.hintLevel < 4 && (
+                <div>
+                  <PressButton variant="secondary" onClick={p.onHint}>{t("lesson.hint")}</PressButton>
+                </div>
+              )}
+
+              <form className="flex flex-col gap-3 sm:flex-row sm:items-center" onSubmit={(e) => { e.preventDefault(); p.onSubmitText(); }}>
+                <input
+                  aria-label={t("lesson.askPlaceholder")}
+                  placeholder={t("lesson.askPlaceholder")}
+                  value={p.text}
+                  onChange={(e) => p.onTextChange(e.target.value)}
+                  autoComplete="off"
+                  className={`${inputBase} h-[52px] px-4 text-body`}
+                  style={{ border: "var(--stroke-ink-thin) solid var(--color-ink-muted)" }}
+                />
+                <div className="shrink-0 whitespace-nowrap">
+                  <PressButton type="submit" variant="secondary" disabled={busy}>{t("lesson.ask")}</PressButton>
+                </div>
+              </form>
+            </>
+          )}
         </>
       )}
 

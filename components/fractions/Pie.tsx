@@ -10,7 +10,8 @@ const THICK = 7;
 const CRUST_DOTS = 24;
 const INK = { stroke: "var(--color-ink)", strokeWidth: "var(--stroke-ink)" } as const;
 
-export function Pie({ value, size = 168 }: { value: string; size?: number }) {
+/** hideValue: дробь и есть ответ на вопрос (проба «какая часть закрашена»), подписи и aria-label нет. */
+export function Pie({ value, size = 168, hideValue }: { value: string; size?: number; hideValue?: boolean }) {
   const gid = `pie-hl-${useId().replace(/:/g, "")}`;
   const f = parseFraction(value);
   if (!f || f.k > f.n) return null;
@@ -25,8 +26,7 @@ export function Pie({ value, size = 168 }: { value: string; size?: number }) {
         viewBox="-62 -62 124 136"
         width={size}
         height={r2((size * 136) / 124)}
-        role="img"
-        aria-label={value}
+        {...(hideValue ? { "aria-hidden": true } : { role: "img", "aria-label": value })}
         className="h-auto max-w-full [transform:perspective(600px)_rotateX(28deg)]"
       >
         <defs>
@@ -56,7 +56,7 @@ export function Pie({ value, size = 168 }: { value: string; size?: number }) {
           })
         )}
       </svg>
-      <Fraction value={value} className="text-title" />
+      {!hideValue && <Fraction value={value} className="text-title" />}
     </figure>
   );
 }

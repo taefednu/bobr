@@ -41,7 +41,7 @@
   "parent.title": "Ota-onalar uchun",
   "parent.summary": "Bu yerda oʻquv xulosasi boʻladi.",
   "parent.note": "Ota-onalar xulosani koʻradi, bolaning yozishmasini emas.",
-  "lesson.start": "Demo darsni boshlash",
+  "lesson.start": "Darsni boshlash",
   "lesson.task.word.N9": "{a}/{b} va {c}/{d} ni qoʻsh. Qanday kasr chiqadi?",
   "lesson.thinking": "Ustoz oʻylayapti…",
   "lesson.ask": "Ustozdan soʻrash",
@@ -95,5 +95,6 @@
   "mahalla.start": "Darsni boshlash",
   "diagnose.probe.part": "Rasmda qancha qismi boʻyalgan?",
   "plan.kind.review": "Takrorlash",
-  "plan.kind.mixed_check": "Aralash tekshiruv"
+  "plan.kind.mixed_check": "Aralash tekshiruv",
+  "nav.plan": "Yoʻlim"
 }

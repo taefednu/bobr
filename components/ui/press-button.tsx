@@ -48,7 +48,7 @@ export function PressButton({ variant = "primary", disabled, demoState, onClick,
   const live = !disabled && !demoState;
   const deepFill = variant === "primary" && demoState === "hover" ? "bg-lazuli-deep" : "";
   return (
-    <span className={`group relative ${fullWidth ? "flex w-full" : "inline-flex"}`} style={{ marginBottom: ledgePx }}>
+    <span className={`group relative ${fullWidth ? "flex w-full" : "inline-flex w-fit shrink-0"}`} style={{ marginBottom: ledgePx }}>
       {/* Кольцо фокуса: в неподвижной обёртке, не на кнопке — иначе оно ездит вместе с нажатием. */}
       <span
         aria-hidden
@@ -66,7 +66,7 @@ export function PressButton({ variant = "primary", disabled, demoState, onClick,
         type={type}
         disabled={disabled}
         onClick={onClick}
-        className={`relative ${tall ? "h-[84px]" : "h-[52px]"} ${fullWidth ? "w-full" : ""} rounded-full px-7 text-label font-semibold ${
+        className={`relative ${tall ? "h-[84px]" : "h-[52px]"} ${fullWidth ? "w-full" : "whitespace-nowrap"} rounded-full px-7 text-label font-semibold ${
           disabled ? "bg-clay-100 text-ink-muted" : `${FILL[variant]} ${deepFill} cursor-pointer`
         }`}
         style={{

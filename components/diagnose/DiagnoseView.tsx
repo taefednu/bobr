@@ -58,7 +58,7 @@ function Expression({ probe }: { probe: Probe }) {
   if (has("num", "den")) {
     return (
       <>
-        {row(<Pie value={`${p.num}/${p.den}`} />)}
+        {row(<Pie value={`${p.num}/${p.den}`} hideValue />)}
         {ask(t("diagnose.probe.part"))}
       </>
     );

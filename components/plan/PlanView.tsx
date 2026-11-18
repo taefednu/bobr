@@ -34,7 +34,7 @@ export function PlanView({ plan, onContinue }: { plan: Plan; onContinue: () => v
   const days = groups(plan);
   const lastDay = days.length - 1;
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-6 sm:pt-[4vh]">
+    <div className="flex w-full flex-col gap-6">
       <h1 className="font-display text-title font-bold">{t("plan.title")}</h1>
       <CharacterSays who="ustoz">{t("plan.intro")}</CharacterSays>
       <ol className="flex flex-col">
@@ -73,7 +73,9 @@ export function PlanView({ plan, onContinue }: { plan: Plan; onContinue: () => v
           </li>
         ))}
       </ol>
-      <PressButton fullWidth onClick={onContinue}>{t("plan.toMahalla")}</PressButton>
+      <div className="sticky z-20" style={{ bottom: "calc(var(--bottom-nav-h) + 12px)" }}>
+        <PressButton fullWidth onClick={onContinue}>{t("plan.toMahalla")}</PressButton>
+      </div>
     </div>
   );
 }

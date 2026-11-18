@@ -1,7 +1,7 @@
 // Стопка «числитель / черта / знаменатель» из строки "k/n". Не дробь — просто текст.
 export function Fraction({ value, className = "" }: { value: string; className?: string }) {
-  const m = /^(\d+)\/(\d+)$/.exec(value);
-  if (!m) return <span className={className}>{value}</span>;
+  const m = /^(\d+|\?)\/(\d+)$/.exec(value); // "?/6": пропуск в числителе у пробы
+  if (!m) return <span className={`font-display font-bold tabular ${className}`}>{value}</span>;
   return (
     <span role="img" aria-label={value} className={`inline-flex flex-col items-center font-display font-bold leading-none tabular ${className}`}>
       <span aria-hidden>{m[1]}</span>

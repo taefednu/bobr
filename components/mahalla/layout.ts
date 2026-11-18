@@ -2,26 +2,29 @@
 // Два набора: узкий (телефон, рамка высокая) и широкий (≥ md). Улицы идут по диагоналям и по prereqs из графа.
 export type Spot = readonly [x: number, y: number];
 
-export const PHONE_ASPECT = "358 / 960";
+export const PHONE_ASPECT = "358 / 880";
 export const WIDE_ASPECT = "672 / 620";
-/** Ширина блока (кнопка + табличка) в % рамки; дом внутри — 26 % и 18 % рамки (87 % и 82 % блока). */
-export const PHONE_W = 30;
+/** Ширина блока (кнопка + табличка) в % рамки; дом внутри — 87 % и 82 % блока. */
+export const PHONE_W = 36;
 export const WIDE_W = 22;
 /** Куда садится конец улицы: центр стены дома, % рамки ниже верха блока. */
-export const PHONE_ANCHOR_Y = 4.5;
+export const PHONE_ANCHOR_Y = 5.9;
 export const WIDE_ANCHOR_Y = 7.8;
+/** Пустой участок нарисован ниже в своей рамке, улица опускается к его пунктиру. */
+export const PHONE_ANCHOR_EMPTY = 8.5;
+export const WIDE_ANCHOR_EMPTY = 12.9;
 
 export const PHONE: Record<string, Spot> = {
-  N1: [22, 0],
-  N2: [50, 15.5],
-  N3: [22, 31],
-  N8: [78, 31],
-  N4: [50, 46.5],
-  N10: [16, 46.5],
-  N6: [18, 62],
-  N5: [50, 62],
-  N7: [22, 77.5],
-  N9: [80, 77.5],
+  N1: [24, 0],
+  N2: [76, 4],
+  N3: [24, 20],
+  N8: [76, 24],
+  N10: [24, 40],
+  N4: [76, 44],
+  N6: [24, 60],
+  N5: [76, 62],
+  N7: [24, 80],
+  N9: [76, 80],
 };
 
 export const WIDE: Record<string, Spot> = {

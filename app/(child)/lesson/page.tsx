@@ -1,6 +1,7 @@
 "use client";
 import { useAction, useMutation, useQuery } from "convex/react";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useT } from "@/lib/i18n";
@@ -13,6 +14,8 @@ export default function Page() {
   const start = useMutation(api.conductor.startDemoLesson);
   const turn = useAction(api.turn.turn);
   const leaveCrisis = useMutation(api.conductor.leaveCrisis);
+  const router = useRouter();
+  const auto = useRef(false);
   const [studentId, setStudentId] = useState<Id<"students"> | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -22,8 +25,12 @@ export default function Page() {
   useEffect(() => {
     try {
       const id = localStorage.getItem(STORE);
-      if (id) setStudentId(id as Id<"students">);
+      if (id) { setStudentId(id as Id<"students">); return; }
     } catch {}
+    if (auto.current) return; // двойной эффект dev-режима: стартуем один раз
+    auto.current = true;
+    void begin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const view = useQuery(api.lesson.view, studentId ? { studentId } : "skip");
@@ -42,16 +49,21 @@ export default function Page() {
   }
 
   async function begin() {
-    const id = await start({ lang });
+    setFailed(false);
     try {
-      localStorage.setItem(STORE, id);
-    } catch {}
-    setStudentId(id);
+      const id = await start({ lang });
+      try {
+        localStorage.setItem(STORE, id);
+      } catch {}
+      setStudentId(id);
+    } catch {
+      setFailed(true);
+    }
   }
 
   return (
     <LessonView
-      view={view}
+      view={!studentId && failed ? null : view}
       busy={busy}
       failed={failed}
       answer={answer}
@@ -62,6 +74,7 @@ export default function Page() {
       onSubmitText={() => void send("text", text).then(() => setText(""))}
       onHint={() => void send("hint", "")}
       onStart={() => void begin()}
+      onFinish={() => router.push("/mahalla")}
       onLeaveCrisis={() => studentId && void leaveCrisis({ studentId })}
     />
   );

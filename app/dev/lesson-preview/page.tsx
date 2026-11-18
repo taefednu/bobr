@@ -14,7 +14,8 @@ const reply = (over: Partial<NonNullable<LessonViewData["reply"]>> = {}) => ({
 });
 const params = (...v: string[]) => v.map((value, i) => ({ key: `v${i}`, value }));
 
-const fixtures: { key: string; view: LessonViewData | null; busy?: boolean; failed?: boolean }[] = [
+const fixtures: { key: string; view: LessonViewData | null | undefined; busy?: boolean; failed?: boolean }[] = [
+  { key: "loading", view: undefined },
   { key: "start", view: null },
   { key: "task-no-reply", view: base },
   { key: "busy", view: { ...base, reply: reply() }, busy: true },
@@ -31,7 +32,7 @@ const fixtures: { key: string; view: LessonViewData | null; busy?: boolean; fail
 
 const common: Omit<LessonViewProps, "view" | "busy" | "failed"> = {
   answer: "", text: "", onAnswerChange: noop, onTextChange: noop, onSubmitAnswer: noop, onSubmitText: noop,
-  onHint: noop, onStart: noop, onLeaveCrisis: noop,
+  onHint: noop, onStart: noop, onFinish: noop, onLeaveCrisis: noop,
 };
 
 function Preview() {

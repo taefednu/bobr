@@ -7,7 +7,7 @@ import { Card } from "@/components/child/Card";
 import { House } from "@/components/mahalla/House";
 import { TileBand } from "@/components/mahalla/TileBand";
 import {
-  PHONE, PHONE_ANCHOR_Y, PHONE_ASPECT, PHONE_W, WIDE, WIDE_ANCHOR_Y, WIDE_ASPECT, WIDE_W, type Spot,
+  PHONE, PHONE_ANCHOR_EMPTY, PHONE_ANCHOR_Y, PHONE_ASPECT, PHONE_W, WIDE, WIDE_ANCHOR_EMPTY, WIDE_ANCHOR_Y, WIDE_ASPECT, WIDE_W, type Spot,
 } from "@/components/mahalla/layout";
 import { PressButton } from "@/components/ui/press-button";
 import { useT, type Key } from "@/lib/i18n";
@@ -17,8 +17,9 @@ import type { MahallaView as View } from "@/lib/ui/demo-data";
 type H = View["houses"][number];
 
 /** Улицы: широкая песочная полоса и тонкий пунктир по ней; координаты в % рамки, толщина не масштабируется. */
-function Streets({ houses, spots, anchorY, className }: { houses: H[]; spots: Record<string, Spot>; anchorY: number; className: string }) {
-  const at = (id: string) => spots[id] && ([spots[id][0], spots[id][1] + anchorY] as const);
+function Streets({ houses, spots, anchorY, emptyY, className }: { houses: H[]; spots: Record<string, Spot>; anchorY: number; emptyY: number; className: string }) {
+  const state = new Map(houses.map((h) => [h.topic, h.state]));
+  const at = (id: string) => spots[id] && ([spots[id][0], spots[id][1] + (state.get(id) === "empty" ? emptyY : anchorY)] as const);
   const lines = houses.flatMap((h) =>
     h.prereqs.flatMap((p) => {
       const a = at(p);
@@ -102,22 +103,22 @@ export function MahallaView({ view, onStart }: { view: View; onStart: (topic: st
         className="relative isolate mx-auto w-full max-w-[420px] rounded-xl bg-clay-100 shadow-well [aspect-ratio:var(--ar-phone)] md:max-w-none md:[aspect-ratio:var(--ar-wide)]"
         style={{ "--ar-phone": PHONE_ASPECT, "--ar-wide": WIDE_ASPECT } as CSSProperties}
       >
-        <Streets houses={view.houses} spots={PHONE} anchorY={PHONE_ANCHOR_Y} className="md:hidden" />
-        <Streets houses={view.houses} spots={WIDE} anchorY={WIDE_ANCHOR_Y} className="hidden md:block" />
+        <Streets houses={view.houses} spots={PHONE} anchorY={PHONE_ANCHOR_Y} emptyY={PHONE_ANCHOR_EMPTY} className="md:hidden" />
+        <Streets houses={view.houses} spots={WIDE} anchorY={WIDE_ANCHOR_Y} emptyY={WIDE_ANCHOR_EMPTY} className="hidden md:block" />
         {view.houses.map((h) => (
           <HouseSpot key={h.topic} h={h} selected={h.topic === sel?.topic} isNext={h.topic === view.next} rank={rank.get(h.topic) ?? 0} onPick={() => setPicked(h.topic)} />
         ))}
       </div>
       {sel && (
-        <Card className="flex flex-col gap-3">
-          <h2 className="font-display text-title font-bold">{sel.title}</h2>
-          <p className="text-body text-ink-muted">{t(`mahalla.house.${sel.state}` as Key)}</p>
-          {sel.canStart && (
-            <div>
-              <PressButton onClick={() => onStart(sel.topic)}>{t("mahalla.start")}</PressButton>
+        <div className="sticky z-50" style={{ bottom: "calc(var(--bottom-nav-h, 0px) + 12px)" }}>
+          <Card className="flex items-center justify-between gap-3 p-4!">
+            <div className="min-w-0 flex-1">
+              <h2 className="font-display text-label font-bold leading-tight">{sel.title}</h2>
+              <p className="text-label text-ink-muted">{t(`mahalla.house.${sel.state}` as Key)}</p>
             </div>
-          )}
-        </Card>
+            {sel.canStart && <PressButton onClick={() => onStart(sel.topic)}>{t("mahalla.start")}</PressButton>}
+          </Card>
+        </div>
       )}
     </div>
   );

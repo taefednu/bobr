@@ -40,7 +40,7 @@
   "parent.title": "Родителям",
   "parent.summary": "Здесь будет сводка по учёбе.",
   "parent.note": "Родитель видит сводку, а не переписку ребёнка.",
-  "lesson.start": "Начать демо-урок",
+  "lesson.start": "Начать урок",
   "lesson.task.word.N9": "Сложи {a}/{b} и {c}/{d}. Какая дробь получится?",
   "lesson.thinking": "Ustoz думает…",
   "lesson.ask": "Спросить Ustoz",
@@ -94,5 +94,6 @@
   "mahalla.start": "Начать урок",
   "diagnose.probe.part": "Какая часть закрашена?",
   "plan.kind.review": "Повторить",
-  "plan.kind.mixed_check": "Смешанная проверка"
+  "plan.kind.mixed_check": "Смешанная проверка",
+  "nav.plan": "Мой путь"
 }
