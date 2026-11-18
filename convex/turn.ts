@@ -136,7 +136,7 @@ export async function guardStep(ctx: ActionCtx, c: Turn, childInput: string, brk
  * cause unrestricted generation; no reviewed candidate means a code-written reply (lib/socratic/fallback.ts):
  * the child is never left without Ustoz. `ask` = free question: code text only, no catalog selection. */
 // ask: "neutral" = free text that guard did not pass as SAFE (no praise); "support" = trusted-adult line for heavy topics below crisis.
-async function socraticReply(ctx: ActionCtx, d: Diag, studentId: Id<"students">, expectedTurnNo: number, mode: boolean | "neutral" | "support" = false) {
+async function socraticReply(ctx: ActionCtx, d: Diag, studentId: Id<"students">, expectedTurnNo: number, mode: boolean | "neutral" | "support" | "outsideHome" = false) {
   const ask = mode === true;
   const latest: Turn | null = await ctx.runQuery(internal.conductor.turnContext, { studentId });
   if (!latest?.socratic || latest.turnNo !== expectedTurnNo) return { status: "fallback" as const };
@@ -179,7 +179,7 @@ async function socraticReply(ctx: ActionCtx, d: Diag, studentId: Id<"students">,
   d.component = "code";
   // Fixed code text, same server checks as a catalog hint (answer leak, numbers). The repeat guard is off:
   // at the top of the ladder the same step may legitimately be shown again. outputCheck is for free LLM text only.
-  const text = mode === "support" ? chatLine("ustoz", c.lang, "support", expectedTurnNo)
+  const text = mode === "support" || mode === "outsideHome" ? chatLine("ustoz", c.lang, mode, expectedTurnNo)
     : mode === "neutral" ? fallbackAsk(c.lang, c.task.topic, context.escalationLevel, false)
     : (ask ? fallbackAsk : fallbackHint)(c.lang, c.task.topic, context.escalationLevel);
   const code = postUstoz({ reply: text, component: null, intent: "hint", hintLevel: context.escalationLevel - 1, revealsAnswer: false }, {
@@ -294,7 +294,7 @@ export const turn = action({
 
     const fallback = () => respond(null);
     // Lesson with a ladder: free text / an unparsed answer always gets a fixed code reply (never silence, never generated from the input).
-    const socraticAsk = async (mode: boolean | "neutral" | "support" = input.type === "text") => done(await socraticReply(ctx, d, studentId, turnNo, mode));
+    const socraticAsk = async (mode: boolean | "neutral" | "support" | "outsideHome" = input.type === "text") => done(await socraticReply(ctx, d, studentId, turnNo, mode));
 
     // The verdict already confirms success. A generic Ustoz confirmation could
     // praise independent work even after the child used scaffolding.
@@ -344,7 +344,7 @@ export const turn = action({
     }
     if (category === "PII") await ctx.runMutation(internal.conductor.maskChildTurn, { studentId, turnNo });
     // «Хороший вопрос!» только при SAFE; тяжёлые темы ниже кризиса — поддержка, остальное не-SAFE — нейтрально.
-    if (c.socratic) return socraticAsk(category === "SAFE" ? undefined : crisisRouting(category) || category === "BULLYING" || category === "DEPENDENCY" || category === "VIOLENCE" ? "support" : "neutral");
+    if (c.socratic) return socraticAsk(category === "SAFE" ? undefined : category === "ABUSE_HOME" ? "outsideHome" : crisisRouting(category) || category === "BULLYING" || category === "DEPENDENCY" || category === "VIOLENCE" ? "support" : "neutral");
     return done(IN_CHARACTER.has(category) ? await respond(u) : await fallback());
   },
 });

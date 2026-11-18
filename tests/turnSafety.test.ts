@@ -38,6 +38,12 @@ describe("turn: сократический урок, свободный текс
     guard(cat, 1);
     expect(reply(await run("текст"))).toMatch(/взросл|мам/);
   });
+  it("ABUSE_HOME ниже порога: не отправляет к родителям", async () => {
+    guard("ABUSE_HOME", 1);
+    const line = reply(await run("текст"));
+    expect(line).toMatch(/учител/);
+    expect(line).not.toMatch(/мам|пап|родител/i);
+  });
   it("сбой guard: нейтрально без похвалы, строка ребёнка маскируется до возврата", async () => {
     guardOut.value = { ok: false, reason: "timeout", meta: { ms: 0 } };
     const calls = await run("текст");

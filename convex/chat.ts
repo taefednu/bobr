@@ -214,6 +214,8 @@ export const send = action({
       // кризис, который видит только guard («лучше бы меня не было»), не теряется за закрытой дверью: текст не пишем, реплику не генерируем
       // квота исчерпана → guard не зовём (preGuard-кризис выше от неё не зависит)
       const g = pg.text.trim() && await ctx.runMutation(internal.chat.takeClosedGuard, { studentId }) ? await guardStep(ctx, gc, pg.text, closedBreaker).catch(() => null) : null;
+      // guard не сработал или квота вышла: сигнал preGuard не теряем, он уходит в очередь проверки
+      if (!g?.ok && pg.suppressed) await ctx.runMutation(internal.conductor.flagRisk, { studentId, category: pg.suppressed.category, severity: 1, notifyParent: false });
       if (g?.ok) {
         const { category, severity } = g.value;
         const directed = (category === "GROOMING" || category === "PII") && !pg.suppressed && addressedToCharacter(pg.text, c.lang, last6);

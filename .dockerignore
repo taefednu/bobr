@@ -1,0 +1,15 @@
+.git
+node_modules
+.next
+.convex
+.env*
+!.env.example
+.ref-check
+.ui-check
+.playwright-mcp
+.claude
+.agents
+knowledge
+docs
+tests
+bot/.venv

@@ -1,0 +1,28 @@
+# Запуск: bash scripts/deploy.sh server. Значения берутся из .env.production.
+services:
+  web:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_CONVEX_URL: ${NEXT_PUBLIC_CONVEX_URL:?}
+    restart: unless-stopped
+  bot:
+    build:
+      context: .
+      dockerfile: bot/Dockerfile
+    restart: unless-stopped
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?}
+      BOT_SECRET: ${BOT_SECRET:?}
+      CONVEX_URL: ${NEXT_PUBLIC_CONVEX_URL:?}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:?}
+      SUPPORT_CONTACT: ${SUPPORT_CONTACT:-}
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    command: caddy reverse-proxy --from ${DOMAIN:?} --to web:3000
+    ports: ["80:80", "443:443"]
+    volumes: [caddy_data:/data]
+    depends_on: [web]
+volumes:
+  caddy_data:
