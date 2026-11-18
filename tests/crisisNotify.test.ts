@@ -43,9 +43,10 @@ describe("abuseRowCounts", () => {
     expect(abuseRowCounts(row({ status: "reviewed", _creationTime: now - 91 * DAY }), now)).toBe(false);
     expect(abuseRowCounts(row({ category: "SELF_HARM", _creationTime: now }), now)).toBe(false);
   });
-  it("любой ABUSE_HOME-флаг (и слабый severity-1) удерживает пуш — fail closed; удержание видно через withheldPush", () => {
-    expect(abuseRowCounts(row({ severity: 1 }), now)).toBe(true);
-    expect(abuseRowCounts(row({ severity: 2 }), now)).toBe(true);
+  it("слабый флаг (severity 1) держит пуш 24 ч, даже открытый; сильный — пока открыт / 90 дней", () => {
+    expect(abuseRowCounts(row({ severity: 1, _creationTime: now - 3_600_000 }), now)).toBe(true);
+    expect(abuseRowCounts(row({ severity: 1, _creationTime: now - 25 * 3_600_000 }), now)).toBe(false);
+    expect(abuseRowCounts(row({ severity: 2, _creationTime: 0 }), now)).toBe(true);
   });
   it("priorAbuseFrom: пусто — нет; лимит достигнут без ответа — fail closed", () => {
     expect(priorAbuseFrom([], now)).toBe(false);
