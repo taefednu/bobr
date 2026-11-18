@@ -29,7 +29,7 @@ describe("callStructured", () => {
   it("success returns value, sends cached system block, tail as user, no sampling params", async () => {
     const { client, parse } = fake(() => ({ stop_reason: "end_turn", parsed_output: { reply: "ok" } }));
     const r = await callStructured(base(client));
-    expect(r).toEqual({ ok: true, value: { reply: "ok" }, source: "live" });
+    expect(r).toMatchObject({ ok: true, value: { reply: "ok" }, source: "live" });
     const [params, opts] = parse.mock.calls[0] as unknown as [Record<string, unknown>, Record<string, unknown>];
     expect(params.system).toEqual([{ type: "text", text: "SYS", cache_control: { type: "ephemeral", ttl: "1h" } }]);
     expect(params.messages).toEqual([{ role: "user", content: "TAIL" }]);
@@ -40,25 +40,25 @@ describe("callStructured", () => {
 
   it("refusal and parsed null are failures", async () => {
     const a = fake(() => ({ stop_reason: "refusal", parsed_output: { reply: "x" } }));
-    expect(await callStructured(base(a.client))).toEqual({ ok: false, reason: "refusal" });
+    expect(await callStructured(base(a.client))).toMatchObject({ ok: false, reason: "refusal" });
     const b = fake(() => ({ stop_reason: "end_turn", parsed_output: null }));
-    expect(await callStructured(base(b.client))).toEqual({ ok: false, reason: "parse_null" });
+    expect(await callStructured(base(b.client))).toMatchObject({ ok: false, reason: "parse_null" });
   });
 
   it("classifies SDK errors by class", async () => {
     const t = fake(() => { throw new Anthropic.APIConnectionTimeoutError(); });
-    expect(await callStructured(base(t.client))).toEqual({ ok: false, reason: "timeout" });
+    expect(await callStructured(base(t.client))).toMatchObject({ ok: false, reason: "timeout" });
     const o = fake(() => { throw new Anthropic.APIError(529, undefined, "x", H); });
-    expect(await callStructured(base(o.client))).toEqual({ ok: false, reason: "api_error" });
+    expect(await callStructured(base(o.client))).toMatchObject({ ok: false, reason: "api_error" });
     const p = fake(() => { throw new Error("boom"); });
-    expect(await callStructured(base(p.client))).toEqual({ ok: false, reason: "api_error" });
+    expect(await callStructured(base(p.client))).toMatchObject({ ok: false, reason: "api_error" });
   });
 
   it("3x429 opens the breaker; 4th call does not touch the client", async () => {
     const { client, parse } = fake(() => { throw new Anthropic.RateLimitError(429, undefined, "x", H); });
     const args = base(client);
-    for (let i = 0; i < 3; i++) expect(await callStructured(args)).toEqual({ ok: false, reason: "rate_limited" });
-    expect(await callStructured(args)).toEqual({ ok: false, reason: "breaker_open" });
+    for (let i = 0; i < 3; i++) expect(await callStructured(args)).toMatchObject({ ok: false, reason: "rate_limited" });
+    expect(await callStructured(args)).toMatchObject({ ok: false, reason: "breaker_open" });
     expect(parse).toHaveBeenCalledTimes(3);
   });
 
@@ -76,9 +76,9 @@ describe("callStructured", () => {
   it("replay hit and miss make zero client calls", async () => {
     const { client, parse } = fake(() => ({ parsed_output: { reply: "live" } }));
     const hit = await callStructured(base(client, { mode: "replay", cache: memCache({ k: '{"reply":"cached"}' }).cache }));
-    expect(hit).toEqual({ ok: true, value: { reply: "cached" }, source: "replay" });
-    expect(await callStructured(base(client, { mode: "replay" }))).toEqual({ ok: false, reason: "replay_miss" });
-    expect(await callStructured(base(client, { mode: "replay", cache: memCache({ k: "not json" }).cache }))).toEqual({ ok: false, reason: "replay_miss" });
+    expect(hit).toMatchObject({ ok: true, value: { reply: "cached" }, source: "replay" });
+    expect(await callStructured(base(client, { mode: "replay" }))).toMatchObject({ ok: false, reason: "replay_miss" });
+    expect(await callStructured(base(client, { mode: "replay", cache: memCache({ k: "not json" }).cache }))).toMatchObject({ ok: false, reason: "replay_miss" });
     expect(parse).not.toHaveBeenCalled();
   });
 
@@ -101,5 +101,13 @@ describe("cacheKey", () => {
     expect(a).toBe(cacheKey({ ...k, normInput: "привет" }));
     expect(a).not.toBe(cacheKey({ ...k, normInput: "пока" }));
     expect(a).not.toContain("привет");
+  });
+});
+
+describe("thinkingOff", () => {
+  it("Haiku → disabled, Sonnet 5.5 → between_tools (disabled на Sonnet 5.5 даёт 400)", async () => {
+    const { thinkingOffFor } = await import("../lib/llm/call");
+    expect(thinkingOffFor("claude-haiku-5-5")).toEqual({ type: "disabled" });
+    expect(thinkingOffFor("claude-sonnet-5-5")).toEqual({ type: "between_tools" });
   });
 });

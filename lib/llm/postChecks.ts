@@ -32,7 +32,9 @@ function wordNumberExtra(text: string, allowed: Set<string>): boolean {
 
 export function postChecksUstoz(out: UstozTurn, ctx: UstozCtx): UstozPostResult {
   if (out.revealsAnswer) return { ok: false, reason: "reveals_answer" };
-  const values = (out.component ? out.component.params : []).map((p) => p.value);
+  // Значение params — часто список («2,3», «1/2,1/3», «1; 1»): делим на элементы, иначе «2,3» читается
+  // как десятичная 2.3 и честная реплика уходит в запасной путь (живой прогон 18.11).
+  const values = (out.component ? out.component.params : []).flatMap((p) => p.value.split(/\s*[,;]\s*/)).filter(Boolean);
   const texts = [out.reply, ...values];
   // params {num:"5", den:"6"} — ответ 5/6 лежит в паре значений, а не в одном
   const pairs = values.flatMap((a, i) => values.flatMap((b, j) => (i === j ? [] : [`${a}/${b}`])));

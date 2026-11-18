@@ -5,11 +5,12 @@ import { v } from "convex/values";
 import { MODELS, resolveDemoMode, TIMEOUTS_MS } from "../lib/config";
 import {
   cacheKey, callStructured, createBreaker, createClient, GUARD_PREFIX, guardCacheKey, guardTail, OUTPUT_CHECK_PREFIX,
-  outputCheckTail, postChecksUstoz, USTOZ_PREFIX, ustozTail, type LlmCache, type LlmClient,
+  outputCheckTail, postChecksUstoz, USTOZ_PREFIX, ustozTail, type LlmCache, type LlmClient, type LlmMeta,
 } from "../lib/llm";
 import { checkAnswer, type TaskKind } from "../lib/fractions";
 import { crisisRouting, preGuard } from "../lib/safety";
 import { GuardResult, OutputCheck, UstozTurn } from "../lib/types";
+import type { UstozTurn as UstozTurnT } from "../lib/types";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { action, type ActionCtx } from "./_generated/server";
@@ -44,48 +45,74 @@ type Turn = {
   riskCount: number; recent: string[]; last6: string[];
 };
 
+// Диагностика хода (без текста ребёнка и реплик): какой шаг сколько занял, где сломалось, попал ли кэш промпта.
+type StepDiag = { ok: boolean; why?: string; ms: number; cacheRead?: number; cacheWrite?: number; input?: number };
+type Diag = { totalMs: number; guard?: StepDiag; ustoz?: StepDiag; outputCheck?: StepDiag; path?: string; ustozRetry?: boolean };
+const sd = (r: { ok: boolean; meta: LlmMeta } & ({ reason: string } | object), why?: string): StepDiag => ({
+  ...r.meta, ok: r.ok && !why, why: why ?? ("reason" in r ? r.reason : undefined),
+});
+
 /** Ustoz → zod → postChecks. null = любой сбой (запасной путь). */
 async function ustozStep(
-  ctx: ActionCtx, c: Turn, beat: string, verdict: string, childInput: string,
+  ctx: ActionCtx, d: Diag, c: Turn, beat: string, verdict: string, childInput: string,
   claimed?: { value: string; verdict: string }[],
-) {
+): Promise<UstozTurnT | null> {
+  // Спека, repeatGuard: похоже на последние реплики > 0.7 → 1 повтор генерации.
+  const first = await ustozOnce(ctx, d, c, beat, verdict, childInput, claimed);
+  if (first !== "repeat") return first;
+  d.ustozRetry = true;
+  const again = await ustozOnce(ctx, d, c, beat, verdict, childInput, claimed);
+  return again === "repeat" ? null : again;
+}
+
+async function ustozOnce(
+  ctx: ActionCtx, d: Diag, c: Turn, beat: string, verdict: string, childInput: string,
+  claimed?: { value: string; verdict: string }[],
+): Promise<UstozTurnT | null | "repeat"> {
   const r = await callStructured({
     ...llm(), breaker, cache: cacheOf(ctx), step: "ustozTurn", model: MODELS.ustozTurn, schema: UstozTurn,
     system: USTOZ_PREFIX,
     tail: ustozTail({
       lang: c.lang, beat, task: publicTask(c.task), verdict, hintLevel: c.hintLevel, forbiddenLines: c.recent, childInput, claimed,
     }),
-    timeoutMs: TIMEOUTS_MS.ustoz, effort: "low",
+    timeoutMs: TIMEOUTS_MS.ustoz, effort: "low", thinkingOff: true,
     // ключ учитывает вердикт, уровень подсказки и «заявленные» дроби: от них зависит реплика
     cacheKey: cacheKey({
       step: "ustozTurn", beat, itemId: c.task.id, lang: c.lang,
       normInput: `${childInput}\n${verdict}\n${c.hintLevel}\n${(claimed ?? []).map((x) => `${x.value}=${x.verdict}`).join(",")}`,
     }),
   });
-  if (!r.ok) return null;
+  if (!r.ok) {
+    d.ustoz = sd(r);
+    return null;
+  }
   const childNumbers = childInput.match(/\d+(?:[.,]\d+)?(?:\/\d+)?/g) ?? [];
   const post = postChecksUstoz(r.value, {
     answer: c.task.answer, numbersShown: c.task.numbersShown, childNumbers, recent: c.recent,
   });
+  d.ustoz = sd(r, post.ok ? undefined : `post:${post.reason}`);
+  if (!post.ok && post.reason === "repeat") return "repeat";
   return post.ok ? post.value : null;
 }
 
 /** outputCheck (Haiku) на свободной реплике: нет ответа или нарушение персоны → сбой. */
-async function outputOk(ctx: ActionCtx, c: Turn, reply: string) {
+async function outputOk(ctx: ActionCtx, d: Diag, c: Turn, reply: string) {
   const r = await callStructured({
     ...llm(), breaker, cache: cacheOf(ctx), step: "outputCheck", model: MODELS.outputCheck,
     schema: OutputCheck, system: OUTPUT_CHECK_PREFIX, tail: outputCheckTail({ reply }),
-    timeoutMs: TIMEOUTS_MS.guard, effort: "low",
+    timeoutMs: TIMEOUTS_MS.guard, effort: "low", thinkingOff: true,
     cacheKey: cacheKey({ step: "outputCheck", beat: "reply", itemId: c.task.id, lang: c.lang, normInput: reply }),
   });
-  return r.ok && r.value.ok && r.value.violatesPersona.length === 0;
+  const pass = r.ok && r.value.ok && r.value.violatesPersona.length === 0;
+  d.outputCheck = sd(r, r.ok && !pass ? `flag:${r.value.ok ? "" : "not_ok"}${r.value.violatesPersona.join("+")}` : undefined);
+  return pass;
 }
 
 async function guardStep(ctx: ActionCtx, c: Turn, childInput: string) {
   return await callStructured({
     ...llm(), breaker, cache: cacheOf(ctx), step: "guardIn", model: MODELS.guardIn, schema: GuardResult,
     system: GUARD_PREFIX, tail: guardTail({ lang: c.lang, last6: c.last6, riskCount: c.riskCount, childInput }),
-    timeoutMs: TIMEOUTS_MS.guard, effort: "low",
+    timeoutMs: TIMEOUTS_MS.guard, effort: "low", thinkingOff: true,
     cacheKey: guardCacheKey({ lang: c.lang, itemId: c.task.id, last6: c.last6, riskCount: c.riskCount, childInput }),
   });
 }
@@ -102,8 +129,14 @@ export const turn = action({
     studentId: v.id("students"),
     input: v.object({ type: v.union(v.literal("answer"), v.literal("text"), v.literal("hint")), value: v.string() }),
   },
-  returns: v.object({ status: v.union(v.literal("crisis"), v.literal("replied"), v.literal("fallback"), v.literal("rejected")) }),
-  handler: async (ctx, { studentId, input }): Promise<{ status: Status }> => {
+  returns: v.object({
+    status: v.union(v.literal("crisis"), v.literal("replied"), v.literal("fallback"), v.literal("rejected")),
+    diag: v.optional(v.any()), // только тайминги, причины и токены — без текста ребёнка
+  }),
+  handler: async (ctx, { studentId, input }): Promise<{ status: Status; diag?: Diag }> => {
+    const t0 = Date.now();
+    const d: Diag = { totalMs: 0 };
+    const done = <R extends { status: Status }>(r: R) => ({ ...r, diag: { ...d, totalMs: Date.now() - t0 } });
     const c: Turn | null = await ctx.runQuery(internal.conductor.turnContext, { studentId });
     if (!c) return { status: "rejected" };
 
@@ -138,7 +171,7 @@ export const turn = action({
     const hintButton = !solvedNow;
 
     const respond = async (u: Awaited<ReturnType<typeof ustozStep>>): Promise<{ status: Status }> => {
-      if (u?.reply && (await outputOk(ctx, cc, u.reply))) {
+      if (u?.reply && (await outputOk(ctx, d, cc, u.reply))) {
         await ctx.runMutation(internal.conductor.recordReply, { studentId, turnNo, reply: u.reply, component: u.component, hintButton });
         return { status: "replied" };
       }
@@ -154,7 +187,7 @@ export const turn = action({
     const fallback = () => respond(null);
 
     // Верный ответ: LLM-guard не нужен (ввод — разобранная дробь), вердикт посчитал код.
-    if (input.type === "answer" && verdict !== "unparsed") return await respond(await ustozStep(ctx, cc, beat, verdict, pg.text));
+    if (input.type === "answer" && verdict !== "unparsed") { d.path = "answer"; return done(await respond(await ustozStep(ctx, d, cc, beat, verdict, pg.text))); }
 
     // 2. текст: guardIn ∥ спекулятивный Ustoz; реплика живёт, только если категория guard из IN_CHARACTER.
     // Дроби из текста ребёнка → вердикт КОДА (модель не решает, верно ли «2/5»).
@@ -166,7 +199,9 @@ export const turn = action({
           ),
         }))
       : undefined;
-    const [g, u] = await Promise.all([guardStep(ctx, cc, pg.text), ustozStep(ctx, cc, beat, verdict, pg.text, claimed)]);
+    d.path = "text";
+    const [g, u] = await Promise.all([guardStep(ctx, cc, pg.text), ustozStep(ctx, d, cc, beat, verdict, pg.text, claimed)]);
+    d.guard = sd(g, g.ok && g.value.category !== "SAFE" ? `category:${g.value.category}/${g.value.severity}` : undefined);
 
     if (!g.ok) {
       // guard недоступен (таймаут / breaker / нет ключа): ничего неохраняемого наружу. Если preGuard гасил
@@ -174,12 +209,12 @@ export const turn = action({
       if (pg.suppressed) {
         await ctx.runMutation(internal.conductor.flagRisk, { studentId, category: pg.suppressed.category, severity: 1, notifyParent: false });
       }
-      return await fallback();
+      return done(await fallback());
     }
     const { category, severity } = g.value;
     if (category !== "SAFE" && severity >= 2 && crisisRouting(category)) {
       await ctx.runMutation(internal.conductor.setCrisis, { studentId, category });
-      return { status: "crisis" };
+      return done({ status: "crisis" as const });
     }
     if (category !== "SAFE") {
       await ctx.runMutation(internal.conductor.flagRisk, {
@@ -187,6 +222,6 @@ export const turn = action({
       });
     }
     if (category === "PII") await ctx.runMutation(internal.conductor.maskChildTurn, { studentId, turnNo });
-    return IN_CHARACTER.has(category) ? await respond(u) : await fallback();
+    return done(IN_CHARACTER.has(category) ? await respond(u) : await fallback());
   },
 });

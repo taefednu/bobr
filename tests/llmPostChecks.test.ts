@@ -46,6 +46,24 @@ describe("postChecksUstoz", () => {
   });
 });
 
+describe("postChecksUstoz: списки в params компонента", () => {
+  // Живой прогон 18.11: Ustoz кладёт в params «2,3» и «1/2,1/3» — это списки, не десятичные 2.3 и 2.1.
+  const ctx = { answer: "5/6", numbersShown: ["1", "2", "1", "3"], childNumbers: ["2/5"], recent: [] };
+  const reply = "Javobni masalaning oʻzi tekshiradi, men emas. Keling, tasmada 1/2 va 1/3 ni yonma-yon qoʻyib koʻramiz: ularning boʻlaklari bir xil kattalikdami?";
+  const turn = (params: { key: string; value: string }[]) =>
+    postChecksUstoz({ reply, intent: "hint", component: { type: "strip", params }, hintLevel: 0, revealsAnswer: false }, ctx);
+
+  it("список операндов через запятую проходит", () => {
+    expect(turn([{ key: "fractions", value: "1/2,1/3" }, { key: "parts", value: "2,3" }]).ok).toBe(true);
+    expect(turn([{ key: "parts", value: "2, 3" }, { key: "shaded", value: "1;1" }]).ok).toBe(true);
+  });
+
+  it("ответ в списке всё равно ловится", () => {
+    expect(turn([{ key: "fractions", value: "1/2,5/6" }]).ok).toBe(false);
+    expect(turn([{ key: "parts", value: "6,6" }, { key: "shaded", value: "5" }]).ok).toBe(false);
+  });
+});
+
 describe("fallbackUstoz", () => {
   it("null reply, pie of the operands, hint button", () => {
     expect(fallbackUstoz({ numbersShown: ["1/2", "1/3"] })).toEqual({

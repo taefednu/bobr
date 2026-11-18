@@ -13,6 +13,7 @@ export type LlmClient = {
     parse(params: any, options?: { timeout?: number; maxRetries?: number }): PromiseLike<{
       stop_reason?: string | null;
       parsed_output?: unknown;
+      usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null };
     }>;
   };
 };
@@ -61,7 +62,11 @@ export function createBreaker(
 }
 
 export type LlmFailure = "timeout" | "refusal" | "parse_null" | "breaker_open" | "replay_miss" | "api_error" | "rate_limited";
-export type LlmResult<T> = { ok: true; value: T; source: "live" | "replay" } | { ok: false; reason: LlmFailure };
+/** Замер вызова для диагностики хода (без текста): время и токены, в т.ч. попадание в кэш промпта. */
+export type LlmMeta = { ms: number; input?: number; output?: number; cacheRead?: number; cacheWrite?: number };
+export type LlmResult<T> =
+  | { ok: true; value: T; source: "live" | "replay"; meta: LlmMeta }
+  | { ok: false; reason: LlmFailure; meta: LlmMeta };
 
 export type CallArgs<S extends z.ZodType> = {
   client: LlmClient;
@@ -79,7 +84,13 @@ export type CallArgs<S extends z.ZodType> = {
   mode: "live" | "replay";
   breaker: Breaker;
   maxTokens?: number;
+  /** Короткая структурная реплика: мышление выключено ради задержки (цель хода ≤ 4 с).
+   *  Haiku 5.5 — {disabled}; Sonnet 5.5 не принимает disabled (400) — {between_tools}. Оба — только при effort ≤ high. */
+  thinkingOff?: boolean;
 };
+
+export const thinkingOffFor = (model: string) =>
+  model.includes("sonnet-5-5") ? ({ type: "between_tools" } as const) : ({ type: "disabled" } as const);
 
 // Классы SDK, не текст сообщений.
 function classify(e: unknown): { reason: LlmFailure; status?: number } {
@@ -90,13 +101,17 @@ function classify(e: unknown): { reason: LlmFailure; status?: number } {
 }
 
 export async function callStructured<S extends z.ZodType>(a: CallArgs<S>): Promise<LlmResult<z.output<S>>> {
+  const t0 = Date.now();
+  const meta = (extra: Partial<LlmMeta> = {}): LlmMeta => ({ ms: Date.now() - t0, ...extra });
   try {
     if (a.mode === "replay") {
       const json = await a.cache.get(a.cacheKey);
       const parsed = json === null ? null : a.schema.safeParse(JSON.parse(json));
-      return parsed?.success ? { ok: true, value: parsed.data, source: "replay" } : { ok: false, reason: "replay_miss" };
+      return parsed?.success
+        ? { ok: true, value: parsed.data, source: "replay", meta: meta() }
+        : { ok: false, reason: "replay_miss", meta: meta() };
     }
-    if (a.breaker.isOpen()) return { ok: false, reason: "breaker_open" };
+    if (a.breaker.isOpen()) return { ok: false, reason: "breaker_open", meta: meta() };
     let res;
     try {
       res = await a.client.messages.parse(
@@ -104,6 +119,7 @@ export async function callStructured<S extends z.ZodType>(a: CallArgs<S>): Promi
           model: a.model,
           max_tokens: a.maxTokens ?? 1024,
           output_config: { format: zodOutputFormat(a.schema as never), effort: a.effort },
+          ...(a.thinkingOff ? { thinking: thinkingOffFor(a.model) } : {}),
           system: [{ type: "text", text: a.system, cache_control: { type: "ephemeral", ttl: "1h" } }],
           messages: [{ role: "user", content: a.tail }],
         },
@@ -112,18 +128,23 @@ export async function callStructured<S extends z.ZodType>(a: CallArgs<S>): Promi
     } catch (e) {
       const { reason, status } = classify(e);
       a.breaker.record(status);
-      return { ok: false, reason };
+      return { ok: false, reason, meta: meta() };
     }
-    if (res.stop_reason === "refusal") return { ok: false, reason: "refusal" };
-    if (res.parsed_output == null) return { ok: false, reason: "parse_null" };
+    const u = res.usage;
+    const m = meta({
+      input: u?.input_tokens, output: u?.output_tokens,
+      cacheRead: u?.cache_read_input_tokens ?? 0, cacheWrite: u?.cache_creation_input_tokens ?? 0,
+    });
+    if (res.stop_reason === "refusal") return { ok: false, reason: "refusal", meta: m };
+    if (res.parsed_output == null) return { ok: false, reason: "parse_null", meta: m };
     const value = res.parsed_output as z.output<S>;
     try {
       await a.cache.put(a.cacheKey, a.step, JSON.stringify(value));
     } catch {
       // кэш — для демо-REPLAY; его сбой не должен ломать живой ход
     }
-    return { ok: true, value, source: "live" };
+    return { ok: true, value, source: "live", meta: m };
   } catch {
-    return { ok: false, reason: a.mode === "replay" ? "replay_miss" : "api_error" };
+    return { ok: false, reason: a.mode === "replay" ? "replay_miss" : "api_error", meta: meta() };
   }
 }
