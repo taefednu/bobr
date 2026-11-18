@@ -14,5 +14,8 @@ judge (Sonnet, цитаты — подстроки, проверяет код) �
 postChecks + outputCheck, как в `convex/turn.ts`. Чек-листов судьи нет (`content/checklists.json` — B1) —
 заглушка по спеке + TODO.
 
+## Статус
+Бэкенд готов (`convex/teach.ts`, `lib/judge`, `lib/bobr`). Осталось: живой прогон после мержа, eval судьи, экран, настоящее «правило ребёнка» в FAIL, ошибка из `students.diagnosis` на входе, ещё 2 судьи при partial.
+
 ## Связанные узлы
 [[A-core]] · [[A-front]] · [[decisions]]

@@ -27,6 +27,7 @@ import type * as parents from "../parents.js";
 import type * as plan from "../plan.js";
 import type * as session from "../session.js";
 import type * as students from "../students.js";
+import type * as teach from "../teach.js";
 import type * as turn from "../turn.js";
 
 import type {
@@ -55,6 +56,7 @@ declare const fullApi: ApiFromModules<{
   plan: typeof plan;
   session: typeof session;
   students: typeof students;
+  teach: typeof teach;
   turn: typeof turn;
 }>;
 
