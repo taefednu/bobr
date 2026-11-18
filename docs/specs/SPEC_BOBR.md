@@ -1,6 +1,6 @@
 # ТЗ: Bobr — персонаж и механика «научи бобра»
 
-Трек B (Нуриддин). Связи — `docs/specs/SPEC_SYSTEM.md`, безопасность — `docs/BOBR_SPEC.md`.
+Трек A, сессия teach (Taef). Связи — `docs/specs/SPEC_SYSTEM.md`, безопасность — `docs/BOBR_SPEC.md`.
 
 ## 1. Кто такой Bobr
 

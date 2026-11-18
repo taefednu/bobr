@@ -90,6 +90,12 @@ const TRIGGERS: Trigger[] = [
     "ABUSE_HOME",
     "меня\\s+бьют\\s+дома|дома\\s+меня\\s+бьют|(?:папа|мама|отец|отчим|мачеха)\\s+меня\\s+(?:бьет|бил|била|избивает)|меня\\s+(?:бьет|избивает)\\s+(?:папа|мама|отец|отчим|мачеха)|(?:папа|мама|отец|отчим|мачеха)\\s+(?:бьет|бил|била|избивает)\\s+меня",
   ),
+  // Насилие дома над другим (мама, брат…): тоже ABUSE_HOME. Нужен объект-человек: «папа бьёт рекорды» не срабатывает.
+  mk(
+    "ru_abuse_home_other",
+    "ABUSE_HOME",
+    "(?:папа|мама|отец|отчим|мачеха)\\s+(?:бьет|бил|била|избивает|избил|избила)\\s+(?:маму|папу|брата|сестру|бабушку|дедушку|нас|мать|отца)", // не вычитано носителем
+  ),
   // --- uz-Latn --- не вычитано носителем
   // «oʻlgim» с апострофом обязателен: «olgim keladi» = «хочу взять».
   mk("uz_want_die", "SELF_HARM", "o'lgim\\s+keladi", { soft: true }),
@@ -99,6 +105,12 @@ const TRIGGERS: Trigger[] = [
     "uz_abuse_home",
     "ABUSE_HOME",
     "uyda\\s+meni\\s+ur(?:ishadi|adi|adilar)|meni\\s+uyda\\s+ur(?:ishadi|adi|adilar)|(?:dadam|onam|otam)\\s+meni\\s+(?:ur(?:adi|ishadi)|kaltakl(?:aydi|ashadi))", // kaltakla- не вычитано носителем
+  ),
+  // без «meni»: «dadam onamni uradi», «dadam uradi» в конце фразы. «dadam gol uradi» не срабатывает. Не вычитано носителем.
+  mk(
+    "uz_abuse_home_other",
+    "ABUSE_HOME",
+    "(?:dadam|onam|otam)\\s+(?:(?:onamni|dadamni|otamni|akamni|ukamni|opamni|singlimni|bizni)\\s+)?(?:uradi|urdi|kaltaklaydi|kaltakladi)(?=\\s*$)|(?:dadam|onam|otam)\\s+(?:onamni|dadamni|otamni|akamni|ukamni|opamni|singlimni|bizni)\\s+(?:uradi|urdi|kaltaklaydi|kaltakladi)",
   ),
 ];
 

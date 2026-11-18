@@ -1,6 +1,6 @@
 # Трек B — Telegram-бот родителя (Python)
 
-**Владелец трека:** питонист команды (Нуриддин или Руслан — владелец уточнит).
+**Владелец трека:** Нуриддин (сначала бот, потом кабинет [[C-parent-miniapp]]). Уже стартовал по `docs/specs/API_FOR_BOT.md`.
 
 ## Задача
 Бот в папке `bot/` репозитория: **aiogram** + официальный Python-клиент **convex**, long polling.
@@ -21,4 +21,4 @@
 - Нужна новая функция/поле в Convex → заявка в `SCHEMA_REQUESTS.md` (трек A).
 
 ## Связанные узлы
-[[README]] · [[C-parent-miniapp]] · [[A-lesson-core]] · [[decisions]]
+[[README]] · [[C-parent-miniapp]] · [[A-core]] · [[decisions]]

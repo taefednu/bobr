@@ -19,7 +19,11 @@
           Claude API                  Telegram Bot API
 ```
 
-**Один бэкенд — Convex.** Отдельного сервера для бота нет: вебхук бота — это `httpAction` в Convex, отправка сообщений — `action` с `fetch` к Bot API.
+**Один бэкенд — Convex.** ~~Отдельного сервера для бота нет: вебхук бота — это `httpAction` в Convex~~
+**Решение 18.11 (см. `knowledge/decisions.md`):** на хакатон бот — отдельный процесс на Python (`bot/`, aiogram,
+long polling), ходит в Convex через python-клиент по `docs/specs/API_FOR_BOT.md` и забирает outbox раз в 3 с.
+Причина: локальный Convex недоступен Telegram для вебхука; Python — сильная сторона Нуриддина. §6 (вебхук) —
+после хакатона.
 
 ## 2. Сущности (таблицы — меняет только трек A)
 

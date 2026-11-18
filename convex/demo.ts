@@ -21,7 +21,7 @@ export const reset = internalMutation({
         }
         for (const r of await ctx.db.query("plans").withIndex("by_student", (q) => q.eq("studentId", sid)).collect()) await ctx.db.delete("plans", r._id);
         for (const r of await ctx.db.query("turns").withIndex("by_student_and_ts", (q) => q.eq("studentId", sid)).collect()) await ctx.db.delete("turns", r._id);
-        for (const r of await ctx.db.query("reviewQueue").withIndex("by_student", (q) => q.eq("studentId", sid)).collect()) await ctx.db.delete("reviewQueue", r._id);
+        for (const r of await ctx.db.query("reviewQueue").withIndex("by_student_and_category", (q) => q.eq("studentId", sid)).collect()) await ctx.db.delete("reviewQueue", r._id);
         for (const r of await ctx.db.query("linkCodes").collect()) if (r.studentId === sid) await ctx.db.delete("linkCodes", r._id); // ponytail: скан таблицы, демо-объём
         for (const r of await ctx.db.query("parentLinks").withIndex("by_student", (q) => q.eq("studentId", sid)).collect()) await ctx.db.delete("parentLinks", r._id);
         await ctx.db.delete("students", sid);

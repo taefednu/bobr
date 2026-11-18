@@ -100,19 +100,20 @@ npm run verify   # = tsc (Next) + tsc (convex) + vitest run + convex dev --once 
 
 ## 8. Работа втроём (три человека — три агента)
 
-- **Начало сессии:** хаб `knowledge/README.md` → свой трек в `knowledge/tracks/` (A — Taef: ядро урока, безопасность, схема, этап 3,
-  этап 4 «Научи Bobr», фронт ребёнка, API для Telegram; B — бот родителя на Python в `bot/`; C — Mini App
-  `/parent` на Next.js). Контракт между треками — `docs/specs/API_FOR_BOT.md`) → «Сейчас» в `sprint.md`.
-  Не знаешь свой трек — спроси человека, не угадывай.
+- **Начало сессии:** хаб `knowledge/README.md` → свой трек в `knowledge/tracks/` → «Сейчас» в `sprint.md`.
+  Треки: **A** — Taef, три параллельные сессии в git worktree: **core** (`bobr`, ветка `main`: ядро, схема,
+  этап 3, API, мерж front/teach в 12:00 и 13:30), **front** (`../bobr-front`, ветка `front`: экраны ребёнка по
+  DESIGN v1), **teach** (`../bobr-teach`, ветка `teach`: «Научи Bobr»); **B** — Нуриддин: бот на Python в `bot/`,
+  потом **C** — Mini App `app/parent/`. Не знаешь свой трек или сессию — спроси, не угадывай.
 - **Правь только зону своего трека** (список файлов — в файле трека). Чужой модуль используй, но не меняй:
   баг в нём → строка в `SCHEMA_REQUESTS.md` («Баги в чужих зонах») и сообщение владельцу трека.
-- **`convex/schema.ts`, `lib/types.ts`, `lib/config.ts` правит только трек A.** Остальным — заявка в
+- **`convex/schema.ts`, `lib/types.ts`, `lib/config.ts` правит только сессия core (трек A).** Остальным — заявка в
   `SCHEMA_REQUESTS.md`. Причина: две параллельные правки схемы ломают друг другу пуш в Convex.
 - **Общие файлы:** `i18n/*.json` — ключи только со своим префиксом (`parent.*` — C; бот B держит
   свои тексты в `bot/`; остальные — A), добавляй, не переписывай чужие.
   `knowledge/decisions.md` — только дописывай строку сверху с треком в колонке «Кто».
   `knowledge/sprint.md` «Сейчас» — правь только подраздел своего трека.
-- **Git:** работаем в `main`. Перед пушем: `npm run verify` зелёный → `git pull --rebase` → снова verify,
+- **Git:** core и Нуриддин — в `main`; front и teach — в своих ветках, в `main` их мержит core. Перед пушем: `npm run verify` зелёный → `git pull --rebase` → снова verify,
   если подтянулось чужое → `git push`. Коммит маленький, одна мысль. Никогда `push --force`, `reset --hard`
   по общим веткам. Конфликт в чужой зоне — не решай за другого, спроси.
 - **Секреты:** ключ Anthropic у каждого свой, в env его локального Convex

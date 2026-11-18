@@ -1,6 +1,6 @@
 # Трек C — Mini App родителя `/parent` (Next.js)
 
-**Владелец трека:** второй участник (работает в Cursor; Нуриддин или Руслан — владелец уточнит).
+**Владелец трека:** Нуриддин — после бота [[B-telegram-bot]]. ТЗ — `docs/specs/SPEC_PARENT_BOT.md` §2.
 
 ## Задача
 `/parent` как Telegram Mini App: при открытии взять `window.Telegram.WebApp.initData` → action
@@ -21,4 +21,4 @@
 - Нужны поля в `parent.dashboard` → заявка в `SCHEMA_REQUESTS.md` (трек A).
 
 ## Связанные узлы
-[[README]] · [[B-telegram-bot]] · [[A-lesson-core]] · [[decisions]]
+[[README]] · [[B-telegram-bot]] · [[A-core]] · [[decisions]]
