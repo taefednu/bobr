@@ -283,7 +283,7 @@ async function speak(
   ctx: ActionCtx, d: Diag, a: { studentId: Id<"students">; turnNo: number; c: SceneCtx; beat: Beat; att: Att; missing: string | null; childInput: string | null },
 ): Promise<Line> {
   const { c, beat, att, childInput } = a;
-  const childNumbers = (childInput ?? "").match(/\d+(?:[.,]\d+)?(?:\/\d+)?/g) ?? [];
+  const childNumbers = ((childInput ?? "").match(/\d+(?:[.,]\d+)?(?:\s*\/\s*\d+)?/g) ?? []).map((n) => n.replace(/\s/g, ""));
   const once = async () => {
     const r = await callStructured({
       ...llm(), breaker, cache: cacheOf(ctx), step: "bobrTurn", model: MODELS.bobrTurn, schema: BobrTurn, system: BOBR_PREFIX,
@@ -313,6 +313,13 @@ async function speak(
   return ok ? { reply: line.reply, lineKey: null, pose: line.pose } : "stale";
 }
 
+/** Микро-демо Ustoz из операндов (код). У N6 операнды — целые: показываем полоски с долями 1/a и 1/b. */
+function demoOf(att: Att) {
+  const { a, b } = att.task.params;
+  if (att.task.topic === "N6") return toStored({ type: "strip", fractions: [`1/${a}`, `1/${b}`] });
+  return toStored(normalizeComponent(null, { operands: operandFractions(att.task.params), childFractions: [], answer: att.task.answer }).component);
+}
+
 function respond(status: Status, ap: Applied, att: Att | null, line: { reply: string | null; lineKey: string | null; pose: BobrPose }): Reply {
   return {
     status, state: ap.state, beat: ap.beat, reply: line.reply, lineKey: line.lineKey, pose: line.pose,
@@ -320,7 +327,7 @@ function respond(status: Status, ap: Applied, att: Att | null, line: { reply: st
     task: att && publicAttemptTask(att.task),
     rounds: ap.rounds, bobrLevel: ap.level,
     demo: att && ap.beat === "give_up"
-      ? toStored(normalizeComponent(null, { operands: operandFractions(att.task.params), childFractions: [], answer: att.task.answer }).component)
+      ? demoOf(att)
       : null,
   };
 }

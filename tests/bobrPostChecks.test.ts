@@ -154,3 +154,14 @@ describe("postChecksBobr: запись с другими пробелами", ()
     expect(postChecksBobr(line("1 / 5 + 2 / 5 = 3 / 10? Или 3 из 5?"), n8)).toEqual({ ok: false, reason: "leak" });
   });
 });
+
+describe("postChecksBobr: ответ совпал с операндом", () => {
+  const n6 = { attempt: "72", expression: "LCM(12, 6)", numbersShown: ["12", "6"], forbiddenAnswer: "12" };
+  it("все операнды названы отдельно, ответа сверх них нет → ok", () => {
+    expect(postChecksBobr(turn("НОК чисел 12 и 6 — это 72"), ctx(n6))).toMatchObject({ ok: true });
+  });
+  it("операнд назван как результат → leak", () => {
+    expect(postChecksBobr(turn("НОК чисел 12 и 6 — это 12"), ctx(n6))).toEqual({ ok: false, reason: "leak" });
+    expect(postChecksBobr(turn("НОК — это 12"), ctx(n6))).toEqual({ ok: false, reason: "leak" });
+  });
+});
