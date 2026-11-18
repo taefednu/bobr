@@ -1,17 +1,43 @@
 "use client";
+import { useMutation } from "convex/react";
+import { useRouter } from "next/navigation";
+import { useRef, useState } from "react";
+import { api } from "@/convex/_generated/api";
+import { CharacterSays } from "@/components/child/CharacterSays";
+import { GoalView } from "@/components/goal/GoalView";
 import { useT } from "@/lib/i18n";
-import { Character } from "@/components/skeleton/Shell";
+import { useGuard } from "@/lib/ui/session";
+import type { GoalIntent } from "@/lib/ui/types";
+
 export default function Page() {
   const { t } = useT();
+  const router = useRouter();
+  const setGoal = useMutation(api.goal.set);
+  const { token, ready } = useGuard(1, 1);
+  const [intent, setIntent] = useState<GoalIntent | null>(null);
+  const [failed, setFailed] = useState(false);
+  const busy = useRef(false);
+
+  if (!ready) return <CharacterSays who="bobr"><p role="status" className="text-ink-muted">{t("lesson.thinking")}</p></CharacterSays>;
+
+  async function save() {
+    if (!token || !intent || busy.current) return;
+    busy.current = true;
+    setFailed(false);
+    try {
+      await setGoal({ token, goal: intent });
+      router.push("/diagnose");
+    } catch {
+      setFailed(true);
+    } finally {
+      busy.current = false;
+    }
+  }
+
   return (
     <>
-      <h1 className="text-xl font-bold">{t("goal.title")}</h1>
-      <Character who="bobr" />
-      <div className="flex flex-col gap-2">
-        <button type="button" className="border border-ink-muted bg-paper px-4 py-2 text-base text-ink">{t("goal.test")}</button>
-        <button type="button" className="border border-ink-muted bg-paper px-4 py-2 text-base text-ink">{t("goal.homework")}</button>
-        <button type="button" className="border border-ink-muted bg-paper px-4 py-2 text-base text-ink">{t("goal.unknown")}</button>
-      </div>
+      <GoalView intent={intent} onPick={setIntent} onContinue={() => void save()} />
+      {failed && <p role="alert" className="text-body text-ink">{t("lesson.error")}</p>}
     </>
   );
 }

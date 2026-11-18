@@ -1,30 +1,61 @@
 "use client";
-import Link from "next/link";
-import { Shell } from "@/components/skeleton/Shell";
-import { useT, type Key } from "@/lib/i18n";
-
-const ROUTES: [string, Key][] = [
-  ["/goal", "nav.goal"],
-  ["/diagnose", "nav.diagnose"],
-  ["/mahalla", "nav.mahalla"],
-  ["/lesson", "nav.lesson"],
-  ["/teach", "nav.teach"],
-  ["/chat", "nav.chat"],
-  ["/parent", "nav.parent"],
-];
+// Вход ребёнка: есть токен — по state на свой экран; нет — демо-сессия (session:startDemo) и дальше то же.
+import { useMutation } from "convex/react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { api } from "@/convex/_generated/api";
+import { ChildShell } from "@/components/child/ChildShell";
+import { CharacterSays } from "@/components/child/CharacterSays";
+import { PressButton } from "@/components/ui/press-button";
+import { useT } from "@/lib/i18n";
+import { clearToken, routeForState, setToken, storedLang, useChildSession } from "@/lib/ui/session";
 
 export default function Home() {
   const { t } = useT();
+  const router = useRouter();
+  const startDemo = useMutation(api.session.startDemo);
+  const { token, me } = useChildSession();
+  const starting = useRef(false); // двойной эффект dev-режима и перерисовки: стартуем один раз
+  const [failed, setFailed] = useState(false);
+
+  async function begin() {
+    if (starting.current) return;
+    starting.current = true;
+    setFailed(false);
+    try {
+      setToken((await startDemo({ lang: storedLang() })).token);
+    } catch {
+      starting.current = false;
+      setFailed(true);
+    }
+  }
+
+  useEffect(() => {
+    if (token === null && !failed) void begin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, failed]);
+
+  useEffect(() => {
+    if (me === null) {
+      starting.current = false;
+      clearToken(); // токен не признан: начинаем заново
+    } else if (me) router.replace(routeForState(me.state));
+  }, [me, router]);
+
   return (
-    <Shell>
-      <h1 className="text-xl font-bold">{t("home.title")}</h1>
-      <ul className="flex flex-col gap-2">
-        {ROUTES.map(([href, k]) => (
-          <li key={href}>
-            <Link href={href} className="underline">{t(k)}</Link>
-          </li>
-        ))}
-      </ul>
-    </Shell>
+    <ChildShell>
+      <div className="flex flex-col gap-6 sm:pt-[8vh]">
+        <CharacterSays who="bobr">
+          <p role={failed ? "alert" : "status"} className={failed ? undefined : "text-ink-muted"}>
+            {failed ? t("lesson.error") : t("lesson.thinking")}
+          </p>
+        </CharacterSays>
+        {failed && (
+          <div>
+            <PressButton onClick={() => void begin()}>{t("entry.retry")}</PressButton>
+          </div>
+        )}
+      </div>
+    </ChildShell>
   );
 }

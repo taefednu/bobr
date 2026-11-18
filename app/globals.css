@@ -63,6 +63,8 @@
   --stroke-ink-thin: 2px;
   --focus-ring: 3px solid var(--color-lazuli);
   --focus-offset: 3px;
+
+  --bottom-nav-h: 72px;
 }
 
 html {
@@ -82,6 +84,11 @@ body {
 :focus-visible {
   outline: var(--focus-ring);
   outline-offset: var(--focus-offset);
+}
+
+/* Кернинг Unbounded надвигает ʻ (U+02BB) на o: «oʻ» читается как «ó». */
+.font-display {
+  font-kerning: none;
 }
 
 .tabular {

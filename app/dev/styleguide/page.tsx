@@ -2,7 +2,8 @@
 // globals.css и lib/motion.ts, не дублируются. Тексты здесь — образцы шрифта, не продуктовые строки.
 import { notFound } from "next/navigation";
 import { PressButton } from "@/components/ui/press-button";
-import { House, TileBand } from "./house";
+import { House } from "@/components/mahalla/House";
+import { TileBand } from "@/components/mahalla/TileBand";
 import { MotionDemo } from "./motion-demo";
 
 const COLORS = [

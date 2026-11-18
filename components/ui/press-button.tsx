@@ -12,6 +12,10 @@ type Props = {
   demoState?: "hover" | "pressed" | "focus";
   onClick?: () => void;
   type?: "button" | "submit";
+  /** На всю ширину колонки: варианты ответа и главное действие на телефоне. */
+  fullWidth?: boolean;
+  /** Выше обычной: в кнопке стоит дробь столбиком. */
+  tall?: boolean;
   children: ReactNode;
 };
 
@@ -29,7 +33,7 @@ const FILL = {
   secondary: "bg-paper text-ink",
 } as const;
 
-export function PressButton({ variant = "primary", disabled, demoState, onClick, type = "button", children }: Props) {
+export function PressButton({ variant = "primary", disabled, demoState, onClick, type = "button", fullWidth, tall, children }: Props) {
   const { transitions } = useMotion();
   const canHover = useSyncExternalStore(subscribeHover, () => window.matchMedia(HOVER_MEDIA).matches, () => false);
   const pinned = demoState === "pressed" ? pressDepthPx : demoState === "hover" ? hover.lift : 0;
@@ -44,7 +48,7 @@ export function PressButton({ variant = "primary", disabled, demoState, onClick,
   const live = !disabled && !demoState;
   const deepFill = variant === "primary" && demoState === "hover" ? "bg-lazuli-deep" : "";
   return (
-    <span className="group relative inline-flex" style={{ marginBottom: ledgePx }}>
+    <span className={`group relative ${fullWidth ? "flex w-full" : "inline-flex w-fit shrink-0"}`} style={{ marginBottom: ledgePx }}>
       {/* Кольцо фокуса: в неподвижной обёртке, не на кнопке — иначе оно ездит вместе с нажатием. */}
       <span
         aria-hidden
@@ -62,7 +66,7 @@ export function PressButton({ variant = "primary", disabled, demoState, onClick,
         type={type}
         disabled={disabled}
         onClick={onClick}
-        className={`relative h-[52px] rounded-full px-7 text-label font-semibold ${
+        className={`relative ${tall ? "h-[84px]" : "h-[52px]"} ${fullWidth ? "w-full" : "whitespace-nowrap"} rounded-full px-7 text-label font-semibold ${
           disabled ? "bg-clay-100 text-ink-muted" : `${FILL[variant]} ${deepFill} cursor-pointer`
         }`}
         style={{
