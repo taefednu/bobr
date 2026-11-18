@@ -5,7 +5,7 @@ import { repeatGuard } from "../safety/repeatGuard";
 import { normalizeForMatch, normalizeText } from "../text/normalize";
 import type { UstozTurn } from "../types";
 
-export type UstozPostFail = "leak" | "numbers" | "repeat" | "reveals_answer";
+export type UstozPostFail = "leak" | "numbers" | "repeat" | "reveals_answer" | "mojibake";
 export type UstozPostResult = { ok: true; value: UstozTurn } | { ok: false; reason: UstozPostFail };
 export type UstozCtx = { answer: string; numbersShown: string[]; childNumbers: string[]; recent: string[] };
 
@@ -30,8 +30,12 @@ function wordNumberExtra(text: string, allowed: Set<string>): boolean {
   return false;
 }
 
+// UTF-8, прочитанный как Latin-1/CP1252 («â€”» вместо «—»): такую реплику ребёнку не показываем (живой прогон 18.11).
+const MOJIBAKE = /â€|Ã[\u0080-\u00BF]|Ð[\u0080-\u00BF]/;
+
 export function postChecksUstoz(out: UstozTurn, ctx: UstozCtx): UstozPostResult {
   if (out.revealsAnswer) return { ok: false, reason: "reveals_answer" };
+  if (MOJIBAKE.test(out.reply)) return { ok: false, reason: "mojibake" };
   // Компонент: fractions — готовые строки "a/b"; ответ в них ловит тот же детектор, что и в реплике.
   const values = out.component?.fractions ?? [];
   const texts = [out.reply, ...values];

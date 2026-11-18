@@ -8,6 +8,11 @@ const turn = (reply: string, over: Partial<UstozTurn> = {}): UstozTurn => ({
 });
 
 describe("postChecksUstoz", () => {
+  it("rejects a mojibake reply, keeps a normal dash and uz letters", () => {
+    expect(postChecksUstoz(turn("Rahmat, urinding â€” fikr yuritganing yaxshi!"), ctx)).toEqual({ ok: false, reason: "mojibake" });
+    expect(postChecksUstoz(turn("Rahmat, urinding — oʻyla, gʻoya yaxshi!"), ctx).ok).toBe(true);
+  });
+
   it("accepts a Socratic reply quoting the child's 2/5 and the operands", () => {
     const out = turn("Ты получил 2/5, а 1/2 и 1/3 — куски одного размера? Что сделать, чтобы их сложить?", {
       component: { type: "pie", fractions: ["1/2", "1/3"] },
