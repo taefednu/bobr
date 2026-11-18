@@ -1,19 +1,16 @@
-# Convex + TypeScript + ESLint
+# Bobr
 
-This template provides a minimal setup to get Convex working, with TypeScript
-and ESLint.
+ИИ-репетитор по дробям для детей 11–12 лет (uz-Latn и ru). Спека — `docs/BOBR_SPEC.md`.
 
-Start by editing `convex/myFunctions.ts` and interact with your backend from the
-dashboard or via the CLI:
+## Старт после клона
 
-```sh
-npx convex run myFunctions:myQuery '{"first": 1, "second": "Hello"}'
+```bash
+nvm install 22 && nvm use 22          # Convex требует Node ≥ 22
+npm install
+npm run dev:convex                     # терминал 1: локальный Convex (без аккаунта), :3210
+bash scripts/set-anthropic-key.sh      # терминал 2: свой ключ Anthropic в env Convex (один раз)
+npm run dev                            # терминал 3: Next, http://localhost:3000/lesson
+npm run verify                         # перед каждым пушем
 ```
 
-See Convex docs at https://docs.convex.dev/home
-
-## Setting up
-
-```
-npm create convex@latest -t bare
-```
+Агенту: `CLAUDE.md` (§8 — правила работы втроём) → `knowledge/README.md` → свой трек в `knowledge/tracks/`.

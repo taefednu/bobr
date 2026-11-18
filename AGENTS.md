@@ -98,6 +98,27 @@ npm run verify   # = tsc (Next) + tsc (convex) + vitest run + convex dev --once 
 
 <!-- convex-ai-start -->
 
+## 8. Работа втроём (три человека — три агента)
+
+- **Начало сессии:** хаб `knowledge/README.md` → свой трек в `knowledge/tracks/` (A — ядро урока и
+  безопасность, B — диагностика/план/махалля/родитель, C — «Научи Bobr» и болталка) → «Сейчас» в `sprint.md`.
+  Не знаешь свой трек — спроси человека, не угадывай.
+- **Правь только зону своего трека** (список файлов — в файле трека). Чужой модуль используй, но не меняй:
+  баг в нём → строка в `SCHEMA_REQUESTS.md` («Баги в чужих зонах») и сообщение владельцу трека.
+- **`convex/schema.ts`, `lib/types.ts`, `lib/config.ts` правит только трек A.** Остальным — заявка в
+  `SCHEMA_REQUESTS.md`. Причина: две параллельные правки схемы ломают друг другу пуш в Convex.
+- **Общие файлы:** `i18n/*.json` — ключи только со своим префиксом (`goal.*`, `diagnose.*`, `mahalla.*`,
+  `parent.*` — B; `teach.*`, `chat.*` — C; остальные — A), добавляй, не переписывай чужие.
+  `knowledge/decisions.md` — только дописывай строку сверху с треком в колонке «Кто».
+  `knowledge/sprint.md` «Сейчас» — правь только подраздел своего трека.
+- **Git:** работаем в `main`. Перед пушем: `npm run verify` зелёный → `git pull --rebase` → снова verify,
+  если подтянулось чужое → `git push`. Коммит маленький, одна мысль. Никогда `push --force`, `reset --hard`
+  по общим веткам. Конфликт в чужой зоне — не решай за другого, спроси.
+- **Секреты:** ключ Anthropic у каждого свой, в env его локального Convex
+  (`bash scripts/set-anthropic-key.sh`), никогда в файлы и коммиты.
+- **Демо-путь** (`npx vitest run tests/demo-path.test.ts`, `bash scripts/turn-smoke.sh`) обязан быть зелёным
+  перед каждым пушем, который трогает `convex/` или `lib/`.
+
 This project uses [Convex](https://convex.dev) as its backend.
 
 When working on Convex code, **always read

@@ -16,6 +16,8 @@
 | Грабли окружения и кода, уже пойманные | [[lessons]] |
 | Дизайн | `DESIGN.md`, `PRODUCT.md`, скилл `bobr-design` |
 | Что не получилось и обошли | `BLOCKERS.md` (если есть) |
+| Мой трек: зона, задача, что можно трогать | `knowledge/tracks/` — [[A-lesson-core]] · [[B-diagnose-map-parent]] · [[C-teach-bobr]] |
+| Нужно поле в схеме / баг в чужой зоне | `SCHEMA_REQUESTS.md` |
 
 ## Правило синхронизации
 
