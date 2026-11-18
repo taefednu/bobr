@@ -1,17 +1,20 @@
 "use client";
-import { useT } from "@/lib/i18n";
-import { Character } from "@/components/skeleton/Shell";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { GoalView } from "@/components/goal/GoalView";
+import type { GoalIntent } from "@/lib/ui/demo-data";
+
 export default function Page() {
-  const { t } = useT();
+  const router = useRouter();
+  const [intent, setIntent] = useState<GoalIntent | null>(null);
   return (
-    <>
-      <h1 className="text-xl font-bold">{t("goal.title")}</h1>
-      <Character who="bobr" />
-      <div className="flex flex-col gap-2">
-        <button type="button" className="border border-ink-muted bg-paper px-4 py-2 text-base text-ink">{t("goal.test")}</button>
-        <button type="button" className="border border-ink-muted bg-paper px-4 py-2 text-base text-ink">{t("goal.homework")}</button>
-        <button type="button" className="border border-ink-muted bg-paper px-4 py-2 text-base text-ink">{t("goal.unknown")}</button>
-      </div>
-    </>
+    <GoalView
+      intent={intent}
+      onPick={(i) => {
+        // TODO(core): goal:set({token, goal})
+        setIntent(i);
+      }}
+      onContinue={() => router.push("/diagnose")}
+    />
   );
 }

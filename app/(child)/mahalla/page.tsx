@@ -1,18 +1,14 @@
 "use client";
+import { useRouter } from "next/navigation";
+import { MahallaView } from "@/components/mahalla/MahallaView";
 import { useT } from "@/lib/i18n";
-import { graph } from "@/lib/content";
+import { stubMahalla } from "@/lib/ui/demo-data";
+
+const DEMO_NOW = Date.parse("2026-11-18T12:00:00Z");
+
 export default function Page() {
-  const { t, lang } = useT();
-  return (
-    <>
-      <h1 className="text-xl font-bold">{t("mahalla.title")}</h1>
-      <ul className="flex flex-col gap-2">
-        {graph.topics.map((tp) => (
-          <li key={tp.id} className="border border-ink-muted bg-paper p-3">
-            <b>{tp.id}</b> {tp.title[lang]} <span className="text-sm text-ink-muted">({t("mahalla.state")})</span>
-          </li>
-        ))}
-      </ul>
-    </>
-  );
+  const { lang } = useT();
+  const router = useRouter();
+  // TODO(core): mahalla:view, mahalla:startLesson({token, topic})
+  return <MahallaView view={stubMahalla(DEMO_NOW, lang)} onStart={() => router.push("/lesson")} />;
 }

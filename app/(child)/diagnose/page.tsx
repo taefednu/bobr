@@ -1,13 +1,19 @@
 "use client";
-import { useT } from "@/lib/i18n";
-import { Character } from "@/components/skeleton/Shell";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { DiagnoseView } from "@/components/diagnose/DiagnoseView";
+import { stubDiagnose } from "@/lib/ui/demo-data";
+
 export default function Page() {
-  const { t } = useT();
+  const router = useRouter();
+  const [step, setStep] = useState(0);
+  // TODO(core): diagnose:start, diagnose:view, diagnose:answer({token, probeId, value}) -> {accepted, done}
   return (
-    <>
-      <h1 className="text-xl font-bold">{t("diagnose.title")}</h1>
-      <Character who="ustoz" />
-      <p>{t("diagnose.placeholder")}</p>
-    </>
+    <DiagnoseView
+      view={stubDiagnose(step)}
+      busy={false}
+      onAnswer={() => setStep((s) => s + 1)}
+      onDone={() => router.push("/plan")}
+    />
   );
 }
