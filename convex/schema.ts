@@ -70,6 +70,8 @@ export default defineSchema({
     taskInstanceId: v.optional(v.id("taskProgress")),
     interestTheme: v.optional(v.union(v.literal("Nonvoyxona"), v.literal("Football"), v.literal("Minecraft"))),
     lastVerdict: v.optional(v.string()), // "ok" | "almost" | "misconception:M9" | "wrong" | "unparsed"
+    // Сколько проверок guard уже потрачено на сообщения в закрытый чат за текущий час (ms начала окна).
+    closedChatGuard: v.optional(v.object({ windowStart: v.number(), count: v.number() })),
     // «Научи Bobr»: что ребёнок видит сейчас. turnNo — ход, породивший попытку. Ответа и задачи тут нет: попытку считает код.
     teachScene: v.optional(v.object({
       turnNo: v.number(),

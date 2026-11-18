@@ -94,7 +94,7 @@ export function V3LessonLine({ values }: { values: string[] }) {
         <text key={i} x={x(i, 1)} y={Y + 32} textAnchor="middle" fontSize="16" fontWeight="700" className="v3-viz" style={{ fill: "var(--v3-ink)", fontFamily: "var(--font-sans)", ...vizAnim({ name: "in", ms: VIZ.inMs, delayMs: vizDelayMs(i * den, den * max + 1) }) }}>{i}</text>
       ))}
       {fr.map(({ v, k, n }) => (
-        <motion.circle key={v} cy={Y} r="10" fill={ON} stroke="var(--v3-card)" strokeWidth="3" initial={{ cx: x(0, 1) }} animate={{ cx: x(k, n) }} transition={{ ...transitions.move, delay: reduced ? 0 : afterQueueMs(den * max + 1) / 1000 }} />
+        <motion.circle key={v} cy={Y} r="10" className="v3-viz" style={vizAnim({ name: "in", ms: VIZ.inMs, delayMs: VIZ.startMs })} fill={ON} stroke="var(--v3-card)" strokeWidth="3" initial={{ cx: x(0, 1) }} animate={{ cx: x(k, n) }} transition={{ ...transitions.move, delay: reduced ? 0 : afterQueueMs(den * max + 1) / 1000 }} />
       ))}
     </svg>
   );

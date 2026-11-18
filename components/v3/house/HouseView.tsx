@@ -81,7 +81,7 @@ export function HouseView({ data, onStart }: { data: HouseData; onStart: (topic:
               disabled={pending !== null}
               onClick={() => void pick(s.n)}
               initial={reduced ? false : { opacity: 0, scale: TARGETS.appearFromScale }}
-              animate={{ opacity: 1, scale: 1, transition: { ...transitions.pop, delay: reduced ? 0 : 0.2 + s.n * 0.07 } }}
+              animate={{ opacity: 1, scale: 1, transition: transitions.appear }} // вместе с островом: иначе из-под плашки на миг видны запечённые в картинке камни
               whileTap={{ scale: PRESS.stone, y: TARGETS.pressDepthPx / 2 }}
               transition={transitions.press}
               className="absolute cursor-pointer rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--v3-blue-top)] disabled:cursor-default"

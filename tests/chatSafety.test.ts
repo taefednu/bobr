@@ -5,30 +5,30 @@ import { postChecksChat } from "../lib/chat/postChecks";
 import { scanMath } from "../lib/chat/claims";
 
 // guard и LLM — заглушки: проверяем порядок и решения кода в action chat:send, сети нет.
-const guardResult = vi.hoisted(() => ({ value: { ok: true, value: { category: "SAFE", severity: 0 } } as unknown }));
+const guardResult = vi.hoisted(() => ({ value: { ok: true, value: { category: "SAFE", severity: 0 } } as unknown, calls: 0 }));
 vi.mock("../convex/turn", () => ({
-  guardStep: async () => guardResult.value, llm: () => ({}), cacheOf: () => undefined, outputOk: async () => true,
+  guardStep: async () => (guardResult.calls++, guardResult.value), llm: () => ({}), cacheOf: () => undefined, outputOk: async () => true,
 }));
 vi.mock("../lib/llm", async (orig) => ({ ...(await orig<typeof import("../lib/llm")>()), callStructured: async () => ({ ok: false, reason: "test" }) }));
 const { send, writeChild, maskChatTurn } = await import("../convex/chat");
 
 const handlerOf = (fn: unknown) => (fn as { _handler: (ctx: unknown, args: unknown) => Promise<unknown> })._handler;
 type Call = { name: string; args: Record<string, unknown> };
-function fakeAction(access: { open: boolean }) {
+function fakeAction(access: { open: boolean }, quota = true) {
   const calls: Call[] = [];
   const ctx = {
     runQuery: async (ref: never) => getFunctionName(ref) === "session:resolve" ? "students:1"
       : { lang: "ru", state: "HOME", riskCount: 0, access, history: [], recent: [], task: null },
     runMutation: async (ref: never, args: Record<string, unknown>) => {
       const name = getFunctionName(ref); calls.push({ name, args });
-      return name === "chat:writeChild" ? { ok: true, id: "turns:9" } : null;
+      return name === "chat:writeChild" ? { ok: true, id: "turns:9" } : name === "chat:takeClosedGuard" ? quota : null;
     },
   };
-  return { ctx, calls, names: () => calls.map((c) => c.name) };
+  return { ctx, calls, names: () => calls.map((c) => c.name).filter((n) => n !== "chat:takeClosedGuard") };
 }
 const run = (ctx: unknown, text: string) => handlerOf(send)(ctx, { token: "t", who: "bobr", text }) as Promise<{ status: string }>;
 const guard = (category: string, severity: number) => { guardResult.value = { ok: true, value: { category, severity } }; };
-beforeEach(() => guard("SAFE", 0));
+beforeEach(() => { guard("SAFE", 0); guardResult.calls = 0; });
 
 describe("chat:send порядок и решения", () => {
   it.each([
@@ -64,6 +64,41 @@ describe("chat:send порядок и решения", () => {
       await run(a.ctx, text);
       expect(a.calls.find((c) => c.name === "chat:maskChatTurn")?.args).toEqual({ turnId: "turns:9" });
     }
+  });
+});
+
+describe("закрытый чат: квота guard", () => {
+  it("квота исчерпана: guard не зовётся, ответ closed; кризис guard без квоты не проходит", async () => {
+    guard("SELF_HARM", 3);
+    const a = fakeAction({ open: false }, false);
+    expect(await run(a.ctx, "привет")).toEqual({ status: "closed" });
+    expect(guardResult.calls).toBe(0);
+    expect(a.calls.map((c) => c.name)).toEqual(["chat:takeClosedGuard"]);
+  });
+  it("preGuard-кризис проходит при исчерпанной квоте, квота не тратится", async () => {
+    const a = fakeAction({ open: false }, false);
+    expect(await run(a.ctx, "я хочу умереть")).toEqual({ status: "crisis" });
+    expect(guardResult.calls).toBe(0);
+    expect(a.names()).toEqual(["conductor:setCrisis"]);
+  });
+  it("квота есть: guard зовётся и кризис срабатывает", async () => {
+    guard("SELF_HARM", 3);
+    const a = fakeAction({ open: false }, true);
+    expect(await run(a.ctx, "привет")).toEqual({ status: "crisis" });
+    expect(guardResult.calls).toBe(1);
+  });
+  it("takeClosedGuard: окно 1 час, лимит CHAT.closedGuardPerHour, потом новое окно", async () => {
+    const { takeClosedGuard } = await import("../convex/chat");
+    const { CHAT } = await import("../lib/config");
+    const st: Record<string, unknown> = { _id: "students:1" };
+    const ctx = { db: { get: async () => st, patch: async (_t: string, _i: string, v: object) => { Object.assign(st, v); } } };
+    const take = () => handlerOf(takeClosedGuard)(ctx, { studentId: "students:1" });
+    vi.setSystemTime(new Date("2026-11-18T07:00:00Z"));
+    for (let i = 0; i < CHAT.closedGuardPerHour; i++) expect(await take()).toBe(true);
+    expect(await take()).toBe(false);
+    vi.setSystemTime(new Date("2026-11-18T08:00:01Z"));
+    expect(await take()).toBe(true);
+    vi.useRealTimers();
   });
 });
 

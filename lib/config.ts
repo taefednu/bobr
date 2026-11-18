@@ -24,6 +24,7 @@ export const CHAT = {
   closedFromHour: 21, // закрыта 21:00–07:00
   closedToHour: 7,
   crisisBlockHours: 24,
+  closedGuardPerHour: 10, // проверки guard на сообщения в закрытый чат: кризис ловим, но модель не тратим без предела
 } as const;
 
 export const THRESHOLDS = {

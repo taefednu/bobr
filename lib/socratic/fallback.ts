@@ -131,6 +131,6 @@ export function fallbackHint(lang: Lang, topic: string, level: EscalationLevel):
 }
 
 /** Свободный вопрос в уроке с лесенкой: помощи сверх уже заработанного уровня не добавляем. */
-export const fallbackAsk = (lang: Lang, topic: string, level: EscalationLevel) => ASK_LEAD[lang] + fallbackHint(lang, topic, level);
+export const fallbackAsk = (lang: Lang, topic: string, level: EscalationLevel, praise = true) => (praise ? ASK_LEAD[lang] : "") + fallbackHint(lang, topic, level);
 
 export const FALLBACK_TOPICS = Object.keys(LADDER);

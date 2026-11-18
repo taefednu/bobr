@@ -1,9 +1,9 @@
 "use client";
 // Общие куски движения v3: каскад блоков, живой персонаж, счётчик процентов, очередь появления долей.
 // Все числа (мс, пружины, шаги) берутся из lib/motion.ts; здесь только сборка. При «уменьшить движение» всё на месте сразу.
-import { animate, motion } from "framer-motion";
-import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { EASE, IDLE_LIFE, REVEAL, VIZ, vizDelayMs, useMotion } from "@/lib/motion";
+import { animate, motion, useAnimationControls } from "framer-motion";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { EASE, IDLE_LIFE, POSE_ACT, REVEAL, VIZ, vizDelayMs, useMotion } from "@/lib/motion";
 
 /** Каскад при входе на экран: `{...reveal(i)}` на motion-элемент. Один раз при монтировании, ввод не блокируется. */
 export function useReveal() {
@@ -18,8 +18,14 @@ export function useReveal() {
  * Живая иллюстрация персонажа (Bobr или Ustoz): дышит от пола и чуть покачивается, ритмы у двоих разные, фаза случайная.
  * Вечное движение только здесь, у персонажей. При reduced фигура стоит. Обёртка не меняет раскладку: transform только на ней.
  */
-export function Alive({ who, children, className, style }: { who: "bobr" | "ustoz"; children: ReactNode; className?: string; style?: CSSProperties }) {
+export function Alive({ who, children, className, style, cheer }: { who: "bobr" | "ustoz"; children: ReactNode; className?: string; style?: CSSProperties; cheer?: string | null }) {
   const { reduced } = useMotion();
+  const hop = useAnimationControls();
+  // верный ответ: одно подпрыгивание (ключи POSE_ACT.happy); новый `cheer` играет снова, пустой — тишина
+  useEffect(() => {
+    if (!cheer || reduced) return;
+    void hop.start({ y: POSE_ACT.happy.act.y, transition: { duration: POSE_ACT.happy.durationS, ease: EASE.out } });
+  }, [cheer, reduced, hop]);
   const L = IDLE_LIFE[who];
   const [phase] = useState(() => Math.random());
   const loop = (periodS: number) => ({ duration: periodS, repeat: Infinity, ease: "easeInOut" as const, delay: -phase * periodS });
@@ -31,7 +37,7 @@ export function Alive({ who, children, className, style }: { who: "bobr" | "usto
         ? { scaleX: 1, scaleY: 1, rotate: 0, transition: { duration: 0 } }
         : { scaleY: [1, L.breatheY, 1], scaleX: [1, L.breatheX, 1], rotate: [0, L.swayDeg, 0, -L.swayDeg, 0], transition: { scaleY: loop(L.periodS), scaleX: loop(L.periodS), rotate: loop(L.swayPeriodS) } }}
     >
-      {children}
+      <motion.div animate={hop}>{children}</motion.div>
     </motion.div>
   );
 }

@@ -10,6 +10,7 @@ import { IconArrowLeft, V3Card, V3RoundButton, V3Screen, V3Sheet } from "@/compo
 import { Avatar, V3Bubble, V3Typing } from "@/components/v3/chat/Bubbles";
 import type { Key } from "@/lib/i18n";
 import { useT } from "@/lib/i18n";
+import { Alive } from "@/components/v3/motion";
 import { useMotion } from "@/lib/motion";
 import { fill } from "@/lib/ui/fill";
 import { V3Crisis, V3Fraction, V3LessonLine, V3LessonPie, V3LessonStrip, V3Pill } from "./parts";
@@ -61,7 +62,7 @@ export function LessonScreen(p: LessonScreenProps) {
         <header className="flex shrink-0 items-center gap-[18px] pt-[37px]">
           <V3RoundButton data-ref="back" label={t("lessonv3.back")} size={42} tone="cream" onClick={p.onBack}><IconArrowLeft size={20} /></V3RoundButton>
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <Avatar who="ustoz" size={56} dataRef="avatar" />
+            <Alive who="ustoz" cheer={punch ? `ok-${view?.hintLevel}-${task?.numbersShown.join()}` : null}><Avatar who="ustoz" size={56} dataRef="avatar" /></Alive>
             <div className="flex min-w-0 flex-col items-start gap-1">
               <p data-ref="name" className="v3-type-section" style={{ lineHeight: "24px" }}>{t("char.ustoz")}</p>
               {/* раскрытие ИИ: постоянная строка шапки, не прятать и не уменьшать */}

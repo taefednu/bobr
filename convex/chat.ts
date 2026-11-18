@@ -3,7 +3,7 @@
 // Любой сбой → фиксированная реплика из кода (lib/chat/fallback.ts), непроверенный текст LLM наружу не идёт.
 // Чат НЕ меняет students.state/currentTask/turnNo/lastReply (кроме CRISIS через общий setCrisis). Текст ребёнка не логируем (ПДн).
 import { v } from "convex/values";
-import { MODELS, TIMEOUTS_MS } from "../lib/config";
+import { CHAT, MODELS, TIMEOUTS_MS } from "../lib/config";
 import { chatLine } from "../lib/chat/fallback";
 import { openAnswers, scanMath } from "../lib/chat/claims";
 import { addressedToCharacter, isCheating } from "../lib/chat/intent";
@@ -24,6 +24,8 @@ import { childOrNull } from "./session";
 
 // ponytail: свой breaker (turn.ts держит свой): порог 3/30 с считается отдельно для чата.
 const breaker = createBreaker();
+// guard закрытого чата — свой breaker: сбои этого пути (его гоняют и скриптом) не должны размыкать защиту уроков.
+const closedBreaker = createBreaker();
 
 const who = v.union(v.literal("ustoz"), v.literal("bobr"));
 const lang = v.union(v.literal("uz"), v.literal("ru"));
@@ -120,6 +122,22 @@ export const maskChatTurn = internalMutation({
   },
 });
 
+/** Квота guard на сообщения в закрытый чат: окно 1 час, атомарно проверяем и увеличиваем до вызова модели. */
+export const takeClosedGuard = internalMutation({
+  args: { studentId: v.id("students") },
+  returns: v.boolean(),
+  handler: async (ctx, { studentId }) => {
+    const s = await ctx.db.get("students", studentId);
+    if (!s) return false;
+    const now = Date.now();
+    const q = s.closedChatGuard;
+    if (!q || now - q.windowStart >= 3_600_000) { await ctx.db.patch("students", studentId, { closedChatGuard: { windowStart: now, count: 1 } }); return true; }
+    if (q.count >= CHAT.closedGuardPerHour) return false;
+    await ctx.db.patch("students", studentId, { closedChatGuard: { windowStart: q.windowStart, count: q.count + 1 } });
+    return true;
+  },
+});
+
 /** Реплика собеседника (проверенная или фиксированная из кода). */
 export const writeReply = internalMutation({
   args: { studentId: v.id("students"), who, text: v.string(), pose: v.optional(v.string()) },
@@ -194,7 +212,8 @@ export const send = action({
     const gc = { lang: c.lang, task: { id: `chat:${w}` }, hintLevel: 0, lastVerdict: "", riskCount: c.riskCount, recent: c.recent, last6 } as unknown as Turn;
     if (!c.access.open) {
       // кризис, который видит только guard («лучше бы меня не было»), не теряется за закрытой дверью: текст не пишем, реплику не генерируем
-      const g = pg.text.trim() ? await guardStep(ctx, gc, pg.text).catch(() => null) : null;
+      // квота исчерпана → guard не зовём (preGuard-кризис выше от неё не зависит)
+      const g = pg.text.trim() && await ctx.runMutation(internal.chat.takeClosedGuard, { studentId }) ? await guardStep(ctx, gc, pg.text, closedBreaker).catch(() => null) : null;
       if (g?.ok) {
         const { category, severity } = g.value;
         const directed = (category === "GROOMING" || category === "PII") && !pg.suppressed && addressedToCharacter(pg.text, c.lang, last6);
