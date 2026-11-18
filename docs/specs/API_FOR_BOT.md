@@ -47,7 +47,7 @@ parent = c.mutation("parents:upsertFromTelegram", {"botSecret": BOT_SECRET, "tel
 
 ### 2. `parents:setConsent`, `parents:setGoal` (mutation)
 Согласие родителя и долгая цель (по спеке цель ставит родитель). `setGoal` копирует цель и дату всем привязанным детям (planner читает их со `students`).
-Args: `parentId: str, consent: bool` / `parentId: str, goal: "test_soon"|"improve"|"just_practice", testDate?: "YYYY-MM-DD"`. Returns: `None`. Errors: `unauthorized`, `bad testDate` (не `YYYY-MM-DD`, несуществующая дата, в прошлом или дальше 365 дней).
+Args: `parentId: str, consent: bool` (при `true` сервер сохраняет `parents.consentAt` — момент первого согласия, повтор его не двигает; `false` стирает) / `parentId: str, goal: "test_soon"|"improve"|"just_practice", testDate?: "YYYY-MM-DD"`. Returns: `None`. Errors: `unauthorized`, `bad testDate` (не `YYYY-MM-DD`, несуществующая дата, в прошлом или дальше 365 дней).
 ```python
 c.mutation("parents:setConsent", {"botSecret": BOT_SECRET, "parentId": parent, "consent": True})
 c.mutation("parents:setGoal", {"botSecret": BOT_SECRET, "parentId": parent, "goal": "test_soon", "testDate": "2026-12-01"})
@@ -56,7 +56,8 @@ c.mutation("parents:setGoal", {"botSecret": BOT_SECRET, "parentId": parent, "goa
 
 ### 3. `students:create` (mutation)
 Создать ребёнка и привязать к родителю. Язык берётся у родителя. Стейт `ONBOARD_CONSENT`.
-Args: `parentId: str, name: str (1-40), grade: int (1-11)`. Returns: `{"studentId": str}`. Errors: `unauthorized`, `parent not found`, `bad name`, `bad grade`.
+Args: `parentId: str, name: str (1-40), grade: int (1-11), requestId?: str (1-64)`. Returns: `{"studentId": str}`. Errors: `unauthorized`, `parent not found`, `bad name`, `bad grade`, `bad requestId`.
+Идемпотентность: бот генерирует `requestId` (uuid) один раз на действие и шлёт тот же при повторе после таймаута или обрыва. Повтор у того же родителя возвращает уже созданного ребёнка, дубля и второй ссылки нет. Без `requestId` каждый вызов создаёт нового.
 `name` хранится как `students.displayName`: детские ПДн, см. «Противоречия».
 ```python
 sid = c.mutation("students:create", {"botSecret": BOT_SECRET, "parentId": parent, "name": "Madina", "grade": 5})["studentId"]
@@ -71,8 +72,13 @@ lc = c.mutation("linkCode:create", {"botSecret": BOT_SECRET, "studentId": sid}) 
 `linkCode:redeem` (второй родитель по коду, `/start <code>`) **удалён 18.11**: код теперь открывает сессию ребёнка, а не делает его владельца родителем (BLOCKERS B10). Кнопка «Новый код» = ещё один `linkCode:create`.
 
 ### 5. `outbox:listUnsent`, `outbox:markSent`
-Очередь сообщений родителю. `listUnsent` (query) — неотправленные, старые первыми, `limit` 1-100. `markSent` (mutation) — идемпотентно.
-Returns: `[{"id","chatId","kind": "taught_bobr"|"crisis","text","createdAt"}]` / `None`.
+Очередь сообщений родителю. `listUnsent` (query) — то, что можно слать **сейчас**, `limit` 1-100. `markSent` (mutation) — идемпотентно.
+Returns: `[{"id","chatId","kind": "taught_bobr"|"crisis"|"daily_summary"|"forgotten","text","createdAt","category"?,"urgent"?}]` / `None`. `category`/`urgent` только у `crisis`.
+Готовность считает сервер, бот ничего не фильтрует и не держит лимитов: шлёт всё, что вернул `listUnsent`, и зовёт `markSent`.
+- `crisis` идут первыми, без задержки, лимита, тихих часов и паузы, любые настройки родителя игнорируются.
+- Несрочные (`taught_bobr`, `daily_summary`, `forgotten`): не в 21:00–08:00 Asia/Tashkent (21:00 уже тихо, 08:00 уже можно); не больше одного на родителя за сутки по Ташкенту (остальные ждут и уходят в следующие сутки); не при `parents.pausedUntil > now`; не если `parents.notifications` выключает этот вид (нет поля = всё включено).
+- Дети с ABUSE_HOME (`reviewQueue`, правило `abuseRowCounts`): родителю не уходит ничего несрочного, сводки тоже.
+- Производитель `internal.outbox.produceDigests`, крон 08:00 Ташкент (`convex/crons.ts`): `daily_summary` (числа за сутки и имя, если была активность; ключ `daily:<student>:<дата>`) и `forgotten` (есть гаснущие дома, не чаще раза в неделю; не создаётся в день со сводкой). Повторный запуск не дублирует (`dedupeKey`). Тексты без цитат ребёнка.
 Писатели (в коде, не для бота): `conductor.setCrisis` (SELF_HARM — срочный текст, GROOMING — мягкий, ABUSE_HOME — ничего; без цитат ребёнка) и `internal.outbox.notifyTaughtBobr({studentId, topic})`. Сообщение получает каждый привязанный родитель, у которого есть `chatId`. `notifyTaughtBobr` экспортирован, но **пока нигде не вызывается**: перехода темы в `taught_bobr` в коде нет (этап TEACH_BOBR). Тот, кто его пишет, зовёт `await enqueueTaughtBobr(ctx, studentId, topic)` из `convex/outbox.ts` прямо в своей мутации.
 
 Цикл бота:
@@ -89,6 +95,23 @@ async def outbox_loop(bot):
         await asyncio.sleep(3)
 ```
 Доставка at-least-once: упал между `send` и `markSent` — сообщение уйдёт повторно. Для кризиса это допустимо.
+
+### 5a. Идентичность, настройки и удаление родителя (`parents:*`, все с `botSecret`)
+
+**`parents:getByTelegramUser`** (query). Args: `telegramUserId: str`. Восстановление контекста после рестарта бота. Незнакомый id → `None` (ничего про чужих не раскрывается). Иначе:
+`{parentId, lang, consent, consentAt|null, goal|null, testDate|null, pausedUntil|null, notifications:{taughtBobr,dailySummary,forgotten}, children:[{studentId, displayName|null, grade|null, state, progress:{gap, solvedSelf, taughtBobr, housesAlive, housesBuilt}}]}`.
+`progress` для /progress: только счётчики тем и домов, без цитат и ответов ребёнка. Нет `notifications` в строке = все три включены.
+
+**`parents:setNotifications`** (mutation). Args: `parentId, taughtBobr: bool, dailySummary: bool, forgotten: bool`. Returns: `None`. Кризисные пуши отключить нельзя.
+
+**`parents:setPause`** (mutation). Args: `parentId, until: int ms | null`. `until` строго в будущем и не дальше 30 дней, иначе `bad pause`; `null` снимает паузу. Пауза касается несрочных пушей, кризис её игнорирует (решает `outbox`).
+
+**`parents:deleteAccount`** (mutation). Args: `parentId, confirm: bool`. Без `confirm: true` → `confirmation required`, ничего не удалено. Returns: `{done: bool}`. За вызов удаляется до 500 строк, поэтому бот зовёт функцию **в цикле, пока не придёт `done: true`**, и только тогда пишет родителю «удалено». Повтор безопасен: родителя нет → `done: true`.
+Удаляется: родитель, `parentSessions`, `outbox`, и каждый ребёнок, у которого нет другого родителя, со всеми строками: `turns`, `escalationEvents`, `attemptRequests`, `taskProgress`, `lessonSessions`, `topicStatus`, `houses`, `plans`, `reviewQueue`, `linkCodes`, `sessions`, `parentLinks`. Ребёнок, привязанный и ко второму родителю, остаётся: снимается только ссылка удаляемого родителя, а `students.parentId` переходит к оставшемуся.
+```python
+while not c.mutation("parents:deleteAccount", {"botSecret": BOT_SECRET, "parentId": parent, "confirm": True})["done"]:
+    pass
+```
 
 ### 6. `parentLogin:parentLogin` (action, без botSecret)
 Mini App шлёт `initData`. Секрет ключа: `HMAC_SHA256(key="WebAppData", msg=bot_token)`, хэш: `HMAC_SHA256(secret, data_check_string)`, поля без `hash`, отсортированы, constant-time, `auth_date` ≤ 24 ч. Родитель ищется по `user.id`; не найден (не делал `/start`) → `unauthorized`.
@@ -119,6 +142,10 @@ const data = useQuery(api.parent.dashboard, sessionToken ? { sessionToken } : "s
     week:    {solvedSelf, taughtBobr, newTopics: [{topic, title}], lastActive: ms|null} }] }  // окно 7 дней
 ```
 План: строка `plans` (если есть, сейчас её никто не пишет), иначе `buildPlan` на лету с целью N9, сегодня по Asia/Tashkent и `testDate` родителя. Ошибки: `unauthorized`. Запрос читает `Date.now()` (срок сессии, «дом гаснет»): осознанное отступление от правила «не читать часы в query».
+
+**Дополнение 18.11 (кабинет).** `parent.notifications` (`taughtBobr`, `dailySummary`, `forgotten`; без записи все `true`) и `parent.pausedUntil` (ms|null). `children[].topics[]` получили `solvedSelfAt`, `taughtAt` (ms|null). `children[].mistakes: [{topic, tag, count}]` — топ-тег ошибки на тему за 7 дней из `escalationEvents` (до 200 событий), только код тега, без цитат; текст по тегу — i18n/контент. `children[].week`: `minutesByDay: [{date, minutes}]` (7 дней, Asia/Tashkent), `minutes`, `activeDays`, `minutesLimited` (ходов больше 2000, минуты занижены). Минуты считает код по `turns.ts` (промежутки между ходами ≤ 5 мин); текст ходов в ответ не попадает.
+
+`parent:setNotifications({sessionToken, taughtBobr?, dailySummary?, forgotten?})` — частичное слияние, возвращает все три флага. `parent:setPause({sessionToken, pausedUntil: ms|null})` — в будущем и не дальше 30 дней, иначе `bad pause`; `null` снимает паузу. Ошибка `unauthorized` при плохом токене. Производители outbox читают эти поля сами; кризис паузу и настройки игнорирует. Тесты: `tests/parentDashboard.test.ts`.
 
 `children[].learningSupport` содержит последние учебные сессии по темам, состояние помощи, счётчики и до 20 событий с тегами заблуждений. `children[].week.socratic` содержит наблюдаемые результаты за последние семь дней. При отсутствии наблюдений либо полной сводки значения счётчиков не подменяются нулями. Родитель по-прежнему видит только сводку для связанных детей.
 
