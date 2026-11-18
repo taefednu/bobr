@@ -84,3 +84,56 @@ describe("maskPii: дроби и ответы проходят нетронут�
     }
   });
 });
+
+describe("maskPii: имя с фамилией маскируется целиком (выдуманные имена)", () => {
+  const full: [string, string[]][] = [
+    ["меня зовут Аня Тестова", ["Аня", "Тестова"]],
+    ["Меня зовут Бобур Тестов, мне 11", ["Бобур", "Тестов"]],
+    ["меня зовут аня тестова", ["аня", "тестова"]], // без заглавных: имя ловится и сейчас
+    ["моё имя Дима Тестовский", ["Дима", "Тестовский"]],
+    ["mening ismim Ali Testov", ["Ali", "Testov"]],
+    ["ismim Dilnoza Testova", ["Dilnoza", "Testova"]],
+    ["ismim Sardor Testyev", ["Sardor", "Testyev"]],
+    ["ismim Madina Testyeva", ["Madina", "Testyeva"]],
+    ["ismim Ali Testiy", ["Ali", "Testiy"]],
+    ["ismim ali testov", ["ali", "testov"]],
+    ["менинг исмим Бобур Тестов", ["Бобур", "Тестов"]],
+  ];
+  for (const [input, values] of full) {
+    it(input, () => {
+      const r = mask(input);
+      expect(r.kinds).toContain("name");
+      for (const v of values) expect(r.text).not.toContain(v);
+    });
+  }
+
+  it("текст после фамилии и математика остаются", () => {
+    expect(mask("меня зовут Аня Тестова, 1/2 + 1/3 = 5/6").text).toBe("меня зовут [NAME], 1/2 + 1/3 = 5/6");
+    expect(mask("ismim Ali Testov, 3/4").text).toBe("ismim [NAME], 3/4");
+  });
+
+  it("обычные слова после интро и школьные фразы не съедаются", () => {
+    expect(mask("ismim Ali, 5-sinf")).toEqual({ text: "ismim [NAME], 5-sinf", kinds: ["name"] });
+    expect(mask("ismim Ali oddiy bola").text).toBe("ismim [NAME] oddiy bola");
+    expect(mask("меня зовут Аня и я люблю дроби").text).toBe("меня зовут [NAME] и я люблю дроби");
+    expect(mask("ismim Ali va men 1/2 ni bilaman").text).toBe("ismim [NAME] va men 1/2 ni bilaman");
+    for (const s of [
+      "меня зовут к доске",
+      "меня зовут на урок",
+      "меня зовут домой",
+      "меня зовут играть",
+      "Аня решила задачу",
+      "ismim nima?",
+      "ismim yoʻq",
+    ]) {
+      expect(mask(s), s).toEqual({ text: normalizeText(s), kinds: [] });
+    }
+  });
+
+  it("имя, похожее на служебное слово или глагол, всё равно маскируется", () => {
+    for (const s of ["ismim Kim", "меня зовут Кристи", "меня зовут кристи", "меня зовут Бетти Тестова"]) {
+      expect(mask(s).kinds, s).toContain("name");
+    }
+    expect(mask("меня зовут идти домой").kinds).toEqual([]);
+  });
+});

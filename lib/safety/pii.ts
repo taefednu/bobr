@@ -1,6 +1,6 @@
 // Маска ПДн: до LLM и до БД. Значения не возвращаются и не логируются — наружу только виды (`kinds`).
 // Принимает уже нормализованный текст (normalizeText: апострофы → `'`).
-// ponytail: regex-эвристика. Не ловит телефон словами («девять ноль…»), фамилию после имени, адрес без
+// ponytail: regex-эвристика. Не ловит телефон словами («девять ноль…»), фамилию без типичного окончания и имя без интро, адрес без
 // ключевого слова, школу без номера, ники без @ — это работа LLM-guard (категория PII).
 
 export type PiiKind = "email" | "url" | "handle" | "phone" | "school" | "address" | "name";
@@ -79,11 +79,18 @@ const RULES: { kind: PiiKind; tag: string; re: RegExp }[] = [
   },
 ];
 
-// Имя — только после явного «меня зовут X»: интро остаётся, имя заменяется.
+// Имя — только после явного «меня зовут X»: интро остаётся, имя заменяется. Фамилия (второе слово) уходит
+// вместе с именем, если оканчивается как фамилия; запятая останавливает («ismim Ali, 5-sinf»).
 const NAME_RE = new RegExp(
-  String.raw`${NL}(меня\s+зовут|меня\s+звать|мо[её]\s+имя|(?:mening\s+)?ismim|(?:менинг\s+)?исмим)\s*[:,-]?\s*[\p{L}'-]+`,
+  String.raw`${NL}(меня\s+зовут|меня\s+звать|мо[её]\s+имя|(?:mening\s+)?ismim|(?:менинг\s+)?исмим)\s*[:,-]?\s*([\p{L}'-]+)(\s+[\p{L}'-]+)?`,
   "giu",
 );
+// «меня зовут к доске/играть/домой», «ismim nima?» — после интро не имя. С заглавной это всё-таки имя («ismim Kim»).
+const NOT_NAME = /^(?:к|ко|на|в|во|с|со|по|до|за|у|из|от|и|а|но|домой|сюда|туда|идти|пойти|прийти|зайти|выйти|nima|kim|emas|yo'q|va|ham|deb|shu|bu|lekin|ammo)$|(?:ть|ться)$/u;
+// ov/ova/ev/eva/yev/yeva, -ов/-ев/-ёв(а): уверенно и без заглавной; остальные окончания — только с заглавной.
+const SURNAME_STRONG = /.{2,}(?:ov|ova|ev|eva|ов|ова|ев|ева|ёв|ёва)$/iu;
+const SURNAME_WEAK = /.{2,}(?:iy|in|ina|yan|enko|dze|uk|ин|ина|ын|ский|ская|цкий|цкая|ий|ой|ый|ко|енко|ян|дзе|юк|ук)$/iu;
+const isSurname = (w: string) => SURNAME_STRONG.test(w) || (w[0] !== w[0].toLowerCase() && SURNAME_WEAK.test(w));
 
 export function maskPii(text: string): { text: string; kinds: PiiKind[] } {
   const kinds: PiiKind[] = [];
@@ -97,9 +104,10 @@ export function maskPii(text: string): { text: string; kinds: PiiKind[] } {
       return tag;
     });
   }
-  out = out.replace(NAME_RE, (_m, intro: string) => {
+  out = out.replace(NAME_RE, (m, intro: string, first: string, next?: string) => {
+    if (NOT_NAME.test(first)) return m;
     hit("name");
-    return `${intro} [NAME]`;
+    return `${intro} [NAME]${next && !isSurname(next.trim()) ? next : ""}`;
   });
   return { text: out, kinds };
 }
